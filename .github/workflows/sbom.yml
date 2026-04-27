@@ -12,13 +12,22 @@ on:
 permissions:
   contents: write
 
+# Prevent overlapping runs from racing on `git push`. Cancellation is disabled
+# so an already-pushed SBOM update is not silently aborted.
+concurrency:
+  group: sbom-update-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update-sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to commit SHAs (not floating tags) for supply-chain hardening.
+      # Comment after each pin records the human-readable version. Keep both in
+      # sync. Dependabot can update SHAs automatically — see CONTRIBUTING.md.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
         with:
           python-version: '3.12'
 

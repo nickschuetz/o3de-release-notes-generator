@@ -6,6 +6,8 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # IDE
 .vscode/
@@ -25,5 +27,9 @@ Thumbs.db
 /*_release_notes.md
 /*_release_data.json
 
-# Reports dir is tracked — don't ignore it
+# Reports dir is tracked (keeps a sample) but the regenerated full data
+# is large and noisy in diffs — only keep the rendered markdown sample.
+reports/release_data.json
+
+# Reports dir is tracked — don't ignore the directory itself
 !reports/

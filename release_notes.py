@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.3.0-beta'
+__version__ = '0.4.0-beta'
 
 SCHEMA_VERSION = 2
 
@@ -298,9 +298,15 @@ def parse_repo_path_mappings(
 
 MAX_STDERR_LOG_LEN = 200
 
+# Defense-in-depth: scrub GitHub token shapes from stderr before logging.
+# gh CLI is unlikely to print tokens, but if it ever does, we don't want them
+# in CI logs.
+GH_TOKEN_PATTERN = re.compile(r'\bgh[pousr]_[A-Za-z0-9]{20,}\b')
+
 
 def _safe_stderr(text: str) -> str:
-    return text.strip()[:MAX_STDERR_LOG_LEN]
+    redacted = GH_TOKEN_PATTERN.sub('<redacted-token>', text)
+    return redacted.strip()[:MAX_STDERR_LOG_LEN]
 
 
 def extract_pr_numbers_from_git_log(
@@ -316,6 +322,8 @@ def extract_pr_numbers_from_git_log(
         cwd=str(repo_path.resolve()),
         capture_output=True,
         text=True,
+        encoding='utf-8',
+        errors='replace',
         timeout=60,
     )
     if result.returncode != 0:
@@ -330,9 +338,10 @@ def extract_pr_numbers_from_git_log(
     return sorted(pr_numbers)
 
 
-def _build_graphql_query(owner: str, repo: str, pr_numbers: list[int]) -> str:
-    owner = validate_repo_slug(f'{owner}/{repo}').split('/')[0]
-
+def _build_graphql_query(pr_numbers: list[int]) -> str:
+    # Owner/name are GraphQL variables ($owner, $name) — never interpolated as
+    # strings. PR numbers are integer-validated before they reach this function
+    # and become GraphQL aliases (pr_<n>), which require literal numbers.
     fragments = []
     for num in pr_numbers:
         fragments.append(
@@ -349,8 +358,8 @@ def _build_graphql_query(owner: str, repo: str, pr_numbers: list[int]) -> str:
         )
 
     return (
-        '{\n'
-        f'  repository(owner: "{owner}", name: "{repo}") {{\n'
+        'query($owner: String!, $name: String!) {\n'
+        '  repository(owner: $owner, name: $name) {\n'
         + '\n'.join(fragments) +
         '\n  }\n'
         '}'
@@ -362,6 +371,8 @@ def _run_gh_command(args: list[str], timeout: int = 30) -> dict:
         args,
         capture_output=True,
         text=True,
+        encoding='utf-8',
+        errors='replace',
         timeout=timeout,
     )
     if result.returncode != 0:
@@ -384,6 +395,8 @@ def _check_gh_available() -> bool:
         ['gh', 'auth', 'status'],
         capture_output=True,
         text=True,
+        encoding='utf-8',
+        errors='replace',
         timeout=10,
     )
     if result.returncode != 0:
@@ -420,19 +433,25 @@ def fetch_pr_metadata_batch(
         total_batches = (total + batch_size - 1) // batch_size
         logger.info('Fetching PRs batch %d/%d (%d PRs)', batch_num, total_batches, len(batch))
 
-        query = _build_graphql_query(owner, repo, batch)
+        query = _build_graphql_query(batch)
         try:
             data = _run_gh_command(
-                ['gh', 'api', 'graphql', '-f', f'query={query}'],
+                ['gh', 'api', 'graphql',
+                 '-f', f'query={query}',
+                 '-f', f'owner={owner}',
+                 '-f', f'name={repo}'],
                 timeout=60,
             )
         except RuntimeError:
             logger.warning('Batch %d failed, trying individual PRs', batch_num)
             for num in batch:
                 try:
-                    single_query = _build_graphql_query(owner, repo, [num])
+                    single_query = _build_graphql_query([num])
                     data = _run_gh_command(
-                        ['gh', 'api', 'graphql', '-f', f'query={single_query}'],
+                        ['gh', 'api', 'graphql',
+                         '-f', f'query={single_query}',
+                         '-f', f'owner={owner}',
+                         '-f', f'name={repo}'],
                         timeout=30,
                     )
                     pr_data = data.get('data', {}).get('repository', {}).get(f'pr_{num}')
@@ -477,6 +496,10 @@ def _categorize_by_labels(labels: list[str]) -> str | None:
         return None
     if 'sig/release' in sig_labels and len(sig_labels) > 1:
         sig_labels = [l for l in sig_labels if l != 'sig/release']
+    # Deterministic: when a PR carries multiple SIG labels, pick the one earliest
+    # in SIG_CANONICAL_ORDER. Without this sort, GitHub's label-return order
+    # decides — which is not stable across runs.
+    sig_labels.sort(key=SIG_CANONICAL_ORDER.index)
     return sig_labels[0]
 
 
@@ -484,11 +507,19 @@ def _categorize_by_title(title: str) -> str | None:
     title_lower = f' {title.lower()} '
     best_sig = None
     best_count = 0
+    best_priority = len(SIG_CANONICAL_ORDER)
     for sig, keywords in SIG_TITLE_KEYWORDS.items():
         count = sum(1 for kw in keywords if kw.lower() in title_lower)
-        if count > best_count:
+        if count == 0:
+            continue
+        priority = SIG_CANONICAL_ORDER.index(sig) if sig in SIG_CANONICAL_ORDER else len(SIG_CANONICAL_ORDER)
+        # Prefer higher count; on ties, prefer the SIG earlier in the canonical
+        # order. Without an explicit tiebreak the choice depends on dict
+        # iteration order, which is not a reliable contract.
+        if count > best_count or (count == best_count and priority < best_priority):
             best_count = count
             best_sig = sig
+            best_priority = priority
     return best_sig
 
 
@@ -578,10 +609,19 @@ PR_BODY_NOISE_PATTERNS = [
 BULLET_PATTERN = re.compile(r'^[\-\*]\s+')
 
 
+MAX_PR_BODY_BYTES = 65536
+
+
 def _build_pr_description(title: str, body: str) -> str:
     sanitized_title = _sanitize_pr_title_for_markdown(title)
     if not body or not body.strip():
         return sanitized_title
+
+    # Defense-in-depth: cap body before extraction so a pathological PR body
+    # cannot blow up regex / string ops. The first paragraph is itself capped
+    # at 300 chars downstream, but capping early keeps memory/CPU bounded.
+    if len(body) > MAX_PR_BODY_BYTES:
+        body = body[:MAX_PR_BODY_BYTES]
 
     first_paragraph = _extract_first_paragraph(body)
     if not first_paragraph:
@@ -674,9 +714,24 @@ def merge_with_existing(
                 pr['manual_override_description'] = existing['manual_override_description']
         merged.append(pr)
 
+    dropped_without_overrides = 0
     for pr in existing_by_key.values():
         if pr.get('manual_override_sig') or pr.get('manual_override_description'):
             merged.append(pr)
+        else:
+            dropped_without_overrides += 1
+
+    if dropped_without_overrides:
+        # PRs that were in the existing JSON but no longer appear in git log
+        # are dropped unless they carry a manual_override_*. Edits to
+        # `description` or `sig_category` made directly (without setting the
+        # corresponding override field) are silently lost. Log a warning so
+        # users notice when this happens.
+        logger.warning(
+            'Dropped %d PR(s) from previous JSON (no longer in git log; no manual_override_* set). '
+            'Set manual_override_sig / manual_override_description to preserve direct edits.',
+            dropped_without_overrides,
+        )
 
     merged.sort(key=lambda p: (p.get('repo', ''), p.get('number', 0)))
     return merged
@@ -797,7 +852,22 @@ def _resolve_hint(hint: str) -> str:
     return hint
 
 
-def generate_summary(pr_list: list[dict], version: str, summary_cmd: str, hint: str = '') -> str | None:
+DEFAULT_SUMMARY_TIMEOUT = 300
+MIN_SUMMARY_TIMEOUT = 10
+MAX_SUMMARY_TIMEOUT = 3600
+
+
+def generate_summary(
+    pr_list: list[dict],
+    version: str,
+    summary_cmd: str,
+    hint: str = '',
+    timeout: int = DEFAULT_SUMMARY_TIMEOUT,
+) -> str | None:
+    if timeout < MIN_SUMMARY_TIMEOUT or timeout > MAX_SUMMARY_TIMEOUT:
+        logger.error('Invalid summary timeout: %d (must be %d-%d)', timeout, MIN_SUMMARY_TIMEOUT, MAX_SUMMARY_TIMEOUT)
+        return None
+
     resolved_hint = _resolve_hint(hint)
     prompt = _build_summary_prompt(pr_list, version, hint=resolved_hint)
 
@@ -817,7 +887,7 @@ def generate_summary(pr_list: list[dict], version: str, summary_cmd: str, hint: 
         logger.error('Summary command not found: %s', executable)
         return None
 
-    logger.info('Generating narrative summary using: %s', executable)
+    logger.info('Generating narrative summary using: %s (timeout=%ds)', executable, timeout)
 
     try:
         result = subprocess.run(
@@ -825,7 +895,9 @@ def generate_summary(pr_list: list[dict], version: str, summary_cmd: str, hint: 
             input=prompt,
             capture_output=True,
             text=True,
-            timeout=120,
+            encoding='utf-8',
+            errors='replace',
+            timeout=timeout,
         )
         if result.returncode != 0:
             logger.error('Summary generation failed: %s', _safe_stderr(result.stderr))
@@ -840,14 +912,17 @@ def generate_summary(pr_list: list[dict], version: str, summary_cmd: str, hint: 
         return summary
 
     except subprocess.TimeoutExpired:
-        logger.error('Summary generation timed out after 120s')
+        logger.error('Summary generation timed out after %ds', timeout)
         return None
     except OSError as e:
         logger.error('Failed to run summary command: %s', e)
         return None
 
 
-DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:32b'
+# qwen2.5:14b is the practical default — good quality at ~12GB VRAM. Users with
+# more headroom can switch to qwen2.5:32b; users without a GPU can switch to
+# `claude -p`. See README for the full table.
+DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
 
 
 def render_markdown(
@@ -976,7 +1051,9 @@ def load_existing_json(path: pathlib.Path) -> dict | None:
 
 
 def _run_fetch(args: argparse.Namespace) -> int:
-    if not _check_gh_available():
+    dry_run = getattr(args, 'dry_run', False)
+
+    if not dry_run and not _check_gh_available():
         return 1
 
     try:
@@ -993,6 +1070,30 @@ def _run_fetch(args: argparse.Namespace) -> int:
         if not (rpath / '.git').exists():
             logger.error('Not a git repository: %s (for %s)', rpath, slug)
             return 1
+
+    if dry_run:
+        for repo_slug in args.repos:
+            try:
+                validate_repo_slug(repo_slug)
+            except ValueError as e:
+                logger.error('%s', e)
+                return 1
+            local_path = repo_path_map[repo_slug]
+            try:
+                pr_numbers = extract_pr_numbers_from_git_log(local_path, args.from_ref, args.to_ref)
+            except (RuntimeError, ValueError) as e:
+                logger.error('%s', e)
+                return 1
+            logger.info(
+                '[dry-run] %s: %d PRs would be fetched between %s..%s (%s)',
+                repo_slug, len(pr_numbers), args.from_ref, args.to_ref, local_path,
+            )
+            if pr_numbers:
+                preview = ', '.join(f'#{n}' for n in pr_numbers[:10])
+                more = f' ... and {len(pr_numbers) - 10} more' if len(pr_numbers) > 10 else ''
+                logger.info('[dry-run] %s PR numbers: %s%s', repo_slug, preview, more)
+        logger.info('[dry-run] No GitHub API calls made; no files written.')
+        return 0
 
     output_json = validate_output_path(pathlib.Path(args.output_json))
 
@@ -1079,7 +1180,11 @@ def _run_render(args: argparse.Namespace) -> int:
     if getattr(args, 'generate_summary', False):
         summary_cmd = getattr(args, 'summary_cmd', DEFAULT_SUMMARY_CMD)
         summary_hint = getattr(args, 'summary_hint', '') or ''
-        summary = generate_summary(data['pull_requests'], args.release_version, summary_cmd, hint=summary_hint)
+        summary_timeout = getattr(args, 'summary_timeout', DEFAULT_SUMMARY_TIMEOUT)
+        summary = generate_summary(
+            data['pull_requests'], args.release_version, summary_cmd,
+            hint=summary_hint, timeout=summary_timeout,
+        )
         if summary:
             logger.info('Generated narrative summary (%d chars)', len(summary))
         else:
@@ -1102,6 +1207,8 @@ def _run_generate(args: argparse.Namespace) -> int:
     rc = _run_fetch(args)
     if rc != 0:
         return rc
+    if getattr(args, 'dry_run', False):
+        return 0
     args.input_json = args.output_json
     return _run_render(args)
 
@@ -1111,6 +1218,11 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
         '-v', '--verbose',
         action='store_true',
         help='Enable verbose logging',
+    )
+    parser.add_argument(
+        '--log-file',
+        default=None,
+        help='Append logs to this file in addition to stderr',
     )
 
 
@@ -1127,6 +1239,9 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
                         help='Default local clone path for repos without explicit mapping (default: .)')
     parser.add_argument('--output-json', required=True,
                         help='Output JSON file path')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Show which PRs would be fetched (from git log) and exit '
+                             'without calling the GitHub API or writing any files')
 
 
 def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool = True) -> None:
@@ -1145,6 +1260,10 @@ def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool =
                         help=f'Command to generate summary (default: {DEFAULT_SUMMARY_CMD})')
     parser.add_argument('--summary-hint', default='',
                         help='Narrative guidance for the LLM — inline text or @filepath to read from a file')
+    parser.add_argument('--summary-timeout', type=int, default=DEFAULT_SUMMARY_TIMEOUT,
+                        help=f'Timeout (seconds) for the summary command '
+                             f'(default: {DEFAULT_SUMMARY_TIMEOUT}; range: '
+                             f'{MIN_SUMMARY_TIMEOUT}-{MAX_SUMMARY_TIMEOUT})')
 
 
 def add_parser_args(parser: argparse.ArgumentParser) -> None:
@@ -1167,6 +1286,18 @@ def add_parser_args(parser: argparse.ArgumentParser) -> None:
     gen_parser.set_defaults(func=_run_generate)
 
 
+def _configure_logging(verbose: bool, log_file: str | None) -> None:
+    logging.basicConfig(format=LOG_FORMAT)
+    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    if log_file:
+        try:
+            handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+            handler.setFormatter(logging.Formatter(LOG_FORMAT))
+            logger.addHandler(handler)
+        except OSError as e:
+            logger.error('Could not open log file %s: %s', log_file, e)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog='release_notes',
@@ -1176,8 +1307,7 @@ def main() -> int:
     add_parser_args(parser)
     args = parser.parse_args()
 
-    logging.basicConfig(format=LOG_FORMAT)
-    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    _configure_logging(args.verbose, getattr(args, 'log_file', None))
 
     return args.func(args)
 

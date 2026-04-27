@@ -40,7 +40,7 @@ Both scripts use only Python stdlib modules and interact with external systems (
 
 ### `release_notes.py`
 
-The main script. Three subcommands (`fetch`, `render`, `generate`) exposed via `argparse`. Approximately 1190 lines.
+The main script. Three subcommands (`fetch`, `render`, `generate`) exposed via `argparse`.
 
 **Key data structures:**
 - `SIG_TITLE_KEYWORDS` - Dict mapping SIG names to title keyword lists for heuristic categorization.
@@ -53,11 +53,11 @@ The main script. Three subcommands (`fetch`, `render`, `generate`) exposed via `
 
 ### `generate_sbom.py`
 
-Generates a CycloneDX 1.5 JSON SBOM (`sbom.cdx.json`). Captures project metadata, Python stdlib module inventory, and SHA-256 hashes of all source files. Approximately 190 lines.
+Generates a CycloneDX 1.5 JSON SBOM (`sbom.cdx.json`). Captures project metadata, Python stdlib module inventory, and SHA-256 hashes of all source files.
 
 ### `tests/test_release_notes.py`
 
-149 unit tests using `pytest` and `unittest.mock`. Covers input validation (including injection attempts), multi-repo path parsing, SIG categorization (labels, title heuristics, file heuristics, priority ordering), summary prompt building, summary generation (success, failure, timeout), markdown rendering (with and without summary), incremental merging with manual override preservation, atomic file I/O, and JSON loading/validation.
+Unit tests using `pytest` and `unittest.mock`. Covers input validation (including injection attempts and stderr token redaction), multi-repo path parsing, SIG categorization (labels, title heuristics, file heuristics, priority ordering, deterministic tiebreaks), GraphQL variable shape, summary prompt building, summary generation (success, failure, timeout, timeout-bounds validation), markdown rendering (with and without summary), incremental merging with manual-override preservation and drop warnings, dry-run behavior, atomic file I/O, JSON loading/validation, and PR body size capping.
 
 ### `.github/workflows/sbom.yml`
 
@@ -84,15 +84,15 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 **Input:** PR numbers per repo, GitHub repo slug(s).
 
 **Process:**
-1. For each repo, constructs GraphQL queries batching up to 30 PRs per request (~8 requests for a typical release of ~230 PRs). Queries fetch title, body, labels, files, author, and merge date.
-2. Executes via `gh api graphql` (subprocess with list args). Each repo's PRs are fetched from the correct GitHub owner/repo.
-3. PR descriptions are built from the PR body's first meaningful paragraph (20-300 chars; skipping template headers, checklists, URLs, images, `<img>` tags, and bullet lists). When the paragraph shares less than 20% word overlap with the title, both are combined with an em dash for standalone readability. Falls back to the sanitized title if the body is empty, too short, too long, or entirely noise.
-3. For each PR, categorizes by SIG using three methods in priority order:
-   - **Label match:** Checks for `sig/*` GitHub labels. Highest confidence.
-   - **Title heuristic:** Matches title keywords against per-SIG keyword maps.
+1. For each repo, constructs GraphQL queries batching up to 30 PRs per request (~8 requests for a typical release of ~230 PRs). Queries fetch title, body, labels, files, author, and merge date. The query uses GraphQL variables (`$owner`, `$name`) instead of string interpolation, so owner/name never appear in the query body.
+2. Executes via `gh api graphql -f query=… -f owner=… -f name=…` (subprocess with list args). Each repo's PRs are fetched from the correct GitHub owner/repo.
+3. PR descriptions are built from the PR body's first meaningful paragraph (20-300 chars; skipping template headers, checklists, URLs, images, `<img>` tags, and bullet lists). The body is capped at 64KB before extraction so a pathological body cannot blow up regex/string ops. When the paragraph shares less than 20% word overlap with the title, both are combined with an em dash for standalone readability. Falls back to the sanitized title if the body is empty, too short, too long, or entirely noise.
+4. For each PR, categorizes by SIG using three methods in priority order:
+   - **Label match:** Checks for `sig/*` GitHub labels. Highest confidence. When multiple SIG labels are present, the SIG earliest in `SIG_CANONICAL_ORDER` wins (deterministic — does not depend on label-return order from GitHub).
+   - **Title heuristic:** Matches title keywords against per-SIG keyword maps. Best-keyword-count wins; on ties, the SIG earliest in `SIG_CANONICAL_ORDER` wins.
    - **File path heuristic:** Matches changed file paths against directory-to-SIG maps (derived from `.github/CODEOWNERS`). Uses longest-match-wins: for overlapping patterns (e.g., `AzCore/AzCore/Math/` vs `AzCore/`), the most specific match determines the SIG.
-4. Detects flags (cherry-pick, stabilization-sync) for filtering.
-5. Merges with any existing JSON data, preserving manual overrides.
+5. Detects flags (cherry-pick, stabilization-sync) for filtering.
+6. Merges with any existing JSON data, preserving manual overrides. PRs that exist in the prior JSON but no longer appear in `git log` and lack `manual_override_*` are dropped — and a warning is logged so the user notices when this happens.
 
 **Output:** Structured JSON with full PR metadata and categorization.
 
@@ -157,21 +157,57 @@ The `generate_sbom.py` script produces a CycloneDX 1.5 JSON SBOM at `sbom.cdx.js
 
 ## Security Model
 
+### Trust Boundaries
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        TRUSTED — local user environment                   │
+│                                                                           │
+│   user CLI args ──┐                                                       │
+│   gh credentials ─┼──▶ release_notes.py ──▶ output: JSON, .md (atomic)    │
+│   local git repo ─┘         │                                             │
+│                             │ subprocess (list args, no shell=True)       │
+│        ┌────────────────────┼─────────────────────────┐                   │
+│        ▼                    ▼                         ▼                   │
+│ ┌────────────┐       ┌────────────┐            ┌─────────────┐            │
+│ │ git log    │       │ gh CLI     │            │ summary cmd │            │
+│ │ (read-only)│       │ (auth via  │            │ (ollama /   │            │
+│ │            │       │  keyring)  │            │  claude /   │            │
+│ │            │       │            │            │  custom)    │            │
+│ └────────────┘       └─────┬──────┘            └──────┬──────┘            │
+│                            │                          │                   │
+└────────────────────────────┼──────────────────────────┼───────────────────┘
+                             │                          │
+            ═══════════════ trust boundary ═══════════════
+                             │                          │
+                ┌────────────▼──────────┐    ┌──────────▼──────────┐
+                │   GitHub GraphQL API  │    │  LLM (local/cloud)  │
+                │   (PR titles, bodies, │    │  (untrusted output, │
+                │    labels — UNTRUSTED)│    │   sanitized into MD)│
+                └───────────────────────┘    └─────────────────────┘
+```
+
+Everything inside the trusted box is data the user controls or gh's credential store. Anything crossing a trust boundary (GitHub API responses, LLM output) is treated as untrusted: validated structurally, sanitized for markdown, and never used to construct shell commands or file paths.
+
 ### Threat Model
 
 | Asset | Threat | Mitigation |
 |-------|--------|------------|
-| GitHub auth token | Exposure in logs or code | Delegated to `gh` CLI credential store; never handled directly |
+| GitHub auth token | Exposure in logs or code | Delegated to `gh` CLI credential store; never handled directly. `_safe_stderr()` scrubs `ghp_/gho_/ghu_/ghs_/ghr_` token shapes from any subprocess stderr before logging (defense-in-depth). |
 | PR titles (untrusted) | Markdown injection in rendered output | Sanitized: `#`, `[`, `]`, `` ` ``, `\|` escaped; trailing PR refs stripped |
-| PR bodies (untrusted) | Markdown/HTML injection via body extraction | First paragraph only (20-300 chars); images, `<img>` tags, bullet lists, and template noise filtered; combined with title only when word overlap <20%; sanitized before rendering |
+| PR titles (untrusted) | LLM prompt injection via summary prompt | Title is inserted as data, not instruction. The summary output is human-reviewed before publishing and is only ever placed in the markdown intro — never executed, never used as a path or command. Worst case: a release manager rejects a tampered narrative. |
+| PR bodies (untrusted) | Markdown/HTML injection via body extraction | First paragraph only (20-300 chars); body capped at 64KB before extraction; images, `<img>` tags, bullet lists, and template noise filtered; combined with title only when word overlap <20%; sanitized before rendering |
 | Git refs (user input) | Command injection via subprocess | Validated against `^[a-zA-Z0-9._/-]+$`; must not start with `-` |
 | Repo slugs (user input) | Command injection | Validated against `^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$` |
+| GraphQL query owner/name | Query injection via string interpolation | Owner and name are passed as GraphQL variables (`$owner`, `$name`) via `gh api graphql -f owner=… -f name=…`; never interpolated into the query string. |
 | Output file paths | Path traversal | Resolved via `pathlib.Path.resolve()`; optional base-dir containment check |
+| Summary hint file (`@filepath`) | Symlink-following / unbounded read | `pathlib.Path.resolve()` normalises the path; failure logs and returns empty rather than raising. The CLI is a developer-run tool, so the threat is self-DoS rather than escalation. |
 | JSON data files | Corruption from interrupted writes | Atomic writes via `tempfile` + `os.replace()` |
 | GitHub API responses | Malformed data | Validated structure before use; missing fields default safely |
-| LLM summary command | Command injection via `--summary-cmd` | Command parsed via `shlex.split()` (respects shell quoting), executed via subprocess with list args; executable checked via `shutil.which()` before invocation |
-| LLM output | Prompt injection in generated narrative | Output is inserted into markdown intro only; not used in shell commands, file paths, or API calls |
-| Supply chain | Undetected dependency changes | CycloneDX SBOM with source file hashes; auto-updated via CI |
+| LLM summary command | Command injection via `--summary-cmd` | Command parsed via `shlex.split()` (respects shell quoting), executed via subprocess with list args; executable checked via `shutil.which()` before invocation; runtime bounded by `--summary-timeout` (10–3600s). |
+| LLM output | Prompt injection in generated narrative | Output is inserted into markdown intro only; not used in shell commands, file paths, or API calls. Output is reviewed by a human before publishing. |
+| Subprocess stderr | Sensitive data in CI logs | All subprocess output decoded with `encoding='utf-8', errors='replace'`; stderr passed through `_safe_stderr()` (token-scrub + 200-char truncation) before logging. |
+| Supply chain | Undetected dependency changes | CycloneDX SBOM with source file SHA-256 hashes; auto-updated via CI (`sbom.yml`); GitHub Actions pinned to commit SHAs (not floating tags). |
 
 ### OWASP Top 10 Mapping
 
@@ -208,6 +244,8 @@ The `generate_sbom.py` script produces a CycloneDX 1.5 JSON SBOM at `sbom.cdx.js
 | PR number | Parsed as `int()` | 999999 | Must be 1-999999; validated before GraphQL query construction |
 | Summary hint | Free text or `@filepath` | N/A | If prefixed with `@`, reads from file; file must exist and be readable; returns empty on failure |
 | Summary command | Parsed via `shlex.split()` | N/A | Executable checked via `shutil.which()` before invocation |
+| Summary timeout | Integer | N/A | Must be 10–3600 seconds; out-of-range values reject the run |
+| PR body | Free text from GitHub API | 64KB | Capped before regex/string operations |
 
 ### Subprocess Execution
 
@@ -215,9 +253,12 @@ Every subprocess call uses list arguments:
 
 ```python
 subprocess.run(['git', 'log', '--format=%s', f'{from_ref}..{to_ref}'], ...)
-subprocess.run(['gh', 'api', 'graphql', '-f', f'query={query}'], ...)
+subprocess.run(['gh', 'api', 'graphql',
+                '-f', f'query={query}',
+                '-f', f'owner={owner}',
+                '-f', f'name={name}'], ...)  # owner/name are GraphQL variables
 subprocess.run(['gh', 'auth', 'status'], ...)
 subprocess.run(cmd_parts, input=prompt, ...)  # summary generation via stdin
 ```
 
-No call uses `shell=True`. The `from_ref` and `to_ref` values are validated before interpolation into the argument list, preventing argument injection (e.g., a ref like `--exec=malicious` is rejected by the leading-hyphen check). The summary command is parsed via `shlex.split()` (respects shell quoting) and the executable is verified via `shutil.which()` before invocation. PR numbers are validated to be positive integers within bounds (1-999999) before inclusion in GraphQL queries.
+No call uses `shell=True`. All calls pass `encoding='utf-8', errors='replace'` so non-UTF-8 locales cannot corrupt decoded output. The `from_ref` and `to_ref` values are validated before interpolation into the argument list, preventing argument injection (e.g., a ref like `--exec=malicious` is rejected by the leading-hyphen check). For GraphQL, owner and name are passed as variables (`$owner`, `$name`) via separate `-f` arguments — they are never interpolated into the query string itself. The summary command is parsed via `shlex.split()` (respects shell quoting) and the executable is verified via `shutil.which()` before invocation. PR numbers are validated to be positive integers within bounds (1-999999) before inclusion in GraphQL queries.

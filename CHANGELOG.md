@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0-beta] - 2026-04-27
+
+### Added
+- `--dry-run` flag (fetch / generate) — prints which PRs would be fetched from local `git log` without calling the GitHub API or writing files
+- `--summary-timeout` flag — configurable LLM timeout (default 300s, range 10–3600s); supersedes the previous hardcoded 120s
+- `--log-file PATH` flag — append logs to a file in addition to stderr (useful for CI runs)
+- `_safe_stderr()` now scrubs `ghp_/gho_/ghu_/ghs_/ghr_` token shapes from any subprocess stderr before logging (defense-in-depth)
+- 64KB cap on PR body size before regex/string extraction
+- Trust-boundary diagram and expanded threat model in ARCHITECTURE.md (LLM prompt-injection row, symlink/`@filepath` row, GraphQL injection row, subprocess-stderr row)
+- New top-level docs: `SECURITY.md` (vulnerability disclosure) and `CONTRIBUTING.md` (dual-license policy + SHA-pin policy + dev workflow)
+- `pyproject.toml` (pytest / ruff / mypy config — replaces `sys.path.insert` hack in tests) and `Makefile` (test / sbom / lint / typecheck)
+- `reports/hints/prior_release_themes.txt` — extracted intro paragraphs from the prior 26.05.0 render, used as `--summary-hint @reports/hints/prior_release_themes.txt` to keep theme/sentiment stable across mid-cycle re-runs
+- New CI workflow `.github/workflows/test.yml` runs pytest on Python 3.10/3.11/3.12 for every push and PR
+- Concurrency control on `sbom.yml` to prevent racing `git push`es
+- 14 new tests (163 total): label-sort determinism, title-tiebreak determinism, GraphQL variable shape, stderr token redaction, body size cap, summary-timeout bounds, merge drop warning, dry-run
+
+### Changed
+- **Categorization is now deterministic.** `_categorize_by_labels` and `_categorize_by_title` previously depended on GitHub's label-return order or Python dict iteration order to break ties; both now break ties via `SIG_CANONICAL_ORDER` for stable, run-to-run consistent output.
+- GraphQL queries to the GitHub API now use server-side variables (`$owner`, `$name`) instead of string interpolation — `gh api graphql -f query=… -f owner=… -f name=…`. Owner/name validation remains in place; this removes the interpolation surface entirely.
+- All subprocess calls (`git`, `gh`, summary command) now pass `encoding='utf-8', errors='replace'` so non-UTF-8 locales cannot corrupt decoded output.
+- `merge_with_existing()` now logs a warning when prior-JSON PRs are dropped without a `manual_override_*` flag — direct edits to `description` / `sig_category` are still silently lost (documented behavior), but the user is no longer surprised by it.
+- Default `--summary-cmd` lowered from `qwen2.5:32b` (~24GB VRAM) to `qwen2.5:14b` (~12GB VRAM) for a more reasonable out-of-box experience. The README LLM-options table now lists `qwen2.5:32b` first for users with the headroom.
+- GitHub Actions in `.github/workflows/sbom.yml` are now pinned to commit SHAs instead of floating `@v4` / `@v5` tags.
+- Version bumped to 0.4.0-beta
+
+### Security
+- Eliminated GraphQL string-interpolation surface (owner/name are now query variables)
+- Added stderr token-shape scrubbing as defense-in-depth against accidental token leak in CI logs
+- Bounded PR body size and summary-command runtime
+- Pinned GitHub Actions to commit SHAs
+
 ## [0.3.0-beta] - 2026-04-21
 
 ### Added

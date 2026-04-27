@@ -147,9 +147,19 @@ class TestCategorizeByLabels:
     def test_sig_label(self):
         assert release_notes._categorize_by_labels(['sig/build']) == 'sig/build'
 
-    def test_multiple_sig_labels(self):
-        result = release_notes._categorize_by_labels(['sig/core', 'sig/platform'])
-        assert result in ('sig/core', 'sig/platform')
+    def test_multiple_sig_labels_deterministic(self):
+        # Order of labels from GitHub is not guaranteed, so the result must
+        # depend only on SIG_CANONICAL_ORDER, not on label-list order.
+        result1 = release_notes._categorize_by_labels(['sig/core', 'sig/platform'])
+        result2 = release_notes._categorize_by_labels(['sig/platform', 'sig/core'])
+        assert result1 == result2 == 'sig/core'
+
+    def test_canonical_order_wins(self):
+        # sig/build comes before sig/core in SIG_CANONICAL_ORDER.
+        result = release_notes._categorize_by_labels(['sig/core', 'sig/build'])
+        assert result == 'sig/build'
+        result = release_notes._categorize_by_labels(['sig/build', 'sig/core'])
+        assert result == 'sig/build'
 
     def test_sig_release_deprioritized(self):
         result = release_notes._categorize_by_labels(['sig/release', 'sig/build'])
@@ -184,6 +194,15 @@ class TestCategorizeByTitle:
 
     def test_no_match(self):
         assert release_notes._categorize_by_title('Miscellaneous cleanup') is None
+
+    def test_tie_resolved_by_canonical_order(self):
+        # Construct a title that hits exactly one keyword in two different SIG
+        # buckets so they tie on count. The result must be the SIG that comes
+        # first in SIG_CANONICAL_ORDER, regardless of dict insertion order.
+        # 'cmake' → sig/build; 'physx' → sig/simulation.
+        # sig/build appears earlier in SIG_CANONICAL_ORDER → wins.
+        result = release_notes._categorize_by_title('cmake physx integration')
+        assert result == 'sig/build'
 
 
 class TestCategorizeByFiles:
@@ -326,21 +345,29 @@ class TestFormatPrReference:
 
 class TestBuildGraphqlQuery:
     def test_single_pr(self):
-        query = release_notes._build_graphql_query('o3de', 'o3de', [19709])
+        query = release_notes._build_graphql_query([19709])
         assert 'pr_19709' in query
         assert 'pullRequest(number: 19709)' in query
-        assert 'repository(owner: "o3de", name: "o3de")' in query
+        assert 'repository(owner: $owner, name: $name)' in query
 
     def test_multiple_prs(self):
-        query = release_notes._build_graphql_query('o3de', 'o3de', [100, 200, 300])
+        query = release_notes._build_graphql_query([100, 200, 300])
         assert 'pr_100' in query
         assert 'pr_200' in query
         assert 'pr_300' in query
 
     def test_includes_required_fields(self):
-        query = release_notes._build_graphql_query('o3de', 'o3de', [1])
+        query = release_notes._build_graphql_query([1])
         for field in ['number', 'title', 'mergedAt', 'url', 'author', 'labels', 'files']:
             assert field in query
+
+    def test_uses_graphql_variables(self):
+        # The owner/name must be GraphQL variables, never string-interpolated.
+        query = release_notes._build_graphql_query([1])
+        assert 'query($owner: String!, $name: String!)' in query
+        # No raw string-interpolated owner/name should appear
+        assert 'owner: "' not in query
+        assert 'name: "' not in query
 
 
 class TestRenderMarkdown:
@@ -869,3 +896,122 @@ class TestRenderMarkdownWithSummary:
         prs = [self._make_pr(1, 'sig/build')]
         result = release_notes.render_markdown(prs, '1.0')
         assert 'TODO' in result
+
+
+class TestSafeStderrRedaction:
+    def test_redacts_gh_personal_token(self):
+        msg = 'fatal: bad credential ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        result = release_notes._safe_stderr(msg)
+        assert 'ghp_' not in result
+        assert '<redacted-token>' in result
+
+    def test_redacts_gh_oauth_token(self):
+        msg = 'auth failed: gho_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+        result = release_notes._safe_stderr(msg)
+        assert 'gho_' not in result
+        assert '<redacted-token>' in result
+
+    def test_passthrough_for_normal_errors(self):
+        result = release_notes._safe_stderr('git log: bad ref foo')
+        assert 'bad ref foo' in result
+
+    def test_truncates_to_max_length(self):
+        msg = 'a' * 1000
+        result = release_notes._safe_stderr(msg)
+        assert len(result) <= release_notes.MAX_STDERR_LOG_LEN
+
+
+class TestPrBodySizeCap:
+    def test_huge_body_does_not_explode(self):
+        # 1MB body — should be capped before regex processing.
+        body = 'a' * (1024 * 1024)
+        result = release_notes._build_pr_description('Fix bug', body)
+        assert isinstance(result, str)
+        # Falls back to title because the giant body has no paragraph
+        # structure to extract.
+        assert 'Fix bug' in result
+
+
+class TestMergeWithExistingDropWarning:
+    def test_warns_when_dropping_pr_without_overrides(self, tmp_path, caplog):
+        existing = {
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION},
+            'pull_requests': [{
+                'number': 99,
+                'repo': 'o3de/o3de',
+                'sig_category': 'sig/core',
+                'manual_override_sig': None,
+                'manual_override_description': None,
+            }],
+        }
+        json_path = tmp_path / 'existing.json'
+        json_path.write_text(json.dumps(existing))
+
+        # PR 99 is no longer in `new`; without override it should be dropped
+        # AND logged as a warning.
+        new = [{'number': 1, 'repo': 'o3de/o3de'}]
+        with caplog.at_level('WARNING', logger='o3de.release_notes'):
+            result = release_notes.merge_with_existing(new, json_path)
+        numbers = [p['number'] for p in result]
+        assert 99 not in numbers
+        assert any('Dropped' in rec.message for rec in caplog.records)
+
+
+class TestSummaryTimeoutValidation:
+    def test_rejects_too_low(self):
+        with mock.patch('release_notes.shutil.which', return_value='/x/y'):
+            result = release_notes.generate_summary([], '1.0', 'x', timeout=0)
+        assert result is None
+
+    def test_rejects_too_high(self):
+        with mock.patch('release_notes.shutil.which', return_value='/x/y'):
+            result = release_notes.generate_summary([], '1.0', 'x', timeout=99999)
+        assert result is None
+
+    def test_accepts_valid(self):
+        with mock.patch('release_notes.shutil.which', return_value='/x/y'):
+            with mock.patch('release_notes.subprocess.run') as mock_run:
+                mock_run.return_value = mock.Mock(returncode=0, stdout='ok', stderr='')
+                result = release_notes.generate_summary([], '1.0', 'x', timeout=60)
+        assert result == 'ok'
+
+    def test_passes_timeout_to_subprocess(self):
+        with mock.patch('release_notes.shutil.which', return_value='/x/y'):
+            with mock.patch('release_notes.subprocess.run') as mock_run:
+                mock_run.return_value = mock.Mock(returncode=0, stdout='ok', stderr='')
+                release_notes.generate_summary([], '1.0', 'x', timeout=42)
+                kwargs = mock_run.call_args.kwargs
+                assert kwargs['timeout'] == 42
+
+
+class TestDryRun:
+    def test_dry_run_does_not_call_gh_or_write(self, tmp_path):
+        # Set up a fake git repo so the .git existence check passes.
+        repo_dir = tmp_path / 'repo'
+        repo_dir.mkdir()
+        (repo_dir / '.git').mkdir()
+        out_json = tmp_path / 'out.json'
+
+        args = mock.Mock(
+            from_ref='a',
+            to_ref='b',
+            repos=['o3de/o3de'],
+            repo_path=None,
+            default_repo_path=str(repo_dir),
+            output_json=str(out_json),
+            dry_run=True,
+        )
+        with mock.patch('release_notes._check_gh_available') as mock_check:
+            with mock.patch('release_notes.subprocess.run') as mock_run:
+                # git log returns one PR.
+                mock_run.return_value = mock.Mock(
+                    returncode=0,
+                    stdout='Fix bug (#42)\n',
+                    stderr='',
+                )
+                rc = release_notes._run_fetch(args)
+        assert rc == 0
+        # gh availability never checked in dry-run.
+        mock_check.assert_not_called()
+        # Output file never written.
+        assert not out_json.exists()

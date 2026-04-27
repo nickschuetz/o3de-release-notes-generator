@@ -1,0 +1,53 @@
+# This project ships as a single-file script with zero runtime dependencies.
+# pyproject.toml here exists purely for tooling configuration (pytest, ruff,
+# mypy) — there is no `pip install` step and no published package.
+
+[project]
+name = "o3de_release_notes_generator"
+version = "0.4.0-beta"
+description = "Generates O3DE release notes from merged pull requests"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0 OR MIT" }
+authors = [{ name = "Nick Schuetz" }]
+readme = "README.md"
+# Intentionally empty — stdlib only. Do not add dependencies here.
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/nickschuetz/o3de_release_notes_generator"
+Changelog = "https://github.com/nickschuetz/o3de_release_notes_generator/blob/main/CHANGELOG.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Make the project root importable so `import release_notes` works without
+# the sys.path.insert(...) hack in tests.
+pythonpath = ["."]
+addopts = ["-ra", "--strict-markers"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line-too-long handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]  # asserts in tests are fine
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+files = ["release_notes.py", "generate_sbom.py"]
