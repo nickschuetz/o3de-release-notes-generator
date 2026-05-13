@@ -261,7 +261,7 @@ def validate_output_path(path: pathlib.Path, base_dir: pathlib.Path | None = Non
     resolved = path.resolve()
     if base_dir is not None:
         base_resolved = base_dir.resolve()
-        if not str(resolved).startswith(str(base_resolved)):
+        if not resolved.is_relative_to(base_resolved):
             raise ValueError(f'Path traversal detected: {resolved} is outside {base_resolved}')
     if not resolved.parent.exists():
         raise ValueError(f'Parent directory does not exist: {resolved.parent}')
@@ -383,7 +383,10 @@ def _run_gh_command(args: list[str], timeout: int = 30) -> dict:
             logger.error('gh command failed: %s', stderr)
         raise RuntimeError(f'gh command failed with exit code {result.returncode}')
 
-    return json.loads(result.stdout)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f'gh returned non-JSON output: {e}') from e
 
 
 def _check_gh_available() -> bool:
@@ -477,8 +480,12 @@ def fetch_pr_metadata_batch(
 
 
 def _normalize_pr_data(raw: dict, repo_slug: str) -> dict:
+    file_nodes = raw.get('files', {}).get('nodes', [])
+    if len(file_nodes) >= 100:
+        logger.warning('PR #%d in %s has 100+ changed files; file list may be truncated',
+                        raw.get('number', 0), repo_slug)
     return {
-        'number': raw['number'],
+        'number': raw.get('number', 0),
         'repo': repo_slug,
         'title': raw.get('title', ''),
         'body': raw.get('body', ''),
@@ -486,7 +493,7 @@ def _normalize_pr_data(raw: dict, repo_slug: str) -> dict:
         'author': raw.get('author', {}).get('login', 'unknown') if raw.get('author') else 'unknown',
         'merged_at': raw.get('mergedAt', ''),
         'labels': [n['name'] for n in raw.get('labels', {}).get('nodes', [])],
-        'files': [n['path'] for n in raw.get('files', {}).get('nodes', [])],
+        'files': [n['path'] for n in file_nodes],
     }
 
 
@@ -537,7 +544,14 @@ def _categorize_by_files(file_paths: list[str]) -> str | None:
             sig_counts[best_sig] = sig_counts.get(best_sig, 0) + 1
     if not sig_counts:
         return None
-    return max(sig_counts, key=sig_counts.get)
+    max_count = max(sig_counts.values())
+    tied = [sig for sig, cnt in sig_counts.items() if cnt == max_count]
+    if len(tied) == 1:
+        return tied[0]
+    for sig in SIG_CANONICAL_ORDER:
+        if sig in tied:
+            return sig
+    return tied[0]
 
 
 def categorize_pr(pr_data: dict) -> tuple[str, str]:
@@ -590,7 +604,6 @@ def _sanitize_pr_title_for_markdown(title: str) -> str:
 PR_BODY_NOISE_PATTERNS = [
     re.compile(r'^#{1,4}\s*(what|how|why|description|summary|context|test|checklist|todo|link|related|change)', re.IGNORECASE),
     re.compile(r'^-\s*\[[ x]\]', re.IGNORECASE),
-    re.compile(r'^\s*$'),
     re.compile(r'^---+$'),
     re.compile(r'^<!--'),
     re.compile(r'^!\['),

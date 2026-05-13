@@ -14,8 +14,8 @@ readme = "README.md"
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/nickschuetz/o3de_release_notes_generator"
-Changelog = "https://github.com/nickschuetz/o3de_release_notes_generator/blob/main/CHANGELOG.md"
+Repository = "https://github.com/nickschuetz/o3de-release-notes-generator"
+Changelog = "https://github.com/nickschuetz/o3de-release-notes-generator/blob/main/CHANGELOG.md"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

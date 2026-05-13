@@ -5,8 +5,8 @@ Thanks for considering a contribution! This is a small, single-file tool — kee
 ## Quick start
 
 ```bash
-git clone https://github.com/nickschuetz/o3de_release_notes_generator
-cd o3de_release_notes_generator
+git clone https://github.com/nickschuetz/o3de-release-notes-generator
+cd o3de-release-notes-generator
 
 make test         # run pytest (you don't even need to install the project)
 make sbom         # regenerate sbom.cdx.json

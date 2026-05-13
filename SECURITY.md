@@ -2,9 +2,9 @@
 
 ## Reporting a Vulnerability
 
-If you believe you have found a security issue in `o3de_release_notes_generator`, please **do not open a public GitHub issue.** Instead:
+If you believe you have found a security issue in `o3de-release-notes-generator`, please **do not open a public GitHub issue.** Instead:
 
-- Open a [GitHub private vulnerability report](https://github.com/nickschuetz/o3de_release_notes_generator/security/advisories/new), or
+- Open a [GitHub private vulnerability report](https://github.com/nickschuetz/o3de-release-notes-generator/security/advisories/new), or
 - Email the maintainer at the address listed on the [project profile](https://github.com/nickschuetz).
 
 Please include:

@@ -9,7 +9,7 @@ PYTHON ?= python
 
 help:
 	@echo "Targets:"
-	@echo "  test         Run pytest (163 tests)"
+	@echo "  test         Run pytest"
 	@echo "  sbom         Regenerate sbom.cdx.json"
 	@echo "  lint         Run ruff (skipped if not installed)"
 	@echo "  typecheck    Run mypy (skipped if not installed)"
@@ -23,14 +23,14 @@ sbom:
 	$(PYTHON) generate_sbom.py
 
 lint:
-	@if $(PYTHON) -c "import ruff" 2>/dev/null; then \
+	@if $(PYTHON) -m ruff --version >/dev/null 2>&1; then \
 		$(PYTHON) -m ruff check release_notes.py generate_sbom.py tests/; \
 	else \
 		echo "ruff not installed — skipping (install with: pip install ruff)"; \
 	fi
 
 typecheck:
-	@if $(PYTHON) -c "import mypy" 2>/dev/null; then \
+	@if $(PYTHON) -m mypy --version >/dev/null 2>&1; then \
 		$(PYTHON) -m mypy release_notes.py generate_sbom.py; \
 	else \
 		echo "mypy not installed — skipping (install with: pip install mypy)"; \

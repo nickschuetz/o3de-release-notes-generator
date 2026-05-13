@@ -27,7 +27,7 @@ python release_notes.py generate \
 ## Project Structure
 
 ```
-o3de_release_notes_generator/
+o3de-release-notes-generator/
 ├── README.md                       # This file
 ├── ARCHITECTURE.md                 # Architecture, security model, data flow
 ├── CHANGELOG.md                    # Version history (Keep a Changelog format)
@@ -407,7 +407,7 @@ The SBOM captures:
 python -m pytest tests/ -v
 ```
 
-163 unit tests covering input validation, multi-repo path parsing, SIG categorization (including deterministic tiebreaks), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), markdown rendering, incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, and security controls.
+177 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering, incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, and security controls.
 
 A `Makefile` is provided for the common targets:
 

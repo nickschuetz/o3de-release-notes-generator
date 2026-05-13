@@ -3,7 +3,7 @@
 # Copyright Contributors to the Open 3D Engine
 
 """
-Generates a CycloneDX 1.5 SBOM (JSON) for the o3de_release_notes_generator project.
+Generates a CycloneDX 1.5 SBOM (JSON) for the o3de-release-notes-generator project.
 
 This project has zero external dependencies — only Python stdlib modules are used.
 The SBOM captures:
@@ -26,7 +26,7 @@ PROJECT_NAME = 'o3de_release_notes_generator'
 PROJECT_VERSION = '0.4.0-beta'
 PROJECT_DESCRIPTION = 'Generates O3DE release notes from merged pull requests'
 PROJECT_LICENSE_ID = 'Apache-2.0 OR MIT'
-PROJECT_REPO = 'https://github.com/nickschuetz/o3de_release_notes_generator'
+PROJECT_REPO = 'https://github.com/nickschuetz/o3de-release-notes-generator'
 
 SOURCE_FILES = [
     'release_notes.py',
@@ -102,7 +102,7 @@ def generate_sbom(project_dir: pathlib.Path) -> dict:
                         'type': 'application',
                         'name': 'generate_sbom.py',
                         'version': '1.0.0',
-                        'description': 'Built-in SBOM generator for o3de_release_notes_generator',
+                        'description': 'Built-in SBOM generator for o3de-release-notes-generator',
                     },
                 ],
             },

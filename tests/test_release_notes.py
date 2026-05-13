@@ -5,14 +5,10 @@
 import json
 import pathlib
 import subprocess
-import tempfile
 from unittest import mock
 
 import pytest
-import sys
-import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import release_notes
 
 
@@ -97,6 +93,15 @@ class TestValidateOutputPath:
         sneaky = tmp_path / '..' / '..' / 'etc' / 'passwd'
         with pytest.raises(ValueError, match='traversal'):
             release_notes.validate_output_path(sneaky, base_dir=tmp_path)
+
+    def test_sibling_directory_rejected(self, tmp_path):
+        base = tmp_path / 'safe'
+        base.mkdir()
+        sibling = tmp_path / 'safe_evil'
+        sibling.mkdir()
+        target = sibling / 'file.json'
+        with pytest.raises(ValueError, match='traversal'):
+            release_notes.validate_output_path(target, base_dir=base)
 
     def test_missing_parent_raises(self, tmp_path):
         bad = tmp_path / 'nonexistent' / 'dir' / 'file.json'
@@ -1015,3 +1020,86 @@ class TestDryRun:
         mock_check.assert_not_called()
         # Output file never written.
         assert not out_json.exists()
+
+
+class TestCleanSummary:
+    def test_strips_preamble(self):
+        text = "Here's the release summary:\nActual content here."
+        assert release_notes._clean_summary(text) == 'Actual content here.'
+
+    def test_strips_postamble(self):
+        text = "Actual content.\nThis summary covers the key changes."
+        assert release_notes._clean_summary(text) == 'Actual content.'
+
+    def test_strips_dividers(self):
+        text = "---\nContent\n---"
+        assert release_notes._clean_summary(text) == 'Content'
+
+    def test_strips_empty_lines(self):
+        text = "\n\n\nContent\n\n\n"
+        assert release_notes._clean_summary(text) == 'Content'
+
+    def test_combined_cleanup(self):
+        text = "---\n\nHere is the summary:\nParagraph one.\n\nParagraph two.\n---\nI followed your instructions."
+        result = release_notes._clean_summary(text)
+        assert result == 'Paragraph one.\n\nParagraph two.'
+
+    def test_empty_input(self):
+        assert release_notes._clean_summary('') == ''
+
+    def test_only_preamble(self):
+        text = "Here is a summary of the release:"
+        assert release_notes._clean_summary(text) == ''
+
+    def test_content_preserved(self):
+        text = "The 26.05.0 release brings major improvements."
+        assert release_notes._clean_summary(text) == text
+
+
+class TestRunGhCommandJsonError:
+    def test_non_json_output_raises_runtime_error(self):
+        mock_result = mock.Mock(returncode=0, stdout='not json', stderr='')
+        with mock.patch('release_notes.subprocess.run', return_value=mock_result), \
+             pytest.raises(RuntimeError, match='non-JSON'):
+            release_notes._run_gh_command(['gh', 'api', 'test'])
+
+    def test_rate_limit_error(self):
+        mock_result = mock.Mock(returncode=1, stdout='', stderr='rate limit exceeded')
+        with mock.patch('release_notes.subprocess.run', return_value=mock_result), \
+             pytest.raises(RuntimeError, match='exit code 1'):
+            release_notes._run_gh_command(['gh', 'api', 'test'])
+
+
+class TestCategorizeByFilesTiebreaker:
+    def test_tied_sigs_use_canonical_order(self):
+        files = [
+            'Code/Framework/AzCore/test.cpp',
+            'Gems/Atom/RPI/Code/shader.cpp',
+        ]
+        result = release_notes._categorize_by_files(files)
+        assert result is not None
+        idx = release_notes.SIG_CANONICAL_ORDER.index(result)
+        alt_sigs = set()
+        for fpath in files:
+            for sig, patterns in release_notes.SIG_FILE_PATH_PATTERNS.items():
+                for pattern in patterns:
+                    if fpath.startswith(pattern):
+                        alt_sigs.add(sig)
+        for alt in alt_sigs:
+            alt_idx = release_notes.SIG_CANONICAL_ORDER.index(alt)
+            assert idx <= alt_idx
+
+
+class TestNormalizePrDataTruncation:
+    def test_missing_number_defaults_to_zero(self):
+        raw = {'title': 'Test', 'files': {'nodes': []}}
+        result = release_notes._normalize_pr_data(raw, 'o3de/o3de')
+        assert result['number'] == 0
+
+    def test_100_files_logs_warning(self):
+        nodes = [{'path': f'file{i}.cpp'} for i in range(100)]
+        raw = {'number': 42, 'files': {'nodes': nodes}}
+        with mock.patch('release_notes.logger') as mock_logger:
+            release_notes._normalize_pr_data(raw, 'o3de/o3de')
+            mock_logger.warning.assert_called_once()
+            assert '100+' in mock_logger.warning.call_args[0][0]
