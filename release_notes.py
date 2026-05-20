@@ -239,7 +239,7 @@ CHERRY_PICK_PATTERNS = [
 ]
 
 # Containers are commit/PR titles that bundle multiple cherry-picks from another
-# branch — distinct from plain "cherry-pick" because we expect their bodies to
+# branch, distinct from plain "cherry-pick" because we expect their bodies to
 # enumerate the bundled PR numbers via the `(#NNNN)` convention.
 POINTRELEASE_CONTAINER_PATTERNS = [
     re.compile(r'cherry[\s-]*pick.+(?:from|point[\s-]*release|dev|development)', re.IGNORECASE),
@@ -252,8 +252,8 @@ POINTRELEASE_CONTAINER_PATTERNS = [
 # predecessors for cherry-pick containers. Year + month encoded in X, patch in Z.
 POINT_RELEASE_TAG_PATTERN = re.compile(r'^(\d{2,4})\.(\d+)$')
 
-# Release-engineering PRs that aren't product changes — version bumps, point-
-# release branch admin, GPG key rotations, SBOM/dependency-only auto-updates.
+# Release-engineering PRs that aren't product changes (version bumps, point-
+# release branch admin, GPG key rotations, SBOM/dependency-only auto-updates).
 # Matched against the PR title. We require AT LEAST ONE of these patterns AND
 # typically a small/narrow file set; see is_release_machinery for the conjunction.
 RELEASE_MACHINERY_TITLE_PATTERNS = [
@@ -272,7 +272,7 @@ RELEASE_MACHINERY_TITLE_PATTERNS = [
 # Files whose presence-only (i.e. when ALL changed files match one of these
 # patterns) indicates a non-product PR. Deliberately narrow: only files whose
 # diff is unambiguous machinery (version bumps, SBOMs). We do NOT include
-# `.github/workflows/` here — workflow-only PRs are often substantive CI
+# `.github/workflows/` here. Workflow-only PRs are often substantive CI
 # improvements (e.g. "Add check for adequate free space in linux AR workspace")
 # that curators want to keep, and we'd rather under-flag than incorrectly
 # exclude real content. Title patterns above carry the bulk of the load.
@@ -407,7 +407,7 @@ def extract_merge_base(
     """Return (sha, committer_date_iso) of the merge-base, or None on failure.
 
     Used to anchor the "effective window" of the diff in release_data.json
-    metadata. Silently degrades to None if git fails — callers should treat
+    metadata. Silently degrades to None if git fails; callers should treat
     this metadata as best-effort.
     """
     from_ref = validate_git_ref(from_ref)
@@ -460,7 +460,7 @@ def extract_pointrelease_containers(
     from_ref: str,
 ) -> list[dict]:
     """Walk commits between predecessor_tag and from_ref looking for cherry-pick
-    containers — PRs whose title matches POINTRELEASE_CONTAINER_PATTERNS — and
+    containers (PRs whose title matches POINTRELEASE_CONTAINER_PATTERNS) and
     extract the bundled PR numbers from each commit's body.
 
     Returns a list of {container_pr, title, bundled_prs: [int, ...]} dicts.
@@ -569,16 +569,16 @@ def write_pointrelease_audit(
             bundled = entry.get('bundled_prs', [])
             grand_total_containers += 1
             grand_total_bundled += len(bundled)
-            lines.append(f"- **{cpr_label}** — {entry.get('title', '')}")
+            lines.append(f"- **{cpr_label}**: {entry.get('title', '')}")
             if not bundled:
                 lines.append("  - _(no bundled PRs parsed from body)_")
                 continue
             for b in bundled:
                 if b in present:
                     grand_total_present += 1
-                    lines.append(f"  - ✓ #{b} — present in report via dev-side merge")
+                    lines.append(f"  - ✓ #{b}: present in report via dev-side merge")
                 else:
-                    lines.append(f"  - ✗ #{b} — NOT in report (investigate)")
+                    lines.append(f"  - ✗ #{b}: NOT in report (investigate)")
 
     lines.append('')
     lines.append(
@@ -645,7 +645,7 @@ def extract_pr_numbers_from_git_log(
 
 
 def _build_graphql_query(pr_numbers: list[int]) -> str:
-    # Owner/name are GraphQL variables ($owner, $name) — never interpolated as
+    # Owner/name are GraphQL variables ($owner, $name); never interpolated as
     # strings. PR numbers are integer-validated before they reach this function
     # and become GraphQL aliases (pr_<n>), which require literal numbers.
     fragments = []
@@ -811,7 +811,7 @@ def _categorize_by_labels(labels: list[str]) -> str | None:
         sig_labels = [l for l in sig_labels if l != 'sig/release']
     # Deterministic: when a PR carries multiple SIG labels, pick the one earliest
     # in SIG_CANONICAL_ORDER. Without this sort, GitHub's label-return order
-    # decides — which is not stable across runs.
+    # decides, which is not stable across runs.
     sig_labels.sort(key=SIG_CANONICAL_ORDER.index)
     return sig_labels[0]
 
@@ -954,7 +954,7 @@ def _build_pr_description(title: str, body: str) -> str:
     overlap = title_words & para_words
 
     if len(title_words) > 0 and len(overlap) / len(title_words) < 0.2:
-        combined = f'{sanitized_title.rstrip(".")} — {first_paragraph}'
+        combined = f'{sanitized_title.rstrip(".")}: {first_paragraph}'
         if len(combined) <= 300:
             return _sanitize_pr_title_for_markdown(combined)
         return sanitized_title
@@ -1103,7 +1103,7 @@ def _build_summary_prompt(
         f'2. Highlight the most significant new features and improvements\n'
         f'3. Mention key themes (e.g., platform support, deprecations, new gems)\n'
         f'4. Thank the community contributors\n\n'
-        f'Write in the style of previous O3DE release notes — professional, '
+        f'Write in the style of previous O3DE release notes: professional, '
         f'concise, and community-oriented. Do not use markdown headers or bullet '
         f'points. Output only the narrative paragraphs, nothing else.\n'
         f'{hint_section}\n'
@@ -1249,7 +1249,7 @@ def generate_summary(
         return None
 
 
-# qwen2.5:14b is the practical default — good quality at ~12GB VRAM. Users with
+# qwen2.5:14b is the practical default: good quality at ~12GB VRAM. Users with
 # more headroom can switch to qwen2.5:32b; users without a GPU can switch to
 # `claude -p`. See README for the full table.
 DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
@@ -1571,7 +1571,7 @@ def _emit_point_release_awareness_log(
     if mb_major and mb_point and mb_major[0] == mb_point[0]:
         logger.info(
             'Point releases on %s line: %s. They share the same merge base with %s as %s (%s); '
-            'cherry-picks onto the %s branch are correctly excluded — bundled fixes appear via '
+            'cherry-picks onto the %s branch are correctly excluded; bundled fixes appear via '
             'their development-side merges. --from-ref %s and --from-ref %s yield identical PR sets.',
             parsed[0],
             ', '.join(earlier),
@@ -1744,7 +1744,7 @@ def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool =
     parser.add_argument('--summary-cmd', default=DEFAULT_SUMMARY_CMD,
                         help=f'Command to generate summary (default: {DEFAULT_SUMMARY_CMD})')
     parser.add_argument('--summary-hint', default='',
-                        help='Narrative guidance for the LLM — inline text or @filepath to read from a file')
+                        help='Narrative guidance for the LLM: inline text or @filepath to read from a file')
     parser.add_argument('--summary-timeout', type=int, default=DEFAULT_SUMMARY_TIMEOUT,
                         help=f'Timeout (seconds) for the summary command '
                              f'(default: {DEFAULT_SUMMARY_TIMEOUT}; range: '

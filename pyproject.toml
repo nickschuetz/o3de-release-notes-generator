@@ -1,6 +1,6 @@
 # This project ships as a single-file script with zero runtime dependencies.
 # pyproject.toml here exists purely for tooling configuration (pytest, ruff,
-# mypy) — there is no `pip install` step and no published package.
+# mypy); there is no `pip install` step and no published package.
 
 [project]
 name = "o3de_release_notes_generator"
@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 license = { text = "Apache-2.0 OR MIT" }
 authors = [{ name = "Nick Schuetz" }]
 readme = "README.md"
-# Intentionally empty — stdlib only. Do not add dependencies here.
+# Intentionally empty: stdlib only. Do not add dependencies here.
 dependencies = []
 
 [project.urls]
