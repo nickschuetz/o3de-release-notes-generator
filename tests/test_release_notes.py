@@ -846,14 +846,16 @@ class TestStripAnsi:
 
 class TestGenerateSummary:
     def test_success(self):
-        with mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'):
-            with mock.patch('release_notes.subprocess.run') as mock_run:
-                mock_run.return_value = mock.Mock(
-                    returncode=0,
-                    stdout='This release is great.',
-                    stderr='',
-                )
-                result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
+        with (
+            mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'),
+            mock.patch('release_notes.subprocess.run') as mock_run,
+        ):
+            mock_run.return_value = mock.Mock(
+                returncode=0,
+                stdout='This release is great.',
+                stderr='',
+            )
+            result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
         assert result == 'This release is great.'
 
     def test_command_not_found(self):
@@ -862,23 +864,29 @@ class TestGenerateSummary:
         assert result is None
 
     def test_command_failure(self):
-        with mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'):
-            with mock.patch('release_notes.subprocess.run') as mock_run:
-                mock_run.return_value = mock.Mock(returncode=1, stdout='', stderr='error')
-                result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
+        with (
+            mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'),
+            mock.patch('release_notes.subprocess.run') as mock_run,
+        ):
+            mock_run.return_value = mock.Mock(returncode=1, stdout='', stderr='error')
+            result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
         assert result is None
 
     def test_timeout(self):
-        with mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'):
-            with mock.patch('release_notes.subprocess.run', side_effect=subprocess.TimeoutExpired('cmd', 120)):
-                result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
+        with (
+            mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'),
+            mock.patch('release_notes.subprocess.run', side_effect=subprocess.TimeoutExpired('cmd', 120)),
+        ):
+            result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
         assert result is None
 
     def test_empty_output(self):
-        with mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'):
-            with mock.patch('release_notes.subprocess.run') as mock_run:
-                mock_run.return_value = mock.Mock(returncode=0, stdout='', stderr='')
-                result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
+        with (
+            mock.patch('release_notes.shutil.which', return_value='/usr/local/bin/ollama'),
+            mock.patch('release_notes.subprocess.run') as mock_run,
+        ):
+            mock_run.return_value = mock.Mock(returncode=0, stdout='', stderr='')
+            result = release_notes.generate_summary([], '1.0', 'ollama run qwen2.5:32b')
         assert result is None
 
 
@@ -974,19 +982,23 @@ class TestSummaryTimeoutValidation:
         assert result is None
 
     def test_accepts_valid(self):
-        with mock.patch('release_notes.shutil.which', return_value='/x/y'):
-            with mock.patch('release_notes.subprocess.run') as mock_run:
-                mock_run.return_value = mock.Mock(returncode=0, stdout='ok', stderr='')
-                result = release_notes.generate_summary([], '1.0', 'x', timeout=60)
+        with (
+            mock.patch('release_notes.shutil.which', return_value='/x/y'),
+            mock.patch('release_notes.subprocess.run') as mock_run,
+        ):
+            mock_run.return_value = mock.Mock(returncode=0, stdout='ok', stderr='')
+            result = release_notes.generate_summary([], '1.0', 'x', timeout=60)
         assert result == 'ok'
 
     def test_passes_timeout_to_subprocess(self):
-        with mock.patch('release_notes.shutil.which', return_value='/x/y'):
-            with mock.patch('release_notes.subprocess.run') as mock_run:
-                mock_run.return_value = mock.Mock(returncode=0, stdout='ok', stderr='')
-                release_notes.generate_summary([], '1.0', 'x', timeout=42)
-                kwargs = mock_run.call_args.kwargs
-                assert kwargs['timeout'] == 42
+        with (
+            mock.patch('release_notes.shutil.which', return_value='/x/y'),
+            mock.patch('release_notes.subprocess.run') as mock_run,
+        ):
+            mock_run.return_value = mock.Mock(returncode=0, stdout='ok', stderr='')
+            release_notes.generate_summary([], '1.0', 'x', timeout=42)
+            kwargs = mock_run.call_args.kwargs
+            assert kwargs['timeout'] == 42
 
 
 class TestDryRun:
@@ -1006,15 +1018,17 @@ class TestDryRun:
             output_json=str(out_json),
             dry_run=True,
         )
-        with mock.patch('release_notes._check_gh_available') as mock_check:
-            with mock.patch('release_notes.subprocess.run') as mock_run:
-                # git log returns one PR.
-                mock_run.return_value = mock.Mock(
-                    returncode=0,
-                    stdout='Fix bug (#42)\n',
-                    stderr='',
-                )
-                rc = release_notes._run_fetch(args)
+        with (
+            mock.patch('release_notes._check_gh_available') as mock_check,
+            mock.patch('release_notes.subprocess.run') as mock_run,
+        ):
+            # git log returns one PR.
+            mock_run.return_value = mock.Mock(
+                returncode=0,
+                stdout='Fix bug (#42)\n',
+                stderr='',
+            )
+            rc = release_notes._run_fetch(args)
         assert rc == 0
         # gh availability never checked in dry-run.
         mock_check.assert_not_called()

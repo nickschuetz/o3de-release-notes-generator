@@ -3,6 +3,7 @@
 # Copyright 2026 Nick Schuetz
 
 import argparse
+import contextlib
 import json
 import logging
 import os
@@ -14,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
+from typing import Any, cast
 
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
@@ -458,7 +460,7 @@ def extract_pointrelease_containers(
     repo_path: pathlib.Path,
     predecessor_tag: str,
     from_ref: str,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Walk commits between predecessor_tag and from_ref looking for cherry-pick
     containers (PRs whose title matches POINTRELEASE_CONTAINER_PATTERNS) and
     extract the bundled PR numbers from each commit's body.
@@ -489,7 +491,7 @@ def extract_pointrelease_containers(
         )
         return []
 
-    containers: list[dict] = []
+    containers: list[dict[str, Any]] = []
     chunks = result.stdout.split(sep + '\n')
     for chunk in chunks:
         chunk = chunk.strip()
@@ -526,7 +528,7 @@ def extract_pointrelease_containers(
 
 
 def write_pointrelease_audit(
-    audit_data: dict,
+    audit_data: dict[str, Any],
     output_path: pathlib.Path,
 ) -> None:
     """Write a human-readable audit sidecar listing each container and showing
@@ -591,7 +593,7 @@ def write_pointrelease_audit(
     write_markdown_atomic(content, output_path)
 
 
-def is_release_machinery(pr_data: dict) -> bool:
+def is_release_machinery(pr_data: dict[str, Any]) -> bool:
     """Heuristically detect release-engineering PRs that aren't product changes.
 
     True when EITHER:
@@ -609,10 +611,10 @@ def is_release_machinery(pr_data: dict) -> bool:
     files = pr_data.get('files', []) or []
     if not files:
         return False
-    for fpath in files:
-        if not any(p.search(fpath) for p in RELEASE_MACHINERY_FILE_PATTERNS):
-            return False
-    return True
+    return all(
+        any(p.search(fpath) for p in RELEASE_MACHINERY_FILE_PATTERNS)
+        for fpath in files
+    )
 
 
 def extract_pr_numbers_from_git_log(
@@ -672,7 +674,7 @@ def _build_graphql_query(pr_numbers: list[int]) -> str:
     )
 
 
-def _run_gh_command(args: list[str], timeout: int = 30) -> dict:
+def _run_gh_command(args: list[str], timeout: int = 30) -> dict[str, Any]:
     result = subprocess.run(
         args,
         capture_output=True,
@@ -690,7 +692,7 @@ def _run_gh_command(args: list[str], timeout: int = 30) -> dict:
         raise RuntimeError(f'gh command failed with exit code {result.returncode}')
 
     try:
-        return json.loads(result.stdout)
+        return cast(dict[str, Any], json.loads(result.stdout))
     except json.JSONDecodeError as e:
         raise RuntimeError(f'gh returned non-JSON output: {e}') from e
 
@@ -722,7 +724,7 @@ def fetch_pr_metadata_batch(
     repo_slug: str,
     pr_numbers: list[int],
     batch_size: int = 30,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     repo_slug = validate_repo_slug(repo_slug)
     if batch_size <= 0 or batch_size > 100:
         raise ValueError(f'batch_size must be 1-100, got {batch_size}')
@@ -785,7 +787,7 @@ def fetch_pr_metadata_batch(
     return all_prs
 
 
-def _normalize_pr_data(raw: dict, repo_slug: str) -> dict:
+def _normalize_pr_data(raw: dict[str, Any], repo_slug: str) -> dict[str, Any]:
     file_nodes = raw.get('files', {}).get('nodes', [])
     if len(file_nodes) >= 100:
         logger.warning('PR #%d in %s has 100+ changed files; file list may be truncated',
@@ -804,11 +806,11 @@ def _normalize_pr_data(raw: dict, repo_slug: str) -> dict:
 
 
 def _categorize_by_labels(labels: list[str]) -> str | None:
-    sig_labels = [l for l in labels if l.startswith('sig/') and l in SIG_CANONICAL_ORDER]
+    sig_labels = [lbl for lbl in labels if lbl.startswith('sig/') and lbl in SIG_CANONICAL_ORDER]
     if not sig_labels:
         return None
     if 'sig/release' in sig_labels and len(sig_labels) > 1:
-        sig_labels = [l for l in sig_labels if l != 'sig/release']
+        sig_labels = [lbl for lbl in sig_labels if lbl != 'sig/release']
     # Deterministic: when a PR carries multiple SIG labels, pick the one earliest
     # in SIG_CANONICAL_ORDER. Without this sort, GitHub's label-return order
     # decides, which is not stable across runs.
@@ -860,7 +862,7 @@ def _categorize_by_files(file_paths: list[str]) -> str | None:
     return tied[0]
 
 
-def categorize_pr(pr_data: dict) -> tuple[str, str]:
+def categorize_pr(pr_data: dict[str, Any]) -> tuple[str, str]:
     sig = _categorize_by_labels(pr_data.get('labels', []))
     if sig:
         return sig, 'label'
@@ -876,7 +878,7 @@ def categorize_pr(pr_data: dict) -> tuple[str, str]:
     return 'uncategorized', 'uncategorized'
 
 
-def detect_pr_flags(pr_data: dict) -> list[str]:
+def detect_pr_flags(pr_data: dict[str, Any]) -> list[str]:
     flags = []
     title = pr_data.get('title', '')
     for pattern in CHERRY_PICK_PATTERNS:
@@ -885,7 +887,7 @@ def detect_pr_flags(pr_data: dict) -> list[str]:
             break
 
     labels = pr_data.get('labels', [])
-    if any('sync' in l for l in labels):
+    if any('sync' in lbl for lbl in labels):
         flags.append('stabilization-sync')
 
     return flags
@@ -964,7 +966,7 @@ def _build_pr_description(title: str, body: str) -> str:
 
 def _extract_first_paragraph(body: str) -> str:
     lines = body.split('\n')
-    paragraph_lines = []
+    paragraph_lines: list[str] = []
     is_bullet_list = False
 
     for line in lines:
@@ -1004,9 +1006,9 @@ def _format_pr_reference(repo_slug: str, pr_number: int, url: str = '') -> str:
 
 
 def merge_with_existing(
-    new_prs: list[dict],
+    new_prs: list[dict[str, Any]],
     existing_json_path: pathlib.Path | None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     if existing_json_path is None or not existing_json_path.exists():
         return new_prs
 
@@ -1057,7 +1059,7 @@ def merge_with_existing(
 
 
 def _build_summary_prompt(
-    pr_list: list[dict],
+    pr_list: list[dict[str, Any]],
     version: str,
     hint: str = '',
     include_release_machinery: bool = False,
@@ -1184,7 +1186,7 @@ MAX_SUMMARY_TIMEOUT = 3600
 
 
 def generate_summary(
-    pr_list: list[dict],
+    pr_list: list[dict[str, Any]],
     version: str,
     summary_cmd: str,
     hint: str = '',
@@ -1256,13 +1258,13 @@ DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
 
 
 def render_markdown(
-    pr_list: list[dict],
+    pr_list: list[dict[str, Any]],
     version: str,
     include_uncategorized: bool = False,
     summary: str | None = None,
     include_release_machinery: bool = False,
 ) -> str:
-    by_sig: dict[str, list[dict]] = {}
+    by_sig: dict[str, list[dict[str, Any]]] = {}
     uncategorized = []
 
     for pr in pr_list:
@@ -1325,7 +1327,7 @@ def render_markdown(
     return '\n'.join(lines) + '\n'
 
 
-def write_json_atomic(data: dict, path: pathlib.Path) -> None:
+def write_json_atomic(data: dict[str, Any], path: pathlib.Path) -> None:
     path = path.resolve()
     fd, tmp_path = tempfile.mkstemp(
         dir=str(path.parent),
@@ -1338,10 +1340,8 @@ def write_json_atomic(data: dict, path: pathlib.Path) -> None:
             f.write('\n')
         os.replace(tmp_path, str(path))
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp_path)
-        except OSError:
-            pass
         raise
 
 
@@ -1357,18 +1357,16 @@ def write_markdown_atomic(content: str, path: pathlib.Path) -> None:
             f.write(content)
         os.replace(tmp_path, str(path))
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp_path)
-        except OSError:
-            pass
         raise
 
 
-def load_existing_json(path: pathlib.Path) -> dict | None:
+def load_existing_json(path: pathlib.Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
         if not isinstance(data, dict) or 'pull_requests' not in data:
             logger.warning('Existing JSON at %s has unexpected structure, ignoring', path)
@@ -1492,7 +1490,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
             machinery_count += 1
 
     # Feature #2: per-repo merge-base + effective window, computed best-effort.
-    merge_bases: dict[str, dict] = {}
+    merge_bases: dict[str, dict[str, Any]] = {}
     effective_window_start = None
     for repo_slug, rpath in repo_path_map.items():
         mb = extract_merge_base(rpath, args.from_ref, args.to_ref)
@@ -1503,7 +1501,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
         if date and (effective_window_start is None or date < effective_window_start):
             effective_window_start = date
 
-    metadata: dict = {
+    metadata: dict[str, Any] = {
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'from_ref': args.from_ref,
         'to_ref': args.to_ref,
@@ -1586,7 +1584,7 @@ def _emit_point_release_awareness_log(
 
 def _maybe_write_pointrelease_audit(
     args: argparse.Namespace,
-    merged: list[dict],
+    merged: list[dict[str, Any]],
     repo_path_map: dict[str, pathlib.Path],
     output_json: pathlib.Path,
 ) -> None:
@@ -1596,7 +1594,7 @@ def _maybe_write_pointrelease_audit(
     parsed = parse_point_release_tag(args.from_ref)
     if parsed is None or parsed[1] == 0:
         return
-    audit_per_repo: dict[str, dict] = {}
+    audit_per_repo: dict[str, dict[str, Any]] = {}
     any_container = False
     for repo_slug, rpath in repo_path_map.items():
         siblings = find_sibling_point_release_tags(rpath, args.from_ref)
@@ -1799,7 +1797,7 @@ def main() -> int:
 
     _configure_logging(args.verbose, getattr(args, 'log_file', None))
 
-    return args.func(args)
+    return cast(int, args.func(args))
 
 
 if __name__ == '__main__':
