@@ -20,7 +20,7 @@ logger = logging.getLogger('o3de.release_notes')
 
 __version__ = '0.4.0-beta'
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
@@ -238,6 +238,50 @@ CHERRY_PICK_PATTERNS = [
     re.compile(r'sync.*to.*development', re.IGNORECASE),
 ]
 
+# Containers are commit/PR titles that bundle multiple cherry-picks from another
+# branch — distinct from plain "cherry-pick" because we expect their bodies to
+# enumerate the bundled PR numbers via the `(#NNNN)` convention.
+POINTRELEASE_CONTAINER_PATTERNS = [
+    re.compile(r'cherry[\s-]*pick.+(?:from|point[\s-]*release|dev|development)', re.IGNORECASE),
+    re.compile(r'merg(?:e|ing).*point[\s-]*release', re.IGNORECASE),
+    re.compile(r'merg(?:e|ing).*upstream.*point[\s-]*release', re.IGNORECASE),
+]
+
+# Matches X.Y.Z-style point-release tags (e.g., 2510.2, 2605.1). Only used to
+# detect when --from-ref points at a point release so we can scan its
+# predecessors for cherry-pick containers. Year + month encoded in X, patch in Z.
+POINT_RELEASE_TAG_PATTERN = re.compile(r'^(\d{2,4})\.(\d+)$')
+
+# Release-engineering PRs that aren't product changes — version bumps, point-
+# release branch admin, GPG key rotations, SBOM/dependency-only auto-updates.
+# Matched against the PR title. We require AT LEAST ONE of these patterns AND
+# typically a small/narrow file set; see is_release_machinery for the conjunction.
+RELEASE_MACHINERY_TITLE_PATTERNS = [
+    re.compile(r'^update\s+(?:version|copyright)', re.IGNORECASE),
+    re.compile(r'^update\s+(?:linux\s+)?gpg\s+key', re.IGNORECASE),
+    re.compile(r'^update\s+sbom\b', re.IGNORECASE),
+    re.compile(r'^point[\s-]*release\b', re.IGNORECASE),
+    re.compile(r'\bmerge\b.*\bpoint[\s-]*release\b', re.IGNORECASE),
+    re.compile(r'\bmerging[_\s]*point[\s-]*release\b', re.IGNORECASE),
+    re.compile(r'\bcherry[\s-]*pick.*\bpoint[\s-]*release\b', re.IGNORECASE),
+    re.compile(r'\bmerging[_\s]+pointrelease', re.IGNORECASE),
+    re.compile(r'\bcherrypick\d*\s+from\s+dev\s+to\s+pointrelease', re.IGNORECASE),
+    re.compile(r'\badd\s+point[\s-]*release\s+branch\s+to\s+ar\b', re.IGNORECASE),
+]
+
+# Files whose presence-only (i.e. when ALL changed files match one of these
+# patterns) indicates a non-product PR. Deliberately narrow: only files whose
+# diff is unambiguous machinery (version bumps, SBOMs). We do NOT include
+# `.github/workflows/` here — workflow-only PRs are often substantive CI
+# improvements (e.g. "Add check for adequate free space in linux AR workspace")
+# that curators want to keep, and we'd rather under-flag than incorrectly
+# exclude real content. Title patterns above carry the bulk of the load.
+RELEASE_MACHINERY_FILE_PATTERNS = [
+    re.compile(r'(^|/)engine\.json$'),
+    re.compile(r'^sbom\.cdx\.json$'),
+    re.compile(r'/version\.txt$'),
+]
+
 
 def validate_git_ref(ref: str) -> str:
     if not ref or len(ref) > 256:
@@ -307,6 +351,268 @@ GH_TOKEN_PATTERN = re.compile(r'\bgh[pousr]_[A-Za-z0-9]{20,}\b')
 def _safe_stderr(text: str) -> str:
     redacted = GH_TOKEN_PATTERN.sub('<redacted-token>', text)
     return redacted.strip()[:MAX_STDERR_LOG_LEN]
+
+
+def parse_point_release_tag(ref: str) -> tuple[int, int] | None:
+    """Return (major_token, patch) if ref looks like a point-release tag, else None.
+
+    The major_token is the integer before the dot (e.g. 2510 in '2510.2'); the
+    O3DE convention encodes year and month there, but for our purposes it's an
+    opaque key used to group sibling tags.
+    """
+    if not ref:
+        return None
+    m = POINT_RELEASE_TAG_PATTERN.match(ref.strip())
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2))
+
+
+def find_sibling_point_release_tags(repo_path: pathlib.Path, ref: str) -> list[str]:
+    """Given a point-release tag, return all sibling tags sharing the same major
+    token (e.g. given '2510.2' returns ['2510.0', '2510.1', '2510.2'])."""
+    parsed = parse_point_release_tag(ref)
+    if parsed is None:
+        return []
+    major_token = parsed[0]
+    try:
+        result = subprocess.run(
+            ['git', 'tag', '-l', f'{major_token}.*'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=15,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('git tag failed for %s: %s', repo_path, e)
+        return []
+    if result.returncode != 0:
+        return []
+    tags = []
+    for line in result.stdout.splitlines():
+        candidate = line.strip()
+        if parse_point_release_tag(candidate) is not None:
+            tags.append(candidate)
+    tags.sort(key=lambda t: parse_point_release_tag(t) or (0, 0))
+    return tags
+
+
+def extract_merge_base(
+    repo_path: pathlib.Path,
+    from_ref: str,
+    to_ref: str,
+) -> tuple[str, str] | None:
+    """Return (sha, committer_date_iso) of the merge-base, or None on failure.
+
+    Used to anchor the "effective window" of the diff in release_data.json
+    metadata. Silently degrades to None if git fails — callers should treat
+    this metadata as best-effort.
+    """
+    from_ref = validate_git_ref(from_ref)
+    to_ref = validate_git_ref(to_ref)
+    try:
+        mb = subprocess.run(
+            ['git', 'merge-base', from_ref, to_ref],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=30,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('git merge-base failed for %s: %s', repo_path, e)
+        return None
+    if mb.returncode != 0:
+        logger.warning('git merge-base %s..%s failed in %s: %s',
+                       from_ref, to_ref, repo_path, _safe_stderr(mb.stderr))
+        return None
+    sha = mb.stdout.strip()
+    if not sha:
+        return None
+    try:
+        show = subprocess.run(
+            ['git', 'show', '-s', '--format=%cI', sha],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=15,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return (sha, '')
+    date = show.stdout.strip() if show.returncode == 0 else ''
+    return (sha, date)
+
+
+# Maximum bytes we'll read from a single commit body when scanning for bundled
+# PR references in a cherry-pick container. Bounds memory if a malformed commit
+# has an enormous body.
+MAX_CONTAINER_BODY_BYTES = 32768
+
+
+def extract_pointrelease_containers(
+    repo_path: pathlib.Path,
+    predecessor_tag: str,
+    from_ref: str,
+) -> list[dict]:
+    """Walk commits between predecessor_tag and from_ref looking for cherry-pick
+    containers — PRs whose title matches POINTRELEASE_CONTAINER_PATTERNS — and
+    extract the bundled PR numbers from each commit's body.
+
+    Returns a list of {container_pr, title, bundled_prs: [int, ...]} dicts.
+    """
+    predecessor_tag = validate_git_ref(predecessor_tag)
+    from_ref = validate_git_ref(from_ref)
+    sep = '@@CONTAINER_BOUNDARY@@'
+    try:
+        result = subprocess.run(
+            ['git', 'log', f'--format=%H%n%s%n%b%n{sep}',
+             f'{predecessor_tag}..{from_ref}'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=60,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('git log failed when scanning containers in %s: %s', repo_path, e)
+        return []
+    if result.returncode != 0:
+        logger.warning(
+            'Container scan: git log %s..%s in %s returned %d',
+            predecessor_tag, from_ref, repo_path, result.returncode,
+        )
+        return []
+
+    containers: list[dict] = []
+    chunks = result.stdout.split(sep + '\n')
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        lines = chunk.split('\n', 2)
+        if len(lines) < 2:
+            continue
+        sha = lines[0].strip()
+        title = lines[1].strip()
+        body = lines[2] if len(lines) > 2 else ''
+        if len(body) > MAX_CONTAINER_BODY_BYTES:
+            body = body[:MAX_CONTAINER_BODY_BYTES]
+
+        if not any(p.search(title) for p in POINTRELEASE_CONTAINER_PATTERNS):
+            continue
+
+        # PR number in the title itself is the container PR (e.g. "(#19506)").
+        # Bundled PRs come from the body.
+        title_match = PR_NUMBER_PATTERN.search(title)
+        container_pr = int(title_match.group(1)) if title_match else None
+        bundled = set()
+        for m in PR_NUMBER_PATTERN.finditer(body):
+            n = int(m.group(1))
+            if n != container_pr:
+                bundled.add(n)
+        containers.append({
+            'container_pr': container_pr,
+            'container_sha': sha,
+            'title': title,
+            'bundled_prs': sorted(bundled),
+        })
+    return containers
+
+
+def write_pointrelease_audit(
+    audit_data: dict,
+    output_path: pathlib.Path,
+) -> None:
+    """Write a human-readable audit sidecar listing each container and showing
+    whether its bundled PRs are accounted for in the rendered report set.
+
+    audit_data must contain:
+      - from_ref, to_ref, predecessor_tag
+      - per_repo: {repo_slug: {containers: [...], present_pr_numbers: set[int]}}
+    """
+    lines: list[str] = []
+    lines.append(f"# Point-release audit for {audit_data.get('to_ref', '')}\n")
+    lines.append(
+        f"Predecessor major tag: `{audit_data.get('predecessor_tag', '')}`  \n"
+        f"From-ref (point release): `{audit_data.get('from_ref', '')}`  \n"
+        f"To-ref (next major): `{audit_data.get('to_ref', '')}`\n"
+    )
+    lines.append(
+        "Each entry below is a cherry-pick container PR found on the previous\n"
+        "stabilization branch between the predecessor major tag and the from-ref.\n"
+        "The bundled PRs are extracted from the container's commit body. A ✓\n"
+        "means the bundled PR appears in the rendered report (via its\n"
+        "development-side merge); a ✗ means it is missing and worth\n"
+        "investigating.\n"
+    )
+
+    grand_total_containers = 0
+    grand_total_bundled = 0
+    grand_total_present = 0
+
+    for repo_slug, repo_audit in audit_data.get('per_repo', {}).items():
+        containers = repo_audit.get('containers', [])
+        present = repo_audit.get('present_pr_numbers', set())
+        lines.append(f"\n## {repo_slug}\n")
+        if not containers:
+            lines.append("_No cherry-pick containers found in this repo._\n")
+            continue
+        for entry in containers:
+            cpr = entry.get('container_pr')
+            cpr_label = f"#{cpr}" if cpr else f"sha:{entry.get('container_sha','')[:8]}"
+            bundled = entry.get('bundled_prs', [])
+            grand_total_containers += 1
+            grand_total_bundled += len(bundled)
+            lines.append(f"- **{cpr_label}** — {entry.get('title', '')}")
+            if not bundled:
+                lines.append("  - _(no bundled PRs parsed from body)_")
+                continue
+            for b in bundled:
+                if b in present:
+                    grand_total_present += 1
+                    lines.append(f"  - ✓ #{b} — present in report via dev-side merge")
+                else:
+                    lines.append(f"  - ✗ #{b} — NOT in report (investigate)")
+
+    lines.append('')
+    lines.append(
+        f"---\n\n"
+        f"**Summary:** {grand_total_containers} container(s) checked, "
+        f"{grand_total_bundled} bundled PR reference(s) parsed, "
+        f"{grand_total_present} accounted for in the rendered report.\n"
+    )
+    content = '\n'.join(lines)
+    write_markdown_atomic(content, output_path)
+
+
+def is_release_machinery(pr_data: dict) -> bool:
+    """Heuristically detect release-engineering PRs that aren't product changes.
+
+    True when EITHER:
+      - the title matches one of RELEASE_MACHINERY_TITLE_PATTERNS, OR
+      - every changed file matches one of RELEASE_MACHINERY_FILE_PATTERNS
+        (and there is at least one file).
+
+    The file-only path catches version-bump / SBOM / workflow-only PRs whose
+    titles don't fit a fixed pattern.
+    """
+    title = pr_data.get('title', '') or ''
+    if any(p.search(title) for p in RELEASE_MACHINERY_TITLE_PATTERNS):
+        return True
+
+    files = pr_data.get('files', []) or []
+    if not files:
+        return False
+    for fpath in files:
+        if not any(p.search(fpath) for p in RELEASE_MACHINERY_FILE_PATTERNS):
+            return False
+    return True
 
 
 def extract_pr_numbers_from_git_log(
@@ -750,11 +1056,18 @@ def merge_with_existing(
     return merged
 
 
-def _build_summary_prompt(pr_list: list[dict], version: str, hint: str = '') -> str:
+def _build_summary_prompt(
+    pr_list: list[dict],
+    version: str,
+    hint: str = '',
+    include_release_machinery: bool = False,
+) -> str:
     by_sig: dict[str, list[str]] = {}
     for pr in pr_list:
         flags = pr.get('flags', [])
         if 'cherry-pick' in flags or 'stabilization-sync' in flags:
+            continue
+        if not include_release_machinery and pr.get('release_machinery'):
             continue
         sig = pr.get('sig_category', 'uncategorized')
         if sig == 'uncategorized':
@@ -876,13 +1189,17 @@ def generate_summary(
     summary_cmd: str,
     hint: str = '',
     timeout: int = DEFAULT_SUMMARY_TIMEOUT,
+    include_release_machinery: bool = False,
 ) -> str | None:
     if timeout < MIN_SUMMARY_TIMEOUT or timeout > MAX_SUMMARY_TIMEOUT:
         logger.error('Invalid summary timeout: %d (must be %d-%d)', timeout, MIN_SUMMARY_TIMEOUT, MAX_SUMMARY_TIMEOUT)
         return None
 
     resolved_hint = _resolve_hint(hint)
-    prompt = _build_summary_prompt(pr_list, version, hint=resolved_hint)
+    prompt = _build_summary_prompt(
+        pr_list, version, hint=resolved_hint,
+        include_release_machinery=include_release_machinery,
+    )
 
     try:
         cmd_parts = shlex.split(summary_cmd)
@@ -943,6 +1260,7 @@ def render_markdown(
     version: str,
     include_uncategorized: bool = False,
     summary: str | None = None,
+    include_release_machinery: bool = False,
 ) -> str:
     by_sig: dict[str, list[dict]] = {}
     uncategorized = []
@@ -950,6 +1268,8 @@ def render_markdown(
     for pr in pr_list:
         flags = pr.get('flags', [])
         if 'cherry-pick' in flags or 'stabilization-sync' in flags:
+            continue
+        if not include_release_machinery and pr.get('release_machinery'):
             continue
 
         sig = pr.get('sig_category', 'uncategorized')
@@ -1084,6 +1404,14 @@ def _run_fetch(args: argparse.Namespace) -> int:
             logger.error('Not a git repository: %s (for %s)', rpath, slug)
             return 1
 
+    # Feature #3: point-release awareness. If --from-ref looks like a point
+    # release (X.Y.N with N>0), surface the sibling tags and the implicit
+    # equivalence with the major tag, computed against the first repo. The same
+    # principle holds across all repos that share the release cadence.
+    _emit_point_release_awareness_log(
+        args.from_ref, args.to_ref, repo_path_map, args.repos,
+    )
+
     if dry_run:
         for repo_slug in args.repos:
             try:
@@ -1142,6 +1470,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
             pr['categorization_source'] = source
             pr['description'] = _build_pr_description(pr.get('title', ''), pr.get('body', ''))
             pr['flags'] = detect_pr_flags(pr)
+            pr['release_machinery'] = is_release_machinery(pr)
             pr['manual_override_sig'] = None
             pr['manual_override_description'] = None
 
@@ -1151,29 +1480,166 @@ def _run_fetch(args: argparse.Namespace) -> int:
     merged = merge_with_existing(all_prs, existing_path)
 
     cat_counts: dict[str, int] = {}
+    machinery_count = 0
     for pr in merged:
         src = pr.get('categorization_source', 'unknown')
         cat_counts[src] = cat_counts.get(src, 0) + 1
+        # Backfill release_machinery on PRs that came in via merge_with_existing
+        # from a previous (older) JSON that pre-dates this field.
+        if 'release_machinery' not in pr:
+            pr['release_machinery'] = is_release_machinery(pr)
+        if pr.get('release_machinery'):
+            machinery_count += 1
 
-    output_data = {
-        'metadata': {
-            'generated_at': datetime.now(timezone.utc).isoformat(),
-            'from_ref': args.from_ref,
-            'to_ref': args.to_ref,
-            'repos': args.repos,
-            'repo_paths': {k: str(v) for k, v in repo_path_map.items()},
-            'schema_version': SCHEMA_VERSION,
-            'pr_count': len(merged),
-            'categorization_summary': cat_counts,
-        },
-        'pull_requests': merged,
+    # Feature #2: per-repo merge-base + effective window, computed best-effort.
+    merge_bases: dict[str, dict] = {}
+    effective_window_start = None
+    for repo_slug, rpath in repo_path_map.items():
+        mb = extract_merge_base(rpath, args.from_ref, args.to_ref)
+        if mb is None:
+            continue
+        sha, date = mb
+        merge_bases[repo_slug] = {'sha': sha, 'committer_date': date}
+        if date and (effective_window_start is None or date < effective_window_start):
+            effective_window_start = date
+
+    metadata: dict = {
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+        'from_ref': args.from_ref,
+        'to_ref': args.to_ref,
+        'repos': args.repos,
+        'repo_paths': {k: str(v) for k, v in repo_path_map.items()},
+        'schema_version': SCHEMA_VERSION,
+        'pr_count': len(merged),
+        'categorization_summary': cat_counts,
+        'release_machinery_count': machinery_count,
     }
+    if merge_bases:
+        metadata['merge_bases'] = merge_bases
+    if effective_window_start:
+        metadata['effective_window'] = {
+            'start': effective_window_start,
+            'end': metadata['generated_at'],
+        }
+
+    output_data = {'metadata': metadata, 'pull_requests': merged}
 
     write_json_atomic(output_data, output_json)
     logger.info('Wrote %d PRs to %s', len(merged), output_json)
     logger.info('Categorization: %s', ', '.join(f'{k}={v}' for k, v in sorted(cat_counts.items())))
+    if machinery_count:
+        logger.info(
+            'Release machinery: %d PR(s) flagged (e.g. version bumps, point-release wrappers)',
+            machinery_count,
+        )
+
+    # Feature #1: point-release audit sidecar. Only runs when from-ref is a
+    # point-release tag with a known predecessor sibling.
+    if not getattr(args, 'no_pointrelease_audit', False):
+        _maybe_write_pointrelease_audit(args, merged, repo_path_map, output_json)
 
     return 0
+
+
+def _emit_point_release_awareness_log(
+    from_ref: str,
+    to_ref: str,
+    repo_path_map: dict[str, pathlib.Path],
+    repos: list[str],
+) -> None:
+    """One INFO line explaining the merge-base equivalence between a major tag
+    and its point-release siblings. Only emitted when --from-ref looks like a
+    point release after the .0 (i.e., X.Y.N with N>0)."""
+    parsed = parse_point_release_tag(from_ref)
+    if parsed is None or parsed[1] == 0:
+        return
+    if not repos:
+        return
+    first_repo = repos[0]
+    rpath = repo_path_map.get(first_repo)
+    if rpath is None:
+        return
+    siblings = find_sibling_point_release_tags(rpath, from_ref)
+    earlier = [t for t in siblings if t != from_ref and (parse_point_release_tag(t) or (0, 0))[1] < parsed[1]]
+    if not earlier:
+        return
+    major_tag = next((t for t in earlier if (parse_point_release_tag(t) or (0, 0))[1] == 0), None)
+    if major_tag is None:
+        return
+    mb_major = extract_merge_base(rpath, major_tag, to_ref)
+    mb_point = extract_merge_base(rpath, from_ref, to_ref)
+    if mb_major and mb_point and mb_major[0] == mb_point[0]:
+        logger.info(
+            'Point releases on %s line: %s. They share the same merge base with %s as %s (%s); '
+            'cherry-picks onto the %s branch are correctly excluded — bundled fixes appear via '
+            'their development-side merges. --from-ref %s and --from-ref %s yield identical PR sets.',
+            parsed[0],
+            ', '.join(earlier),
+            to_ref,
+            major_tag,
+            mb_major[0][:10],
+            parsed[0],
+            major_tag,
+            from_ref,
+        )
+
+
+def _maybe_write_pointrelease_audit(
+    args: argparse.Namespace,
+    merged: list[dict],
+    repo_path_map: dict[str, pathlib.Path],
+    output_json: pathlib.Path,
+) -> None:
+    """Run the point-release audit when --from-ref is a non-zero point release.
+    Writes a sidecar `<output_md_stem>_pointrelease_audit.md` next to the
+    markdown output, or next to the JSON if --output-md isn't set yet."""
+    parsed = parse_point_release_tag(args.from_ref)
+    if parsed is None or parsed[1] == 0:
+        return
+    audit_per_repo: dict[str, dict] = {}
+    any_container = False
+    for repo_slug, rpath in repo_path_map.items():
+        siblings = find_sibling_point_release_tags(rpath, args.from_ref)
+        major_tag = next(
+            (t for t in siblings if (parse_point_release_tag(t) or (0, 0))[1] == 0),
+            None,
+        )
+        if major_tag is None:
+            continue
+        containers = extract_pointrelease_containers(rpath, major_tag, args.from_ref)
+        if not containers:
+            continue
+        any_container = True
+        present_numbers = {pr.get('number') for pr in merged if pr.get('repo') == repo_slug}
+        audit_per_repo[repo_slug] = {
+            'containers': containers,
+            'present_pr_numbers': present_numbers,
+            'predecessor_tag': major_tag,
+        }
+
+    if not any_container:
+        return
+
+    # Sidecar path: derive from --output-md when available; otherwise sit next
+    # to the JSON. Same stem as the markdown report so the pair is easy to find.
+    output_md = getattr(args, 'output_md', None)
+    if output_md:
+        md_path = pathlib.Path(output_md).resolve()
+        audit_path = md_path.with_name(md_path.stem + '_pointrelease_audit.md')
+    else:
+        audit_path = output_json.with_name(output_json.stem + '_pointrelease_audit.md')
+
+    audit_data = {
+        'from_ref': args.from_ref,
+        'to_ref': args.to_ref,
+        'predecessor_tag': next(iter(audit_per_repo.values()))['predecessor_tag'],
+        'per_repo': audit_per_repo,
+    }
+    try:
+        write_pointrelease_audit(audit_data, audit_path)
+        logger.info('Wrote point-release audit sidecar to %s', audit_path)
+    except OSError as e:
+        logger.warning('Could not write audit sidecar: %s', e)
 
 
 def _run_render(args: argparse.Namespace) -> int:
@@ -1189,6 +1655,7 @@ def _run_render(args: argparse.Namespace) -> int:
         logger.error('Failed to load valid JSON from %s', input_json)
         return 1
 
+    include_release_machinery = getattr(args, 'include_release_machinery', False)
     summary = None
     if getattr(args, 'generate_summary', False):
         summary_cmd = getattr(args, 'summary_cmd', DEFAULT_SUMMARY_CMD)
@@ -1197,6 +1664,7 @@ def _run_render(args: argparse.Namespace) -> int:
         summary = generate_summary(
             data['pull_requests'], args.release_version, summary_cmd,
             hint=summary_hint, timeout=summary_timeout,
+            include_release_machinery=include_release_machinery,
         )
         if summary:
             logger.info('Generated narrative summary (%d chars)', len(summary))
@@ -1208,6 +1676,7 @@ def _run_render(args: argparse.Namespace) -> int:
         args.release_version,
         include_uncategorized=args.include_uncategorized,
         summary=summary,
+        include_release_machinery=include_release_machinery,
     )
 
     write_markdown_atomic(content, output_md)
@@ -1255,6 +1724,9 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--dry-run', action='store_true',
                         help='Show which PRs would be fetched (from git log) and exit '
                              'without calling the GitHub API or writing any files')
+    parser.add_argument('--no-pointrelease-audit', action='store_true',
+                        help='Skip the point-release audit sidecar even when --from-ref '
+                             'looks like a point-release tag')
 
 
 def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool = True) -> None:
@@ -1277,6 +1749,11 @@ def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool =
                         help=f'Timeout (seconds) for the summary command '
                              f'(default: {DEFAULT_SUMMARY_TIMEOUT}; range: '
                              f'{MIN_SUMMARY_TIMEOUT}-{MAX_SUMMARY_TIMEOUT})')
+    parser.add_argument('--include-release-machinery', action='store_true',
+                        help='Include release-engineering PRs (version bumps, SBOM auto-updates, '
+                             'point-release branch admin, etc.) in the rendered output. '
+                             'Default: off for major releases; turn on for point-release notes '
+                             'where this IS the content.')
 
 
 def add_parser_args(parser: argparse.ArgumentParser) -> None:

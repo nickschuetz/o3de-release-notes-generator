@@ -437,7 +437,7 @@ class TestMergeWithExisting:
 
     def test_preserves_manual_override_sig(self, tmp_path):
         existing = {
-            'metadata': {'schema_version': 1},
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION - 1},
             'pull_requests': [{
                 'number': 1,
                 'repo': 'o3de/o3de',
@@ -456,7 +456,7 @@ class TestMergeWithExisting:
 
     def test_preserves_manual_override_description(self, tmp_path):
         existing = {
-            'metadata': {'schema_version': 1},
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION - 1},
             'pull_requests': [{
                 'number': 1,
                 'repo': 'o3de/o3de',
@@ -474,7 +474,7 @@ class TestMergeWithExisting:
 
     def test_adds_new_prs(self, tmp_path):
         existing = {
-            'metadata': {'schema_version': 1},
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION - 1},
             'pull_requests': [{
                 'number': 1, 'repo': 'o3de/o3de',
                 'manual_override_sig': None, 'manual_override_description': None,
@@ -1103,3 +1103,462 @@ class TestNormalizePrDataTruncation:
             release_notes._normalize_pr_data(raw, 'o3de/o3de')
             mock_logger.warning.assert_called_once()
             assert '100+' in mock_logger.warning.call_args[0][0]
+
+
+class TestSchemaVersion:
+    def test_schema_version_is_3(self):
+        # Bumped from 2 -> 3 when release_machinery flag and merge-base metadata
+        # were added. Existing JSON at schema 2 is still readable
+        # (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
+        assert release_notes.SCHEMA_VERSION == 3
+
+
+class TestParsePointReleaseTag:
+    def test_major_zero(self):
+        assert release_notes.parse_point_release_tag('2510.0') == (2510, 0)
+
+    def test_point_release(self):
+        assert release_notes.parse_point_release_tag('2510.2') == (2510, 2)
+
+    def test_future_year(self):
+        assert release_notes.parse_point_release_tag('2605.1') == (2605, 1)
+
+    def test_empty_returns_none(self):
+        assert release_notes.parse_point_release_tag('') is None
+
+    def test_none_input_returns_none(self):
+        assert release_notes.parse_point_release_tag(None) is None
+
+    def test_branch_name_returns_none(self):
+        assert release_notes.parse_point_release_tag('origin/main') is None
+
+    def test_semver_with_three_parts_returns_none(self):
+        # 26.05.0 is the release_version string, not a git tag; we use 2605.0 as
+        # the tag in the o3de repos.
+        assert release_notes.parse_point_release_tag('26.05.0') is None
+
+    def test_text_returns_none(self):
+        assert release_notes.parse_point_release_tag('development') is None
+
+    def test_whitespace_stripped(self):
+        assert release_notes.parse_point_release_tag('  2510.1  ') == (2510, 1)
+
+
+class TestFindSiblingPointReleaseTags:
+    def test_returns_sorted_siblings(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(
+                returncode=0,
+                stdout='2510.2\n2510.0\n2510.1\n',
+                stderr='',
+            )
+            result = release_notes.find_sibling_point_release_tags(tmp_path, '2510.1')
+            assert result == ['2510.0', '2510.1', '2510.2']
+
+    def test_non_point_release_ref_returns_empty(self, tmp_path):
+        # No git calls expected — function returns early.
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            result = release_notes.find_sibling_point_release_tags(tmp_path, 'development')
+            assert result == []
+            mock_run.assert_not_called()
+
+    def test_git_failure_returns_empty(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=128, stdout='', stderr='boom')
+            assert release_notes.find_sibling_point_release_tags(tmp_path, '2510.0') == []
+
+    def test_filters_non_matching_tags(self, tmp_path):
+        # git tag -l '2510.*' can return tags like '2510.0-beta' that don't
+        # parse as point releases; those should be dropped.
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(
+                returncode=0,
+                stdout='2510.0\n2510.0-beta\n2510.foo\n2510.1\n',
+                stderr='',
+            )
+            result = release_notes.find_sibling_point_release_tags(tmp_path, '2510.0')
+            assert result == ['2510.0', '2510.1']
+
+
+class TestExtractMergeBase:
+    def test_returns_sha_and_date(self, tmp_path):
+        def fake_run(cmd, **kwargs):
+            if cmd[1] == 'merge-base':
+                return mock.MagicMock(returncode=0, stdout='abc123def456\n', stderr='')
+            if cmd[1] == 'show':
+                return mock.MagicMock(returncode=0, stdout='2025-07-31T18:42:11+00:00\n', stderr='')
+            raise AssertionError(f'unexpected cmd: {cmd}')
+
+        with mock.patch('release_notes.subprocess.run', side_effect=fake_run):
+            result = release_notes.extract_merge_base(tmp_path, '2510.2', 'origin/stabilization/26050')
+            assert result == ('abc123def456', '2025-07-31T18:42:11+00:00')
+
+    def test_merge_base_failure_returns_none(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=128, stdout='', stderr='no merge base')
+            assert release_notes.extract_merge_base(tmp_path, '2510.0', 'main') is None
+
+    def test_show_failure_still_returns_sha(self, tmp_path):
+        def fake_run(cmd, **kwargs):
+            if cmd[1] == 'merge-base':
+                return mock.MagicMock(returncode=0, stdout='abc123\n', stderr='')
+            return mock.MagicMock(returncode=1, stdout='', stderr='')
+
+        with mock.patch('release_notes.subprocess.run', side_effect=fake_run):
+            result = release_notes.extract_merge_base(tmp_path, '2510.2', 'main')
+            assert result == ('abc123', '')
+
+    def test_invalid_ref_raises(self, tmp_path):
+        with pytest.raises(ValueError):
+            release_notes.extract_merge_base(tmp_path, '; rm -rf /', 'main')
+
+
+class TestExtractPointreleaseContainers:
+    def _make_git_log_output(self, *commits):
+        sep = '@@CONTAINER_BOUNDARY@@\n'
+        out = ''
+        for sha, subject, body in commits:
+            out += f'{sha}\n{subject}\n{body}\n{sep}'
+        return out
+
+    def test_finds_container_with_bundled_prs(self, tmp_path):
+        out = self._make_git_log_output(
+            ('abc123', 'Cherry pick fixes for point release from dev (#19506)',
+             'Bundled fixes:\n* Fix VS detection (#19450)\n* Add seed list (#19418)\n'),
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=0, stdout=out, stderr='')
+            containers = release_notes.extract_pointrelease_containers(
+                tmp_path, '2510.0', '2510.2',
+            )
+        assert len(containers) == 1
+        c = containers[0]
+        assert c['container_pr'] == 19506
+        assert c['title'].startswith('Cherry pick fixes')
+        assert c['bundled_prs'] == [19418, 19450]
+
+    def test_skips_non_container_commits(self, tmp_path):
+        out = self._make_git_log_output(
+            ('aaa', 'Update version in engine.json for 25.10.2 (#19511)', ''),
+            ('bbb', 'Cherrypick fixes from dev to pointrelease 25101 (#19392)',
+             'Cherry-picked PRs:\n- (#19300)\n- (#19301)\n'),
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=0, stdout=out, stderr='')
+            containers = release_notes.extract_pointrelease_containers(
+                tmp_path, '2510.0', '2510.1',
+            )
+        # #19511 (Update version) is not a container; #19392 IS.
+        assert len(containers) == 1
+        assert containers[0]['container_pr'] == 19392
+        assert containers[0]['bundled_prs'] == [19300, 19301]
+
+    def test_excludes_self_reference_from_bundled(self, tmp_path):
+        # The container PR's own number (e.g. (#19506)) sometimes also appears
+        # in the body. It must not be listed as a bundled PR.
+        out = self._make_git_log_output(
+            ('abc', 'Cherry pick from dev (#19506)',
+             'Cherry-picks consolidated in (#19506):\n* (#19450)\n'),
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=0, stdout=out, stderr='')
+            containers = release_notes.extract_pointrelease_containers(
+                tmp_path, '2510.0', '2510.2',
+            )
+        assert containers[0]['container_pr'] == 19506
+        assert 19506 not in containers[0]['bundled_prs']
+        assert containers[0]['bundled_prs'] == [19450]
+
+    def test_empty_log_returns_empty(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=0, stdout='', stderr='')
+            assert release_notes.extract_pointrelease_containers(
+                tmp_path, '2510.0', '2510.0',
+            ) == []
+
+    def test_git_failure_returns_empty(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.MagicMock(returncode=128, stdout='', stderr='bad ref')
+            assert release_notes.extract_pointrelease_containers(
+                tmp_path, '2510.0', '2510.2',
+            ) == []
+
+
+class TestWritePointreleaseAudit:
+    def test_sidecar_format(self, tmp_path):
+        audit_data = {
+            'from_ref': '2510.2',
+            'to_ref': 'origin/stabilization/26050',
+            'predecessor_tag': '2510.0',
+            'per_repo': {
+                'o3de/o3de': {
+                    'containers': [
+                        {
+                            'container_pr': 19506,
+                            'container_sha': 'abc',
+                            'title': 'Cherry pick fixes for point release from dev (#19506)',
+                            'bundled_prs': [19418, 19450],
+                        },
+                    ],
+                    'present_pr_numbers': {19418, 19450},
+                    'predecessor_tag': '2510.0',
+                },
+                'o3de/o3de-extras': {
+                    'containers': [],
+                    'present_pr_numbers': set(),
+                    'predecessor_tag': '2510.0',
+                },
+            },
+        }
+        out_path = tmp_path / 'audit.md'
+        release_notes.write_pointrelease_audit(audit_data, out_path)
+        content = out_path.read_text()
+        assert 'Point-release audit for origin/stabilization/26050' in content
+        assert '`2510.0`' in content and '`2510.2`' in content
+        assert '#19506' in content
+        assert '✓ #19418' in content
+        assert '✓ #19450' in content
+        assert '_No cherry-pick containers found in this repo._' in content
+        assert '1 container(s) checked' in content
+        assert '2 bundled PR reference(s) parsed' in content
+        assert '2 accounted for' in content
+
+    def test_missing_bundled_pr_flagged(self, tmp_path):
+        audit_data = {
+            'from_ref': '2510.2',
+            'to_ref': 'main',
+            'predecessor_tag': '2510.0',
+            'per_repo': {
+                'o3de/o3de': {
+                    'containers': [
+                        {
+                            'container_pr': 19506,
+                            'container_sha': 'abc',
+                            'title': 'Cherry pick fixes (#19506)',
+                            'bundled_prs': [19418, 19999],  # 19999 is missing
+                        },
+                    ],
+                    'present_pr_numbers': {19418},
+                    'predecessor_tag': '2510.0',
+                },
+            },
+        }
+        out_path = tmp_path / 'audit.md'
+        release_notes.write_pointrelease_audit(audit_data, out_path)
+        content = out_path.read_text()
+        assert '✓ #19418' in content
+        assert '✗ #19999' in content
+        assert '1 accounted for' in content
+
+
+class TestIsReleaseMachinery:
+    def test_update_version_title(self):
+        pr = {'title': 'Update version in engine.json for 25.10.2', 'files': ['engine.json']}
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_update_sbom(self):
+        pr = {'title': 'Update SBOM', 'files': ['sbom.cdx.json']}
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_update_gpg_key(self):
+        pr = {'title': 'Update Linux GPG key for 2025', 'files': ['cmake/install/foo.cmake']}
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_cherrypick_container_title(self):
+        pr = {
+            'title': 'Cherrypick fixes from dev to pointrelease 25101',
+            'files': ['Code/Tools/ProjectManager/Source/ProjectUtils.cpp'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_merge_pointrelease_into_main(self):
+        pr = {
+            'title': 'Merge pull request #19518 from nick-l-o3de/merging_pointrelease_25102_to_main',
+            'files': ['engine.json'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_add_point_release_branch_to_ar(self):
+        pr = {
+            'title': 'Add point-release branch to AR merge triggers',
+            'files': ['.github/workflows/ar.yml'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_workflows_only_files_not_machinery(self):
+        # Workflow-only PRs are deliberately NOT classified as machinery by
+        # the file-only heuristic — they often contain real CI improvements
+        # (e.g. "Add check for adequate free space in linux AR workspace")
+        # that curators want to keep. We trust title patterns instead.
+        pr = {
+            'title': 'Add check for adequate free space in linux AR workspace',
+            'files': ['.github/workflows/linux-build.yml'],
+        }
+        assert release_notes.is_release_machinery(pr) is False
+
+    def test_engine_json_only_is_machinery(self):
+        # engine.json-only PRs are version bumps / template updates by definition.
+        pr = {
+            'title': 'Bump engine.json',
+            'files': ['engine.json'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_templates_engine_json_only_is_machinery(self):
+        pr = {
+            'title': 'Refresh templates',
+            'files': ['Templates/Minimal/engine.json', 'Templates/Standard/engine.json'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_sbom_only_is_machinery(self):
+        pr = {
+            'title': 'Refresh SBOM',
+            'files': ['sbom.cdx.json'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_real_product_pr_is_not_machinery(self):
+        pr = {
+            'title': 'Add Unlit material type to Atom Gem',
+            'files': [
+                'Gems/Atom/Feature/Common/Code/Source/UnlitMaterial.cpp',
+                'Gems/Atom/Feature/Common/Code/Source/UnlitMaterial.h',
+            ],
+        }
+        assert release_notes.is_release_machinery(pr) is False
+
+    def test_mixed_files_is_not_machinery(self):
+        # Has engine.json AND product code → not machinery.
+        pr = {
+            'title': 'Add new material type',
+            'files': ['engine.json', 'Gems/Atom/Material.cpp'],
+        }
+        assert release_notes.is_release_machinery(pr) is False
+
+    def test_empty_files_and_neutral_title_is_not_machinery(self):
+        # File-only path requires at least one file. With no files we don't
+        # have evidence to classify it as machinery; fall through to False.
+        pr = {'title': 'Refactor some helpers', 'files': []}
+        assert release_notes.is_release_machinery(pr) is False
+
+    def test_missing_files_key_is_not_machinery(self):
+        pr = {'title': 'Refactor some helpers'}
+        assert release_notes.is_release_machinery(pr) is False
+
+
+class TestRenderMarkdownExcludesMachinery:
+    def _pr(self, num, title, sig='sig/core', machinery=False, repo='o3de/o3de'):
+        return {
+            'number': num,
+            'repo': repo,
+            'title': title,
+            'description': title + '.',
+            'url': f'https://github.com/{repo}/pull/{num}',
+            'sig_category': sig,
+            'flags': [],
+            'release_machinery': machinery,
+        }
+
+    def test_machinery_excluded_by_default(self):
+        prs = [
+            self._pr(100, 'Add Unlit material type'),
+            self._pr(101, 'Update version in engine.json', machinery=True),
+        ]
+        md = release_notes.render_markdown(prs, '26.05.0')
+        assert 'Add Unlit material type' in md
+        assert 'Update version in engine.json' not in md
+
+    def test_include_release_machinery_flag(self):
+        prs = [
+            self._pr(100, 'Add Unlit material type'),
+            self._pr(101, 'Update version in engine.json', machinery=True),
+        ]
+        md = release_notes.render_markdown(prs, '26.05.0', include_release_machinery=True)
+        assert 'Update version in engine.json' in md
+
+    def test_cherry_pick_flag_still_excludes(self):
+        # release_machinery is additive — the existing flag-based exclusion
+        # (cherry-pick / stabilization-sync) still applies independently.
+        pr = self._pr(100, 'Cherry pick fix from stabilization', machinery=False)
+        pr['flags'] = ['cherry-pick']
+        md = release_notes.render_markdown([pr], '26.05.0')
+        assert 'Cherry pick' not in md
+
+
+class TestBuildSummaryPromptExcludesMachinery:
+    def test_machinery_excluded_from_prompt(self):
+        prs = [
+            {'title': 'Add Unlit material type', 'sig_category': 'sig/graphics-audio',
+             'flags': [], 'release_machinery': False},
+            {'title': 'Update version in engine.json', 'sig_category': 'sig/build',
+             'flags': [], 'release_machinery': True},
+        ]
+        prompt = release_notes._build_summary_prompt(prs, '26.05.0')
+        assert 'Add Unlit material type' in prompt
+        assert 'Update version in engine.json' not in prompt
+
+    def test_include_release_machinery_in_prompt(self):
+        prs = [
+            {'title': 'Update version in engine.json', 'sig_category': 'sig/build',
+             'flags': [], 'release_machinery': True},
+        ]
+        prompt = release_notes._build_summary_prompt(
+            prs, '26.05.0', include_release_machinery=True,
+        )
+        assert 'Update version in engine.json' in prompt
+
+
+class TestEmitPointReleaseAwarenessLog:
+    def test_logs_when_from_ref_is_point_release_with_matching_merge_base(self, tmp_path, caplog):
+        # Sibling tags include 2510.0; merge-base of both 2510.0 and 2510.2
+        # against to-ref resolves to the same SHA → the equivalence log fires.
+        import logging
+        merge_base_sha = 'abc123def0' * 4
+
+        def fake_run(cmd, **kwargs):
+            if cmd[:2] == ['git', 'tag']:
+                return mock.MagicMock(returncode=0, stdout='2510.0\n2510.1\n2510.2\n', stderr='')
+            if cmd[1] == 'merge-base':
+                return mock.MagicMock(returncode=0, stdout=f'{merge_base_sha}\n', stderr='')
+            if cmd[1] == 'show':
+                return mock.MagicMock(returncode=0, stdout='2025-07-31T18:42:11+00:00\n', stderr='')
+            raise AssertionError(f'unexpected cmd: {cmd}')
+
+        with mock.patch('release_notes.subprocess.run', side_effect=fake_run), \
+             caplog.at_level(logging.INFO, logger='o3de.release_notes'):
+            release_notes._emit_point_release_awareness_log(
+                from_ref='2510.2',
+                to_ref='origin/stabilization/26050',
+                repo_path_map={'o3de/o3de': tmp_path},
+                repos=['o3de/o3de'],
+            )
+        assert any('Point releases on 2510 line' in r.message for r in caplog.records)
+
+    def test_silent_for_non_point_release_ref(self, tmp_path, caplog):
+        import logging
+        with mock.patch('release_notes.subprocess.run') as mock_run, \
+             caplog.at_level(logging.INFO, logger='o3de.release_notes'):
+            release_notes._emit_point_release_awareness_log(
+                from_ref='development',
+                to_ref='main',
+                repo_path_map={'o3de/o3de': tmp_path},
+                repos=['o3de/o3de'],
+            )
+            mock_run.assert_not_called()
+        assert not any('Point releases on' in r.message for r in caplog.records)
+
+    def test_silent_for_zero_point_release(self, tmp_path, caplog):
+        # 2510.0 IS a point-release tag pattern but with patch=0 — nothing
+        # earlier to compare against, so no log.
+        import logging
+        with mock.patch('release_notes.subprocess.run') as mock_run, \
+             caplog.at_level(logging.INFO, logger='o3de.release_notes'):
+            release_notes._emit_point_release_awareness_log(
+                from_ref='2510.0',
+                to_ref='main',
+                repo_path_map={'o3de/o3de': tmp_path},
+                repos=['o3de/o3de'],
+            )
+            mock_run.assert_not_called()
+        assert not any('Point releases on' in r.message for r in caplog.records)
