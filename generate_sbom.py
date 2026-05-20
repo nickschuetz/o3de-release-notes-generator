@@ -13,6 +13,7 @@ The SBOM captures:
   - Tool and metadata information
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -21,6 +22,7 @@ import platform
 import sys
 import tempfile
 from datetime import datetime, timezone
+from typing import Any
 
 PROJECT_NAME = 'o3de_release_notes_generator'
 PROJECT_VERSION = '0.5.0-beta'
@@ -59,7 +61,7 @@ def sha256_file(filepath: pathlib.Path) -> str:
     return h.hexdigest()
 
 
-def generate_sbom(project_dir: pathlib.Path) -> dict:
+def generate_sbom(project_dir: pathlib.Path) -> dict[str, Any]:
     timestamp = datetime.now(timezone.utc).isoformat()
 
     file_components = []
@@ -149,7 +151,7 @@ def _generate_deterministic_uuid(seed: str) -> str:
     )
 
 
-def write_sbom_atomic(sbom: dict, output_path: pathlib.Path) -> None:
+def write_sbom_atomic(sbom: dict[str, Any], output_path: pathlib.Path) -> None:
     output_path = output_path.resolve()
     fd, tmp_path = tempfile.mkstemp(
         dir=str(output_path.parent),
@@ -162,10 +164,8 @@ def write_sbom_atomic(sbom: dict, output_path: pathlib.Path) -> None:
             f.write('\n')
         os.replace(tmp_path, str(output_path))
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp_path)
-        except OSError:
-            pass
         raise
 
 
@@ -178,9 +178,9 @@ def main() -> int:
 
     component_count = len(sbom['components'])
     print(f'SBOM generated: {output_path}')
-    print(f'  Format: CycloneDX 1.5 (JSON)')
+    print('  Format: CycloneDX 1.5 (JSON)')
     print(f'  Components: {component_count} ({len(STDLIB_MODULES_USED)} stdlib, {component_count - len(STDLIB_MODULES_USED)} source files)')
-    print(f'  External dependencies: 0')
+    print('  External dependencies: 0')
 
     return 0
 
