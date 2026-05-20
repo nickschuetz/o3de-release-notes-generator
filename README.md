@@ -9,7 +9,7 @@ Designed to be run incrementally throughout the pre-release cycle so the release
 - Python 3.10+
 - [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
 - Local clone(s) of O3DE repositories (read-only reference)
-- (Optional) An LLM for automated narrative summary generation, [Ollama](https://ollama.com/) (local, open-source) or [Claude CLI](https://claude.ai/claude-code) (cloud)
+- (Optional) An LLM for automated narrative summary generation: [Ollama](https://ollama.com/) (local, open-source) or [Claude CLI](https://claude.ai/claude-code) (cloud)
 
 ## Quick Start
 
@@ -110,7 +110,7 @@ python release_notes.py render \
 | `--include-release-machinery` | No | off | Include release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) in the rendered output. Off by default for major releases; turn on for point-release notes where machinery IS the content |
 | `--generate-summary` | No | off | Generate a narrative summary using an LLM |
 | `--summary-cmd` | No | `ollama run --nowordwrap qwen2.5:14b` | Command to generate the summary |
-| `--summary-hint` | No | - | Narrative guidance, inline text or `@filepath` to read from a file |
+| `--summary-hint` | No | - | Narrative guidance: inline text or `@filepath` to read from a file |
 | `--summary-timeout` | No | `300` | Timeout (seconds) for the summary command (range: 10–3600) |
 | `--log-file` | No | - | Append logs to this file in addition to stderr |
 
@@ -271,9 +271,9 @@ python release_notes.py generate \
 
 The tool auto-detects the point-release pattern and:
 
-1. Emits a one-line `INFO` log noting that the merge-base of `2510.0` and `2510.2` against `--to-ref` is identical (point-release cherry-picks are correctly excluded, their bundled fixes are counted via the development-side merges instead).
-2. Writes a **point-release audit sidecar** at `reports/26050_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing, investigate). Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
-3. Flags release-machinery PRs (version bumps, SBOM auto-updates, cherry-pick wrappers, "merging pointrelease into main" merges, etc.) with `release_machinery: true` in the JSON and excludes them from the rendered output. Opt back in with `--include-release-machinery`, useful for *point-release* notes where the machinery PRs are the headline content.
+1. Emits a one-line `INFO` log noting that the merge-base of `2510.0` and `2510.2` against `--to-ref` is identical (point-release cherry-picks are correctly excluded; their bundled fixes are counted via the development-side merges instead).
+2. Writes a **point-release audit sidecar** at `reports/26050_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing; investigate). Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
+3. Flags release-machinery PRs (version bumps, SBOM auto-updates, cherry-pick wrappers, "merging pointrelease into main" merges, etc.) with `release_machinery: true` in the JSON and excludes them from the rendered output. Opt back in with `--include-release-machinery`; useful for *point-release* notes where the machinery PRs are the headline content.
 
 ## Sample Output
 
@@ -377,7 +377,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `manual_override_sig` | Set this to reassign a PR to a different SIG. Preserved on re-runs. |
 | `manual_override_description` | Set this to override the auto-generated description. Preserved on re-runs. |
 | `metadata.merge_bases` | Per-repo `{sha, committer_date}` for the merge-base of `from_ref` and `to_ref`. Anchors the actual fork point. |
-| `metadata.effective_window` | `{start, end}` window the diff covers, `start` is the earliest merge-base committer-date across repos; `end` is `generated_at`. |
+| `metadata.effective_window` | `{start, end}` window the diff covers. `start` is the earliest merge-base committer-date across repos; `end` is `generated_at`. |
 | `metadata.release_machinery_count` | Number of PRs flagged `release_machinery: true` in this run. |
 
 ## SIG Categorization
@@ -401,7 +401,7 @@ The categorization data lives as four data-driven structures at the top of `rele
 | `SIG_TITLE_KEYWORDS` | Per-SIG keyword list for the title-heuristic categorizer. |
 | `SIG_FILE_PATH_PATTERNS` | Per-SIG file-path prefix list for the file-heuristic categorizer (longest-match-wins). |
 
-To **adjust** an existing SIG's heuristics, edit `SIG_TITLE_KEYWORDS` and/or `SIG_FILE_PATH_PATTERNS`. To **add a new SIG**, you must update *all four*, otherwise the new SIG either won't render (missing display name) or won't be picked up at all (missing from canonical order).
+To **adjust** an existing SIG's heuristics, edit `SIG_TITLE_KEYWORDS` and/or `SIG_FILE_PATH_PATTERNS`. To **add a new SIG**, you must update *all four*; otherwise the new SIG either won't render (missing display name) or won't be picked up at all (missing from canonical order).
 
 > **Determinism note:** When a PR has multiple SIG labels, or its title hits keywords in multiple SIGs, the SIG that comes earliest in `SIG_CANONICAL_ORDER` wins. This guarantees the same PR is categorized the same way on every run, regardless of label order from the GitHub API or dict iteration order.
 
@@ -473,7 +473,7 @@ Key highlights:
 - All subprocess calls use list arguments (no `shell=True`)
 - All subprocess output decoded with `encoding='utf-8', errors='replace'`
 - All user inputs validated with regex before use
-- GraphQL queries use server-side variables (`$owner`, `$name`), no string interpolation
+- GraphQL queries use server-side variables (`$owner`, `$name`); no string interpolation
 - GitHub auth delegated to `gh` CLI; stderr scrubbed for token shapes before logging
 - Atomic file writes prevent data corruption
 - PR titles sanitized to prevent markdown injection; PR bodies capped at 64KB before extraction
