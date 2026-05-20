@@ -14,7 +14,7 @@ Please include:
 - The version (`python release_notes.py --version`) and platform you observed it on
 - Whether you have already disclosed it elsewhere
 
-You should expect an initial acknowledgement within **5 business days**. Coordinated disclosure is preferred, the maintainer will work with you on a fix and a public advisory before any public discussion.
+You should expect an initial acknowledgement within **5 business days**. Coordinated disclosure is preferred; the maintainer will work with you on a fix and a public advisory before any public discussion.
 
 ## Supported Versions
 
@@ -30,9 +30,9 @@ In scope:
 
 Out of scope:
 
-- Vulnerabilities in `gh` CLI, `git`, Python, or Ollama / Claude CLI, please report those upstream.
-- Vulnerabilities that require an attacker who already has shell access on the user's workstation (this is a local CLI tool, local code execution is the trust baseline).
-- Issues in PR bodies / titles fetched from GitHub that the user reviews before publishing, the rendered markdown is intended to be human-reviewed.
+- Vulnerabilities in `gh` CLI, `git`, Python, or Ollama / Claude CLI; please report those upstream.
+- Vulnerabilities that require an attacker who already has shell access on the user's workstation (this is a local CLI tool; local code execution is the trust baseline).
+- Issues in PR bodies / titles fetched from GitHub that the user reviews before publishing; the rendered markdown is intended to be human-reviewed.
 
 ## Threat Model & Controls
 
