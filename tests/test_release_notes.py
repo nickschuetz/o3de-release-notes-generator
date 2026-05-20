@@ -928,7 +928,7 @@ class TestSafeStderrRedaction:
 
 class TestPrBodySizeCap:
     def test_huge_body_does_not_explode(self):
-        # 1MB body — should be capped before regex processing.
+        # 1MB body,should be capped before regex processing.
         body = 'a' * (1024 * 1024)
         result = release_notes._build_pr_description('Fix bug', body)
         assert isinstance(result, str)
@@ -1156,7 +1156,7 @@ class TestFindSiblingPointReleaseTags:
             assert result == ['2510.0', '2510.1', '2510.2']
 
     def test_non_point_release_ref_returns_empty(self, tmp_path):
-        # No git calls expected — function returns early.
+        # No git calls expected,function returns early.
         with mock.patch('release_notes.subprocess.run') as mock_run:
             result = release_notes.find_sibling_point_release_tags(tmp_path, 'development')
             assert result == []
@@ -1387,7 +1387,7 @@ class TestIsReleaseMachinery:
 
     def test_workflows_only_files_not_machinery(self):
         # Workflow-only PRs are deliberately NOT classified as machinery by
-        # the file-only heuristic — they often contain real CI improvements
+        # the file-only heuristic,they often contain real CI improvements
         # (e.g. "Add check for adequate free space in linux AR workspace")
         # that curators want to keep. We trust title patterns instead.
         pr = {
@@ -1478,7 +1478,7 @@ class TestRenderMarkdownExcludesMachinery:
         assert 'Update version in engine.json' in md
 
     def test_cherry_pick_flag_still_excludes(self):
-        # release_machinery is additive — the existing flag-based exclusion
+        # release_machinery is additive,the existing flag-based exclusion
         # (cherry-pick / stabilization-sync) still applies independently.
         pr = self._pr(100, 'Cherry pick fix from stabilization', machinery=False)
         pr['flags'] = ['cherry-pick']
@@ -1549,7 +1549,7 @@ class TestEmitPointReleaseAwarenessLog:
         assert not any('Point releases on' in r.message for r in caplog.records)
 
     def test_silent_for_zero_point_release(self, tmp_path, caplog):
-        # 2510.0 IS a point-release tag pattern but with patch=0 — nothing
+        # 2510.0 IS a point-release tag pattern but with patch=0,nothing
         # earlier to compare against, so no log.
         import logging
         with mock.patch('release_notes.subprocess.run') as mock_run, \

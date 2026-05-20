@@ -5,7 +5,7 @@
 """
 Generates a CycloneDX 1.5 SBOM (JSON) for the o3de-release-notes-generator project.
 
-This project has zero external dependencies — only Python stdlib modules are used.
+This project has zero external dependencies; only Python stdlib modules are used.
 The SBOM captures:
   - The project as the top-level component
   - Python stdlib modules as framework dependencies
