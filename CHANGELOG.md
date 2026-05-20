@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-beta] - 2026-05-20
+
+### Added
+- **Point-release audit sidecar.** When `--from-ref` is a non-zero point-release tag (e.g. `2510.2`), detects cherry-pick container PRs on the previous stabilization branch (titles matching `cherry-pick … from dev`, `merging point-release …`, etc.), parses the bundled PR numbers from each container's commit body, and writes `<output-md-stem>_pointrelease_audit.md` next to the rendered report — a ✓/✗ checklist showing whether each bundled fix is also present in the rendered report via its development-side merge. Turns the manual "did we lose anything?" check into an auditable artifact. Suppress with `--no-pointrelease-audit`.
+- **Merge-base metadata** in `release_data.json`: per-repo `merge_bases` (sha + committer_date) and aggregate `effective_window` (start = earliest merge-base date across repos, end = generated_at). Anchors the diff's time window to the actual fork point, matching the date PR-curators typically reference in their release-notes PR descriptions.
+- **Point-release awareness log line.** When `--from-ref` is a point-release tag with earlier siblings (e.g. `2510.1`, `2510.2`), one `INFO` line explains the merge-base equivalence between the major tag (`2510.0`) and the point-release tag against `--to-ref`, so re-runs don't relearn the lesson.
+- **Release-machinery classifier.** Tags PRs whose title clearly indicates release engineering (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease containers, "merging pointrelease into main", etc.) or whose entire file diff is unambiguous machinery (`engine.json` / `sbom.cdx.json` / `version.txt`) with `release_machinery: True`. Default-excluded from rendered markdown and summary prompts so the report stays focused on product changes; opt back in with `--include-release-machinery` (use this for point-release notes where machinery IS the content). The file-only heuristic deliberately excludes `.github/workflows/`-only PRs to avoid filtering real CI improvements.
+- New helpers: `parse_point_release_tag`, `find_sibling_point_release_tags`, `extract_merge_base`, `extract_pointrelease_containers`, `write_pointrelease_audit`, `is_release_machinery`, `_emit_point_release_awareness_log`, `_maybe_write_pointrelease_audit`.
+- New CLI flags: `--no-pointrelease-audit` (fetch / generate), `--include-release-machinery` (render / generate).
+- 61 new tests (163 → 224) across `TestSchemaVersion`, `TestParsePointReleaseTag`, `TestFindSiblingPointReleaseTags`, `TestExtractMergeBase`, `TestExtractPointreleaseContainers`, `TestWritePointreleaseAudit`, `TestIsReleaseMachinery`, `TestRenderMarkdownExcludesMachinery`, `TestBuildSummaryPromptExcludesMachinery`, `TestEmitPointReleaseAwarenessLog`.
+
+### Changed
+- **Schema version bumped 2 → 3.** New `release_machinery` field on each PR; new metadata fields `merge_bases`, `effective_window`, `release_machinery_count`. `load_existing_json` continues to accept schema 2 — no migration step required for existing JSON files.
+- `render_markdown()` and `_build_summary_prompt()` now accept `include_release_machinery: bool = False` and filter PRs flagged `release_machinery` by default.
+- `.gitignore` cleaned up: the dead `reports/release_data.json` rule was inert (the file is tracked despite the rule) and has been removed; `reports/*.log` is now ignored to keep `--log-file` outputs out of commits.
+- Version bumped to 0.5.0-beta.
+
 ## [0.4.0-beta] - 2026-04-27
 
 ### Added

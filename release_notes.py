@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.4.0-beta'
+__version__ = '0.5.0-beta'
 
 SCHEMA_VERSION = 3
 

@@ -4,7 +4,7 @@
 
 [project]
 name = "o3de_release_notes_generator"
-version = "0.4.0-beta"
+version = "0.5.0-beta"
 description = "Generates O3DE release notes from merged pull requests"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0 OR MIT" }

@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
   "version": 1,
-  "serialNumber": "urn:uuid:71a418b8-c705-4f54-957f-b5777f0cd49c",
+  "serialNumber": "urn:uuid:fd7f54af-7f76-4428-8a10-19d81cfa0932",
   "metadata": {
-    "timestamp": "2026-05-20T17:07:06.216817+00:00",
+    "timestamp": "2026-05-20T17:17:32.302907+00:00",
     "tools": {
       "components": [
         {
@@ -19,7 +19,7 @@
     "component": {
       "type": "application",
       "name": "o3de_release_notes_generator",
-      "version": "0.4.0-beta",
+      "version": "0.5.0-beta",
       "description": "Generates O3DE release notes from merged pull requests",
       "licenses": [
         {
@@ -53,9 +53,9 @@
     {
       "type": "library",
       "name": "argparse",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/argparse@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/argparse@3.14.4",
       "description": "Python stdlib module: argparse",
       "properties": [
         {
@@ -67,9 +67,9 @@
     {
       "type": "library",
       "name": "datetime",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/datetime@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/datetime@3.14.4",
       "description": "Python stdlib module: datetime",
       "properties": [
         {
@@ -81,9 +81,9 @@
     {
       "type": "library",
       "name": "hashlib",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/hashlib@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/hashlib@3.14.4",
       "description": "Python stdlib module: hashlib",
       "properties": [
         {
@@ -95,9 +95,9 @@
     {
       "type": "library",
       "name": "json",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/json@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/json@3.14.4",
       "description": "Python stdlib module: json",
       "properties": [
         {
@@ -109,9 +109,9 @@
     {
       "type": "library",
       "name": "logging",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/logging@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/logging@3.14.4",
       "description": "Python stdlib module: logging",
       "properties": [
         {
@@ -123,9 +123,9 @@
     {
       "type": "library",
       "name": "os",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/os@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/os@3.14.4",
       "description": "Python stdlib module: os",
       "properties": [
         {
@@ -137,9 +137,9 @@
     {
       "type": "library",
       "name": "pathlib",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/pathlib@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/pathlib@3.14.4",
       "description": "Python stdlib module: pathlib",
       "properties": [
         {
@@ -151,9 +151,9 @@
     {
       "type": "library",
       "name": "platform",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/platform@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/platform@3.14.4",
       "description": "Python stdlib module: platform",
       "properties": [
         {
@@ -165,9 +165,9 @@
     {
       "type": "library",
       "name": "re",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/re@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/re@3.14.4",
       "description": "Python stdlib module: re",
       "properties": [
         {
@@ -179,9 +179,9 @@
     {
       "type": "library",
       "name": "shutil",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/shutil@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/shutil@3.14.4",
       "description": "Python stdlib module: shutil",
       "properties": [
         {
@@ -193,9 +193,9 @@
     {
       "type": "library",
       "name": "subprocess",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/subprocess@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/subprocess@3.14.4",
       "description": "Python stdlib module: subprocess",
       "properties": [
         {
@@ -207,9 +207,9 @@
     {
       "type": "library",
       "name": "sys",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/sys@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/sys@3.14.4",
       "description": "Python stdlib module: sys",
       "properties": [
         {
@@ -221,9 +221,9 @@
     {
       "type": "library",
       "name": "tempfile",
-      "version": "3.12.13",
+      "version": "3.14.4",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/tempfile@3.12.13",
+      "purl": "pkg:pypi/cpython-stdlib/tempfile@3.14.4",
       "description": "Python stdlib module: tempfile",
       "properties": [
         {
@@ -238,7 +238,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "d0613461f12861cc6d68777078fc8720fabed6a7325e428f23c7881682bc8196"
+          "content": "f649d49c080a231c69d3f76ebd073d8124c7e682d0c13e4891c76203ad13bb32"
         }
       ]
     },
@@ -248,7 +248,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "1fd56a199e49faabc1a4c28c632e3bfa1f85c7e7ca46da1db1952597f1c723d2"
+          "content": "2669d1704b1327d7b7cc8572283f549634401ae2ddd1d7d570a78fc07e29d182"
         }
       ]
     },

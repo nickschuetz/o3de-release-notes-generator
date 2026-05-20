@@ -73,6 +73,8 @@ SIG categorization heuristics are data-driven dicts at the top of `release_notes
 - `--summary-timeout` bounds the LLM runtime (default 300s, range 10–3600s)
 - `--dry-run` previews which PRs would be fetched (from local `git log`) without calling the GitHub API or writing files
 - `--log-file PATH` appends logs to a file in addition to stderr
+- `--no-pointrelease-audit` suppresses the audit sidecar that's normally written when `--from-ref` looks like a point-release tag (`X.Y.N`, `N>0`); the sidecar cross-checks each cherry-pick container PR's bundled fixes against the rendered report
+- `--include-release-machinery` re-includes PRs flagged `release_machinery: true` (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`-only diffs) in the rendered output — default is to filter them; turn on for point-release notes where machinery IS the content
 - JSON intermediate format supports `manual_override_sig` and `manual_override_description` fields — these must be preserved on incremental re-runs
 - **Watch for the merge drop warning**: PRs in the prior JSON that no longer appear in `git log` are dropped *unless* they carry a `manual_override_*` field. Direct edits to `description` / `sig_category` without setting the override are silently lost; `merge_with_existing` logs a `WARNING` count when this happens.
 - Schema version is in `SCHEMA_VERSION` constant — bump it when changing JSON structure, and accept the previous version for backward compatibility

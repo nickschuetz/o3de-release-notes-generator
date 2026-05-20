@@ -67,6 +67,7 @@ python release_notes.py fetch \
   [--repos owner/repo ...] \
   [--repo-path owner/repo=/path ...] \
   [--dry-run] \
+  [--no-pointrelease-audit] \
   [--log-file PATH] \
   [-v]
 ```
@@ -80,6 +81,7 @@ python release_notes.py fetch \
 | `--output-json` | Yes | - | Output JSON file path |
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
+| `--no-pointrelease-audit` | No | off | Skip the point-release audit sidecar even when `--from-ref` looks like a point-release tag (`X.Y.N`, `N>0`) |
 | `--log-file` | No | - | Append logs to this file in addition to stderr |
 | `-v` | No | - | Verbose logging |
 
@@ -91,6 +93,7 @@ python release_notes.py render \
   --output-md <output.md> \
   --release-version <version-string> \
   [--include-uncategorized] \
+  [--include-release-machinery] \
   [--generate-summary] \
   [--summary-cmd <command>] \
   [--summary-hint <text>] \
@@ -104,6 +107,7 @@ python release_notes.py render \
 | `--output-md` | Yes | - | Output markdown file path |
 | `--release-version` | Yes | - | Release version string (e.g., `26.05.0`) |
 | `--include-uncategorized` | No | off | Show PRs that couldn't be categorized |
+| `--include-release-machinery` | No | off | Include release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) in the rendered output. Off by default for major releases; turn on for point-release notes where machinery IS the content |
 | `--generate-summary` | No | off | Generate a narrative summary using an LLM |
 | `--summary-cmd` | No | `ollama run --nowordwrap qwen2.5:14b` | Command to generate the summary |
 | `--summary-hint` | No | - | Narrative guidance — inline text or `@filepath` to read from a file |
@@ -249,6 +253,28 @@ python release_notes.py fetch \
 
 Reads `git log` locally and prints the PR numbers that would be fetched. No GitHub API calls; no files written. Useful for verifying refs and clone paths before a long run.
 
+### Generating notes when point releases have shipped on the previous line
+
+When point releases have shipped between the previous major and the current cycle (e.g. `2510.0` → `2510.1` → `2510.2`), pass the **latest point-release tag** as `--from-ref`:
+
+```bash
+python release_notes.py generate \
+  --from-ref 2510.2 \
+  --to-ref origin/stabilization/26050 \
+  --repos o3de/o3de o3de/o3de-extras \
+  --repo-path o3de/o3de=~/PROJECTS/o3de \
+  --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
+  --output-json reports/release_data.json \
+  --output-md reports/26050_release_notes.md \
+  --release-version 26.05.0
+```
+
+The tool auto-detects the point-release pattern and:
+
+1. Emits a one-line `INFO` log noting that the merge-base of `2510.0` and `2510.2` against `--to-ref` is identical (point-release cherry-picks are correctly excluded — their bundled fixes are counted via the development-side merges instead).
+2. Writes a **point-release audit sidecar** at `reports/26050_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing — investigate). Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
+3. Flags release-machinery PRs (version bumps, SBOM auto-updates, cherry-pick wrappers, "merging pointrelease into main" merges, etc.) with `release_machinery: true` in the JSON and excludes them from the rendered output. Opt back in with `--include-release-machinery` — useful for *point-release* notes where the machinery PRs are the headline content.
+
 ## Sample Output
 
 A real run against `o3de/o3de` 25.10.0 → 26.05.0 (228 PRs) renders something like:
@@ -294,13 +320,28 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
-    "schema_version": 2,
+    "schema_version": 3,
     "pr_count": 228,
     "categorization_summary": {
       "label": 152,
       "heuristic_title": 55,
       "heuristic_files": 17,
       "uncategorized": 4
+    },
+    "release_machinery_count": 1,
+    "merge_bases": {
+      "o3de/o3de": {
+        "sha": "57680ee42f18d5952e4d4fa5ab52750edefb878e",
+        "committer_date": "2025-07-29T11:12:47-07:00"
+      },
+      "o3de/o3de-extras": {
+        "sha": "3038e4ac7b566b8b0ab7360acc67d6280eb68eba",
+        "committer_date": "2025-09-08T14:48:13+02:00"
+      }
+    },
+    "effective_window": {
+      "start": "2025-07-29T11:12:47-07:00",
+      "end": "2026-05-20T16:55:32+00:00"
     }
   },
   "pull_requests": [
@@ -317,6 +358,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "categorization_source": "label",
       "description": "Fix for choppy mouse movement in FlyCameraInputComponent.",
       "flags": [],
+      "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null
     }
@@ -331,8 +373,12 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `sig_category` | Assigned SIG. Set automatically, or via `manual_override_sig`. |
 | `categorization_source` | How the SIG was assigned: `label`, `heuristic_title`, `heuristic_files`, `uncategorized`, `manual_override` |
 | `flags` | Auto-detected flags: `cherry-pick`, `stabilization-sync`. Flagged PRs are excluded from rendered markdown. |
+| `release_machinery` | Auto-detected boolean for release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`-only diffs). Excluded from rendered markdown and summary prompts by default; opt back in with `--include-release-machinery`. |
 | `manual_override_sig` | Set this to reassign a PR to a different SIG. Preserved on re-runs. |
 | `manual_override_description` | Set this to override the auto-generated description. Preserved on re-runs. |
+| `metadata.merge_bases` | Per-repo `{sha, committer_date}` for the merge-base of `from_ref` and `to_ref`. Anchors the actual fork point. |
+| `metadata.effective_window` | `{start, end}` window the diff covers — `start` is the earliest merge-base committer-date across repos; `end` is `generated_at`. |
+| `metadata.release_machinery_count` | Number of PRs flagged `release_machinery: true` in this run. |
 
 ## SIG Categorization
 
@@ -407,7 +453,7 @@ The SBOM captures:
 python -m pytest tests/ -v
 ```
 
-177 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering, incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, and security controls.
+224 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, and security controls.
 
 A `Makefile` is provided for the common targets:
 
