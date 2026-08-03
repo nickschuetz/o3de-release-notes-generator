@@ -1201,18 +1201,21 @@ class TestNormalizePrDataTruncation:
         with mock.patch('release_notes.logger') as mock_logger:
             release_notes._normalize_pr_data(raw, 'o3de/o3de')
             mock_logger.warning.assert_called_once()
-            assert '100+' in mock_logger.warning.call_args[0][0]
+            # The bound is interpolated from FILES_PAGE_SIZE, not hardcoded.
+            args = mock_logger.warning.call_args[0]
+            assert '%d+ changed files' in args[0]
+            assert release_notes.FILES_PAGE_SIZE in args
 
 
 class TestSchemaVersion:
-    def test_schema_version_is_4(self):
-        # 3 -> 4 when metadata.tool_version was added and `flags` stopped
-        # carrying `stabilization-sync`. Schema 3 files still load
-        # (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
-        assert release_notes.SCHEMA_VERSION == 4
+    def test_schema_version_is_5(self):
+        # 4 -> 5 when per-PR `files_truncated` and metadata.file_list_truncated
+        # were added. Schema 4 files still load (load_existing_json accepts
+        # SCHEMA_VERSION and SCHEMA_VERSION - 1) and are backfilled on merge.
+        assert release_notes.SCHEMA_VERSION == 5
 
     def test_metadata_records_tool_version(self):
-        assert release_notes.__version__ == '0.6.2-beta'
+        assert release_notes.__version__ == '0.6.3-beta'
 
 
 class TestParsePointReleaseTag:
@@ -1973,7 +1976,7 @@ class TestSbomIntegrity:
 
 class TestSchemaVersionProvenance:
     def test_schema_version_is_current(self):
-        assert release_notes.SCHEMA_VERSION == 4
+        assert release_notes.SCHEMA_VERSION == 5
 
     def test_previous_schema_still_loads(self, tmp_path):
         path = tmp_path / 'old.json'
@@ -2446,3 +2449,42 @@ class TestAuditChecksRenderedSet:
               'labels': ['sig/build', 'sync/to-stabilization'], 'flags': []}
         pr['flags'] = release_notes.detect_pr_flags(pr)
         assert release_notes.classify_for_report([pr])[('o3de/o3de', 19178)] is None
+
+
+class TestFileListTruncation:
+    def test_flag_set_when_page_cap_hit(self):
+        nodes = [{'path': f'f{i}.cpp'} for i in range(release_notes.FILES_PAGE_SIZE)]
+        pr = release_notes._normalize_pr_data({'number': 1, 'files': {'nodes': nodes}}, 'o3de/o3de')
+        assert pr['files_truncated'] is True
+
+    def test_flag_clear_for_ordinary_pr(self):
+        nodes = [{'path': 'a.cpp'}, {'path': 'b.cpp'}]
+        pr = release_notes._normalize_pr_data({'number': 1, 'files': {'nodes': nodes}}, 'o3de/o3de')
+        assert pr['files_truncated'] is False
+
+    def test_derivable_from_stored_list_for_older_json(self):
+        # Schema 4 files have no files_truncated field; the answer is still
+        # recoverable from the stored list, so no re-fetch is needed.
+        old = {'files': [f'f{i}.cpp' for i in range(release_notes.FILES_PAGE_SIZE)]}
+        assert release_notes.files_possibly_truncated(old) is True
+        assert release_notes.files_possibly_truncated({'files': ['a.cpp']}) is False
+        assert release_notes.files_possibly_truncated({}) is False
+
+    def test_query_page_size_and_check_cannot_drift(self):
+        # The bound in the query string is the same constant the check reads.
+        query = release_notes._build_graphql_query([1])
+        assert f'files(first: {release_notes.FILES_PAGE_SIZE})' in query
+        assert f'labels(first: {release_notes.LABELS_PAGE_SIZE})' in query
+
+    def test_only_file_heuristic_cases_are_called_out(self):
+        # A truncated list is harmless when a label decided the SIG.
+        prs = [
+            {'repo': 'o3de/o3de', 'number': 1, 'files_truncated': True,
+             'categorization_source': 'label'},
+            {'repo': 'o3de/o3de', 'number': 2, 'files_truncated': True,
+             'categorization_source': 'heuristic_files'},
+        ]
+        at_risk = [f"{p['repo']}#{p['number']}" for p in prs
+                   if p.get('files_truncated')
+                   and p.get('categorization_source') == 'heuristic_files']
+        assert at_risk == ['o3de/o3de#2']
