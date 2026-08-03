@@ -1212,7 +1212,7 @@ class TestSchemaVersion:
         assert release_notes.SCHEMA_VERSION == 4
 
     def test_metadata_records_tool_version(self):
-        assert release_notes.__version__ == '0.6.1-beta'
+        assert release_notes.__version__ == '0.6.2-beta'
 
 
 class TestParsePointReleaseTag:
@@ -1423,7 +1423,7 @@ class TestWritePointreleaseAudit:
         assert '_No cherry-pick containers found in this repo._' in content
         assert '1 container(s) checked' in content
         assert '2 bundled PR reference(s) parsed' in content
-        assert '2 accounted for' in content
+        assert '2 rendered' in content
 
     def test_missing_bundled_pr_flagged(self, tmp_path):
         audit_data = {
@@ -1450,7 +1450,7 @@ class TestWritePointreleaseAudit:
         content = out_path.read_text()
         assert '✓ #19418' in content
         assert '✗ #19999' in content
-        assert '1 accounted for' in content
+        assert '1 rendered' in content
 
 
 class TestIsReleaseMachinery:
@@ -2380,3 +2380,69 @@ class TestDocumentationAccuracy:
         stale = f'schema_version": {release_notes.SCHEMA_VERSION - 1}'
         offenders = [n for n, t in self._docs().items() if stale in t]
         assert offenders == []
+
+
+class TestAuditChecksRenderedSet:
+    """The audit must compare against what renders, not what was collected."""
+
+    @staticmethod
+    def _audit_data(present, filtered):
+        return {
+            'from_ref': '2510.2', 'to_ref': 'main', 'predecessor_tag': '2510.0',
+            'per_repo': {'o3de/o3de': {
+                'containers': [{'container_pr': 19506, 'container_sha': 'abc',
+                                'title': 'Cherry pick fixes for point release from dev',
+                                'bundled_prs': [19418, 19450]}],
+                'present_pr_numbers': present,
+                'filtered_pr_numbers': filtered,
+                'predecessor_tag': '2510.0',
+            }},
+        }
+
+    def test_filtered_pr_is_warned_not_ticked(self, tmp_path):
+        out = tmp_path / 'audit.md'
+        release_notes.write_pointrelease_audit(
+            self._audit_data({19418}, {19450: 'cherry-pick'}), out)
+        content = out.read_text()
+        assert '✓ #19418' in content
+        assert '⚠ #19450' in content
+        assert '✓ #19450' not in content
+        assert 'cherry-pick' in content
+
+    def test_summary_counts_all_three_states(self, tmp_path):
+        out = tmp_path / 'audit.md'
+        release_notes.write_pointrelease_audit(
+            self._audit_data({19418}, {19450: 'uncategorized'}), out)
+        content = out.read_text()
+        assert '1 rendered' in content
+        assert '1 filtered out' in content
+        assert '0 not found' in content
+        assert 'Action required before publishing' in content
+
+    def test_clean_audit_says_so(self, tmp_path):
+        out = tmp_path / 'audit.md'
+        release_notes.write_pointrelease_audit(self._audit_data({19418, 19450}, {}), out)
+        assert 'All bundled fixes are present' in out.read_text()
+
+    def test_classifier_is_the_shared_source_of_truth(self):
+        prs = [
+            {'repo': 'o3de/o3de', 'number': 1, 'sig_category': 'sig/build', 'flags': []},
+            {'repo': 'o3de/o3de', 'number': 2, 'sig_category': 'sig/build',
+             'flags': ['cherry-pick']},
+            {'repo': 'o3de/o3de', 'number': 3, 'sig_category': 'uncategorized', 'flags': []},
+        ]
+        classified = release_notes.classify_for_report(prs)
+        assert classified[('o3de/o3de', 1)] is None
+        assert classified[('o3de/o3de', 2)] == 'cherry-pick'
+        assert classified[('o3de/o3de', 3)] == 'uncategorized'
+        # The reconciliation counter must agree with it, by construction.
+        counts = release_notes.summarize_render_coverage(prs)
+        assert counts['rendered'] == sum(1 for v in classified.values() if v is None)
+
+    def test_sync_labelled_pr_is_no_longer_filtered(self):
+        # The class of PR a point-release audit exists to protect: fixes synced
+        # to stabilization to make the point release.
+        pr = {'repo': 'o3de/o3de', 'number': 19178, 'sig_category': 'sig/build',
+              'labels': ['sig/build', 'sync/to-stabilization'], 'flags': []}
+        pr['flags'] = release_notes.detect_pr_flags(pr)
+        assert release_notes.classify_for_report([pr])[('o3de/o3de', 19178)] is None
