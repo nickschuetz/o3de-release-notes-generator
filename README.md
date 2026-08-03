@@ -422,7 +422,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 4,
-    "tool_version": "0.6.1-beta",
+    "tool_version": "0.6.2-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,
