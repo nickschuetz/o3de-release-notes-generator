@@ -58,8 +58,6 @@ o3de-release-notes-generator/
 │   └── test_release_notes.py       # Unit tests
 ├── reports/                        # Per-release reports (committed)
 │   ├── 26050_release_data.json     # 26.05.0 report; exclusion source for 26.10.0
-│   ├── 26050_release_notes.md      # 26.05.0 rendered notes
-│   ├── 26050_release_notes_pointrelease_audit.md
 │   ├── 26100_release_data.json     # 26.10.0 working draft
 │   ├── 26100_release_notes.md      # 26.10.0 rendered draft
 │   └── hints/                      # Reusable --summary-hint files

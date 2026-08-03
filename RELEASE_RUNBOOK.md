@@ -33,7 +33,15 @@ the `--from-ref` anchor.
 
 Reports are named per release (`reports/26050_release_data.json`,
 `reports/26100_release_data.json`), so each cycle's output never overwrites the
-exclusion source it depends on. Keep the previous cycle's report checked in.
+exclusion source it depends on.
+
+**Retention:** keep the previous cycle's `*_release_data.json` checked in. It is
+the `--exclude-json` source for the next cycle, and deleting it does not fail
+loudly: the run succeeds and silently re-publishes the previous release's
+content. The rendered `*_release_notes.md` and `*_pointrelease_audit.md` from
+closed cycles are outputs, not inputs, and can be pruned once the notes are
+published to docs.o3de.org, which is their canonical home. Hint files under
+`reports/hints/` are reused across cycles for narrative continuity; keep them.
 
 Spring releases (`xx.05.0`) are gaming-themed; fall releases (`xx.10.0`) are
 robotics-themed. That shapes the narrative summary, not the tooling.
