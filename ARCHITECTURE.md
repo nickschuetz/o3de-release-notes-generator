@@ -4,7 +4,7 @@
 
 The release notes generator is a standalone Python project with zero external dependencies. It consists of two main scripts:
 
-- **`release_notes.py`** - Pipeline (preflight, extract, exclude, fetch, categorize, render) that generates O3DE release notes from merged pull requests. The intermediate JSON is schema v4.
+- **`release_notes.py`** - Pipeline (preflight, extract, exclude, fetch, categorize, render) that generates O3DE release notes from merged pull requests. The intermediate JSON is schema v5.
 - **`generate_sbom.py`** - Generates a CycloneDX 1.5 SBOM for supply chain transparency.
 
 Both scripts use only Python stdlib modules and interact with external systems (git, GitHub API) exclusively through the `gh` CLI and `git` commands via `subprocess` with list arguments.
@@ -115,7 +115,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
    - **File path heuristic:** Matches changed file paths against directory-to-SIG maps (derived from `.github/CODEOWNERS`). Uses longest-match-wins: for overlapping patterns (e.g., `AzCore/AzCore/Math/` vs `AzCore/`), the most specific match determines the SIG.
 5. Detects flags (cherry-pick, from title evidence only) for filtering.
 6. Tags each PR with `release_machinery: True/False` via `is_release_machinery()`. True when the title matches `RELEASE_MACHINERY_TITLE_PATTERNS` (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) **or** when every changed file matches `RELEASE_MACHINERY_FILE_PATTERNS` (a deliberately narrow set: `engine.json` / `sbom.cdx.json` / `version.txt`). Used by Stage 3 to filter non-product PRs out of the rendered report by default.
-7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 4`, `tool_version`, `pr_count`, and `release_machinery_count`.
+7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 5`, `tool_version`, `pr_count`, and `release_machinery_count`.
 8. Merges with any existing JSON data, preserving manual overrides. PRs that exist in the prior JSON but no longer appear in `git log` and lack `manual_override_*` are dropped, and a warning is logged so the user notices when this happens. PRs from older JSONs without a `release_machinery` field are backfilled by re-running `is_release_machinery()` against their cached title/files.
 9. If `--from-ref` parses as a point-release tag with non-zero patch (e.g. `2510.2`) and `--no-pointrelease-audit` was not set, writes the point-release audit sidecar (see "Point-release awareness and audit" above).
 
