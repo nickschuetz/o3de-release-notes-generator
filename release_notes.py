@@ -26,15 +26,17 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.6.4-beta'
+__version__ = '0.7.0-beta'
 
+# 6: adds metadata.reused_from_cache, recording how many PRs were served from
+#    the previous report instead of re-fetched.
 # 5: adds per-PR `files_truncated` and metadata.file_list_truncated, so a
 #    curator can see which entries were categorised from a partial file list.
 # 4: adds metadata.tool_version; `flags` no longer carries `stabilization-sync`
 #    and descriptions are no longer truncated mid-sentence, so data written by
 #    <=0.5.0-beta is structurally readable but semantically stale. Version 3
 #    files still load (renderer ignores the legacy flag); re-fetch for accuracy.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
@@ -1844,6 +1846,42 @@ def load_prior_release_pr_keys(paths: list[str]) -> tuple[set[tuple[str, int]], 
     return keys, loaded
 
 
+# Only label-categorised PRs are cacheable. A PR that fell to a heuristic, or
+# failed to categorise at all, is exactly the one whose SIG label may have been
+# applied since the last run: caching it would freeze a wrong answer for the
+# rest of the cycle. In the 26.10.0 draft that is 120 of 200 cacheable and 80
+# always re-fetched, which is the right side of the trade.
+CACHEABLE_CATEGORIZATION_SOURCES = frozenset({'label'})
+
+
+def select_cacheable_prs(existing: dict[str, Any] | None) -> dict[tuple[str, int], dict[str, Any]]:
+    if not existing:
+        return {}
+    return {
+        (pr.get('repo', ''), pr.get('number', 0)): pr
+        for pr in existing.get('pull_requests', [])
+        if pr.get('categorization_source') in CACHEABLE_CATEGORIZATION_SOURCES
+    }
+
+
+def rederive_pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
+    """Recompute every derived field from the cached raw GitHub fields.
+
+    Reusing a cached PR must not also reuse conclusions drawn by an older
+    version of this tool. Title, body, labels and files are what GitHub gave us;
+    everything else is ours to recompute, so a heuristic change applies to
+    cached entries on the next run without a re-fetch.
+    """
+    sig, source = categorize_pr(pr)
+    pr['sig_category'] = sig
+    pr['categorization_source'] = source
+    pr['description'] = _build_pr_description(pr.get('title', ''), pr.get('body', ''))
+    pr['flags'] = detect_pr_flags(pr)
+    pr['release_machinery'] = is_release_machinery(pr)
+    pr['files_truncated'] = files_possibly_truncated(pr)
+    return pr
+
+
 def _run_fetch(args: argparse.Namespace) -> int:
     dry_run = getattr(args, 'dry_run', False)
 
@@ -1942,8 +1980,18 @@ def _run_fetch(args: argparse.Namespace) -> int:
 
     output_json = validate_output_path(pathlib.Path(args.output_json))
 
-    all_prs = []
+    reuse_existing = getattr(args, 'reuse_existing', False)
+    cacheable = (
+        select_cacheable_prs(load_existing_json(output_json))
+        if reuse_existing and output_json.exists() else {}
+    )
+    if reuse_existing and not cacheable:
+        logger.info('--reuse-existing: no cacheable PRs in %s; fetching everything',
+                    output_json)
+
+    all_prs: list[dict[str, Any]] = []
     excluded_per_repo: dict[str, int] = {}
+    reused_per_repo: dict[str, int] = {}
     for repo_slug in args.repos:
         try:
             validate_repo_slug(repo_slug)
@@ -1975,6 +2023,22 @@ def _run_fetch(args: argparse.Namespace) -> int:
         if not pr_numbers:
             logger.warning('No PRs found in %s between %s and %s',
                            repo_slug, repo_from_ref, repo_to_ref)
+            continue
+
+        reused = [cacheable[(repo_slug, n)] for n in pr_numbers
+                  if (repo_slug, n) in cacheable]
+        if reused:
+            reused_per_repo[repo_slug] = len(reused)
+            pr_numbers = [n for n in pr_numbers if (repo_slug, n) not in cacheable]
+            logger.info(
+                '%s: reused %d label-categorised PR(s) from the previous report; '
+                'fetching %d (heuristic and uncategorised PRs are always re-fetched '
+                'so newly applied SIG labels are picked up)',
+                repo_slug, len(reused), len(pr_numbers),
+            )
+            all_prs.extend(rederive_pr_fields(pr) for pr in reused)
+
+        if not pr_numbers:
             continue
 
         logger.info('Fetching PR metadata from GitHub for %s', repo_slug)
@@ -2075,6 +2139,13 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 'file list; verify their SIG before publishing: %s',
                 len(decided_on_partial), ', '.join(decided_on_partial),
             )
+
+    if reused_per_repo:
+        metadata['reused_from_cache'] = {
+            'per_repo': reused_per_repo,
+            'total': sum(reused_per_repo.values()),
+            'policy': 'label-categorised PRs only; all others re-fetched',
+        }
 
     if exclude_sources:
         metadata['excluded_prior_releases'] = {
@@ -2331,6 +2402,12 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--dry-run', action='store_true',
                         help='Show which PRs would be fetched (from git log) and exit '
                              'without calling the GitHub API or writing any files')
+    parser.add_argument('--reuse-existing', action='store_true',
+                        help='Reuse PR data already in --output-json instead of re-fetching '
+                             'it. Only PRs categorised by GitHub label are reused; anything '
+                             'categorised heuristically or left uncategorised is always '
+                             're-fetched, so a SIG label applied since the last run is picked '
+                             'up. Derived fields are recomputed for reused PRs.')
     parser.add_argument('--exclude-json', nargs='*', action='extend', default=None,
                         help='Path(s) to prior release report JSON(s). PRs already reported '
                              'there are dropped from this window and never fetched. Needed '
@@ -2392,13 +2469,24 @@ def add_parser_args(parser: argparse.ArgumentParser) -> None:
 def _configure_logging(verbose: bool, log_file: str | None) -> None:
     logging.basicConfig(format=LOG_FORMAT)
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
-    if log_file:
-        try:
-            handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
-            handler.setFormatter(logging.Formatter(LOG_FORMAT))
-            logger.addHandler(handler)
-        except OSError as e:
-            logger.error('Could not open log file %s: %s', log_file, e)
+    if not log_file:
+        return
+    # --log-file was the only output path that skipped validation, so a typo in
+    # a directory name failed late with a bare OSError instead of the same
+    # "parent directory does not exist" message every other path gives.
+    # Failing to open a log must never abort a run, so this degrades to
+    # stderr-only rather than raising.
+    try:
+        resolved = validate_output_path(pathlib.Path(log_file))
+    except ValueError as e:
+        logger.error('Invalid --log-file path: %s. Continuing with stderr only.', e)
+        return
+    try:
+        handler = logging.FileHandler(str(resolved), mode='a', encoding='utf-8')
+        handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        logger.addHandler(handler)
+    except OSError as e:
+        logger.error('Could not open log file %s: %s. Continuing with stderr only.', resolved, e)
 
 
 def main() -> int:

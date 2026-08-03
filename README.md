@@ -85,6 +85,7 @@ python release_notes.py fetch \
   [--repo-path owner/repo=/path ...] \
   [--repo-from-ref owner/repo=REF ...] \
   [--repo-to-ref owner/repo=REF ...] \
+  [--reuse-existing] \
   [--exclude-json prior_release.json ...] \
   [--dry-run] \
   [--no-pointrelease-audit] \
@@ -100,6 +101,7 @@ python release_notes.py fetch \
 | `--repo-path` | No | - | Per-repo clone paths as `owner/repo=/path/to/clone` (repeatable) |
 | `--repo-from-ref` | No | - | Per-repo override for `--from-ref` as `owner/repo=REF` (repeatable). Needed when a release tag exists in some repos but not others |
 | `--repo-to-ref` | No | - | Per-repo override for `--to-ref` as `owner/repo=REF` (repeatable) |
+| `--reuse-existing` | No | off | Reuse PR data already in `--output-json` instead of re-fetching. Only label-categorised PRs are reused; heuristic and uncategorised PRs are always re-fetched so a SIG label applied since the last run is picked up |
 | `--exclude-json` | No | - | Prior release report JSON(s). PRs already reported there are dropped from the window and never fetched (repeatable). **Required for a correct major-release window;** see below |
 | `--output-json` | Yes | - | Output JSON file path |
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
@@ -180,6 +182,15 @@ python release_notes.py generate --from-ref 2605.0 --to-ref origin/development \
 
 A full range costs roughly one GraphQL request per 30 PRs, so a ~420-PR cycle is
 about 14 requests. Weekly re-runs are comfortably inside GitHub's rate limits.
+
+`--reuse-existing` cuts that further by serving PRs from the previous report
+instead of re-fetching them, but **only PRs categorised by GitHub label**.
+A PR that fell to a heuristic, or failed to categorise, is exactly the one whose
+`sig/*` label may have been applied since the last run, so those are always
+re-fetched; caching them would freeze a wrong SIG for the rest of the cycle. In
+the 26.10.0 draft that is 120 of 200 reusable. Derived fields (SIG, description,
+flags, machinery) are recomputed for reused PRs, so a heuristic change still
+reaches cached entries without a re-fetch.
 
 Two batch failures are handled specifically rather than by splitting the batch
 into one request per PR. A PR number GitHub cannot resolve is permanent (usually
@@ -428,8 +439,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
-    "schema_version": 5,
-    "tool_version": "0.6.4-beta",
+    "schema_version": 6,
+    "tool_version": "0.7.0-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,
@@ -451,6 +462,11 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
       "end": "2026-08-03T10:00:00+00:00"
+    },
+    "reused_from_cache": {
+      "per_repo": {"o3de/o3de": 120},
+      "total": 120,
+      "policy": "label-categorised PRs only; all others re-fetched"
     },
     "file_list_truncated": {
       "page_size": 100,
@@ -506,6 +522,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `metadata.release_machinery_count` | Number of PRs flagged `release_machinery: true` in this run. |
 | `metadata.tool_version` | Version of `release_notes.py` that produced the file. Present from schema 4. |
 | `files_truncated` | True when the PR hit GitHub's 100-file page cap, so `files` is partial. Matters only when `categorization_source` is `heuristic_files`. |
+| `metadata.reused_from_cache` | Per-repo count of PRs served from the previous report rather than re-fetched, and the policy used. |
 | `metadata.file_list_truncated` | Roll-up of the above: how many PRs were capped, which ones, and the subset whose SIG was decided by the file heuristic from a partial list. Verify those before publishing. |
 | `metadata.excluded_prior_releases` | Which prior reports were used as exclusion sources and how many PRs each repo dropped because of them. |
 | `metadata.repo_refs` | Per-repo `{from_ref, to_ref}`. Emitted only when `--repo-from-ref` / `--repo-to-ref` made a repo's range differ from the global one. |

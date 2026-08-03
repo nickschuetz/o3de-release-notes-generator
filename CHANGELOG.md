@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0-beta] - 2026-08-03
+
+### Added
+- **`--reuse-existing`:** serves PRs from the previous report instead of re-fetching them. Only PRs categorised by GitHub **label** are reused. A PR that fell to a heuristic, or failed to categorise, is exactly the one whose `sig/*` label may have been applied since the last run, so caching it would freeze a wrong SIG for the rest of the cycle; those are always re-fetched. Verified on the 26.10.0 draft: 120 of 200 reused, 8 batch requests down to 4, and byte-identical rendered output.
+- `rederive_pr_fields()` recomputes SIG, description, flags, release-machinery and truncation for reused PRs from the cached raw GitHub fields. Reusing a cached PR must not also reuse conclusions drawn by an older version of the tool, so a heuristic change reaches cached entries without a re-fetch. A test feeds it a PR carrying the retired `stabilization-sync` flag and a wrong SIG and asserts both are corrected.
+- `metadata.reused_from_cache` records the per-repo counts and the policy used.
+
+### Fixed
+- **`--log-file` was the only output path that skipped validation.** A typo in a directory name failed late with a bare `OSError` instead of the same "parent directory does not exist" message every other path produces. It now goes through `validate_output_path()`, and a bad path degrades to stderr-only rather than aborting the run: losing the log must not cost the release notes.
+
+### Changed
+- **Schema 5 -> 6.** Adds `metadata.reused_from_cache`. Schema 5 files still load.
+- 10 new tests (349 -> 359).
+
 ## [0.6.4-beta] - 2026-08-03
 
 ### Fixed
