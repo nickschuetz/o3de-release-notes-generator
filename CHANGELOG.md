@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4-beta] - 2026-08-03
+
+### Fixed
+- **A single unresolvable PR number cost 30 API requests.** Any batch failure fell back to one request per PR. In the live 26.10.0 window, `#18886` (an issue reference picked up from the commit subject `Fix Prefabs with a long Path force expands Inspector window (#18886) (#19254)`) failed batch 1 and triggered 30 individual queries. Unresolvable numbers are now parsed out of stderr, dropped, and the batch retried once: verified against the same window, 1 retry and 0 fallbacks.
+- **A rate limit was answered with 30 more requests.** Transient failures (secondary rate limits, 5xx, connection resets, timeouts) now back off exponentially (`BACKOFF_BASE_SECONDS`, capped at `MAX_BACKOFF_SECONDS`) for up to `MAX_BATCH_ATTEMPTS` tries. Per-PR fallback is reserved for unrecognised failures.
+
+### Added
+- `GhCommandError` carries the scrubbed stderr so callers can classify a failure instead of guessing from an exit code.
+- 16 new tests (333 -> 349), including that a permanent error never sleeps, that retries are bounded, and that one bad number costs one extra call rather than one per PR.
+
+### Changed
+- An existing test that exercised the timeout path began genuinely sleeping through the new backoff, taking the suite from 0.65s to 6.5s. It now patches `time.sleep`.
+
 ## [0.6.3-beta] - 2026-08-03
 
 ### Added

@@ -1215,7 +1215,7 @@ class TestSchemaVersion:
         assert release_notes.SCHEMA_VERSION == 5
 
     def test_metadata_records_tool_version(self):
-        assert release_notes.__version__ == '0.6.3-beta'
+        assert release_notes.__version__ == '0.6.4-beta'
 
 
 class TestParsePointReleaseTag:
@@ -1824,8 +1824,11 @@ class TestSubprocessTimeoutHandling:
 
     def test_batch_fetch_survives_timeout(self):
         # A timeout mid-run must not abort the whole fetch with a traceback.
+        # time.sleep is patched: a timeout is transient, so the batch now backs
+        # off and retries, and an unpatched sleep would add 6s to the suite.
         with mock.patch('release_notes.subprocess.run',
-                        side_effect=subprocess.TimeoutExpired('gh', 30)):
+                        side_effect=subprocess.TimeoutExpired('gh', 30)), \
+             mock.patch('release_notes.time.sleep'):
             result = release_notes.fetch_pr_metadata_batch('o3de/o3de', [1, 2, 3])
         assert result == []
 
@@ -2488,3 +2491,115 @@ class TestFileListTruncation:
                    if p.get('files_truncated')
                    and p.get('categorization_source') == 'heuristic_files']
         assert at_risk == ['o3de/o3de#2']
+
+
+class TestBatchRetryAndClassification:
+    """One bad PR number used to cost 30 API calls; a rate limit cost 30 more."""
+
+    @staticmethod
+    def _fail(stderr, returncode=1):
+        return mock.Mock(returncode=returncode, stdout='', stderr=stderr)
+
+    @staticmethod
+    def _ok(numbers):
+        payload = {'data': {'repository': {
+            f'pr_{n}': {'number': n, 'title': f'PR {n}', 'body': '', 'url': '',
+                        'author': {'login': 'x'}, 'mergedAt': '',
+                        'labels': {'nodes': []}, 'files': {'nodes': []}}
+            for n in numbers}}}
+        return mock.Mock(returncode=0, stdout=json.dumps(payload), stderr='')
+
+    def test_unresolvable_number_parsed_from_stderr(self):
+        err = 'gh: Could not resolve to a PullRequest with the number of 18886.'
+        assert release_notes._unresolvable_pr_numbers(err) == {18886}
+
+    def test_multiple_unresolvable_numbers_parsed(self):
+        err = ('Could not resolve to a PullRequest with the number of 1. '
+               'Could not resolve to a PullRequest with the number of 2.')
+        assert release_notes._unresolvable_pr_numbers(err) == {1, 2}
+
+    @pytest.mark.parametrize('stderr,expected', [
+        ('You have exceeded a secondary rate limit', True),
+        ('API rate limit exceeded', True),
+        ('502 Bad Gateway', True),
+        ('connection reset by peer', True),
+        ('timed out', True),
+        ('Could not resolve to a PullRequest with the number of 5', False),
+        ('some unknown failure', False),
+    ])
+    def test_transient_classification(self, stderr, expected):
+        assert release_notes._is_transient_error(stderr) is expected
+
+    def test_backoff_is_exponential_and_capped(self):
+        delays = [release_notes._backoff_seconds(i) for i in range(8)]
+        assert delays[0] < delays[1] < delays[2]
+        assert max(delays) <= release_notes.MAX_BACKOFF_SECONDS
+
+    def test_bad_number_is_dropped_and_batch_retried_not_split(self):
+        # The whole point: one unresolvable number must cost ONE extra batch
+        # call, not one call per PR in the batch.
+        batch = list(range(1, 31))
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            if len(calls) == 1:
+                return self._fail('gh: Could not resolve to a PullRequest with the number of 7.')
+            return self._ok([n for n in batch if n != 7])
+
+        with mock.patch('release_notes.subprocess.run', side_effect=fake_run), \
+             mock.patch('release_notes.time.sleep') as sleep:
+            result = release_notes.fetch_pr_metadata_batch('o3de/o3de', batch)
+
+        assert len(calls) == 2, 'should retry the batch once, not split into 30'
+        sleep.assert_not_called(), 'a permanent error must not back off'
+        assert len(result) == 29
+        assert 7 not in {p['number'] for p in result}
+
+    def test_transient_error_backs_off_then_succeeds(self):
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            if len(calls) == 1:
+                return self._fail('You have exceeded a secondary rate limit')
+            return self._ok([1, 2])
+
+        with mock.patch('release_notes.subprocess.run', side_effect=fake_run), \
+             mock.patch('release_notes.time.sleep') as sleep:
+            result = release_notes.fetch_pr_metadata_batch('o3de/o3de', [1, 2])
+
+        sleep.assert_called_once()
+        assert sleep.call_args[0][0] == release_notes._backoff_seconds(0)
+        assert len(result) == 2
+
+    def test_retries_are_bounded(self):
+        with mock.patch('release_notes.subprocess.run',
+                        return_value=self._fail('503 Service Unavailable')) as run, \
+             mock.patch('release_notes.time.sleep') as sleep:
+            release_notes.fetch_pr_metadata_batch('o3de/o3de', [1])
+        assert sleep.call_count == release_notes.MAX_BATCH_ATTEMPTS - 1
+        # MAX_BATCH_ATTEMPTS batch tries, then the per-PR fallback for 1 PR.
+        assert run.call_count == release_notes.MAX_BATCH_ATTEMPTS + 1
+
+    def test_unknown_error_falls_back_without_retrying(self):
+        with mock.patch('release_notes.subprocess.run',
+                        return_value=self._fail('something unrecognised')) as run, \
+             mock.patch('release_notes.time.sleep') as sleep:
+            release_notes.fetch_pr_metadata_batch('o3de/o3de', [1, 2])
+        sleep.assert_not_called()
+        # one batch attempt, then one call per PR
+        assert run.call_count == 3
+
+    def test_success_never_sleeps(self):
+        with mock.patch('release_notes.subprocess.run', return_value=self._ok([1])), \
+             mock.patch('release_notes.time.sleep') as sleep:
+            release_notes.fetch_pr_metadata_batch('o3de/o3de', [1])
+        sleep.assert_not_called()
+
+    def test_every_number_unresolvable_gives_up_cleanly(self):
+        with mock.patch('release_notes.subprocess.run',
+                        return_value=self._fail(
+                            'Could not resolve to a PullRequest with the number of 1')), \
+             mock.patch('release_notes.time.sleep'):
+            assert release_notes.fetch_pr_metadata_batch('o3de/o3de', [1]) == []
