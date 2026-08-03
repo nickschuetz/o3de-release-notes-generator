@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+#
+# Copyright (c) Contributors to the Open 3D Engine Project.
+# For complete copyright and license terms please see the LICENSE at the root of this distribution.
+#
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-# Copyright 2026 Nick Schuetz
+#
 
 import argparse
 import contextlib

@@ -4,7 +4,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-03T16:52:39.879492+00:00",
+    "timestamp": "2026-08-03T17:02:35.128397+00:00",
     "tools": {
       "components": [
         {
@@ -327,7 +327,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "cb44ed6ed3496c5e2a94600154c1e7f0436472c85a89e05b408a1bdee91d8177"
+          "content": "06efb38034399c8276dd51f2ad791a2b7fbc343990a0bef25d7cbe9ec37248a2"
         }
       ]
     },
@@ -338,7 +338,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "c30ca97e09af26d2935071e147e1bcbf02debe3d5691717972ce67fd4cf9b101"
+          "content": "56b8f663b0822a8ca3ec4fe6fc3620e0aba8d49e26d35e7ef21a9e3305a9f0a0"
         }
       ]
     },
@@ -349,7 +349,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "4bc97d8232d9240d04cc856bf9b76011417c9d7841ec31ae8620d6667919243d"
+          "content": "6d17dd8158566c592ac354e4e5e2bb6ebf22fc3395c87ac04fefb5878c4728fe"
         }
       ]
     }
@@ -382,5 +382,5 @@
       ]
     }
   ],
-  "serialNumber": "urn:uuid:971fc6b2-607e-4553-903a-7998360a7d89"
+  "serialNumber": "urn:uuid:770cb40e-6075-4702-bded-09eb4a67ba19"
 }
