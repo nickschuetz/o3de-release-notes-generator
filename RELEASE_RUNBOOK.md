@@ -178,9 +178,17 @@ Investigate every ✗ before publishing. Suppress the sidecar with
 
 ## Re-running mid-cycle
 
-Re-run the same command, including `--exclude-json`. The full range is re-fetched from GitHub each time
-(there is no per-PR cache), and `manual_override_*` fields are re-applied. Weekly
-runs are comfortably inside GitHub's rate limits.
+Re-run the same command, including `--exclude-json`. `manual_override_*` fields
+are re-applied on every run.
+
+By default the full range is re-fetched. Add `--reuse-existing` to serve
+label-categorised PRs from the previous report instead: on the 26.10.0 draft that
+halved the request count (8 batches to 4) and produced byte-identical output.
+
+PRs categorised heuristically or left uncategorised are always re-fetched, so a
+`sig/*` label applied since the last run is picked up. That is deliberate: those
+are precisely the PRs whose categorisation is most likely to be wrong and most
+likely to improve.
 
 ## Maintaining the tool itself
 

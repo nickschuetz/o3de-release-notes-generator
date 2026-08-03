@@ -116,7 +116,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 5. Detects flags (cherry-pick, from title evidence only) for filtering.
 6. Tags each PR with `release_machinery: True/False` via `is_release_machinery()`. True when the title matches `RELEASE_MACHINERY_TITLE_PATTERNS` (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) **or** when every changed file matches `RELEASE_MACHINERY_FILE_PATTERNS` (a deliberately narrow set: `engine.json` / `sbom.cdx.json` / `version.txt`). Used by Stage 3 to filter non-product PRs out of the rendered report by default.
 7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 5`, `tool_version`, `pr_count`, and `release_machinery_count`.
-8. Merges with any existing JSON data, preserving manual overrides. PRs that exist in the prior JSON but no longer appear in `git log` and lack `manual_override_*` are dropped, and a warning is logged so the user notices when this happens. PRs from older JSONs without a `release_machinery` field are backfilled by re-running `is_release_machinery()` against their cached title/files.
+8. With `--reuse-existing`, PRs categorised by label in the previous report are served from it instead of being re-fetched, and their derived fields are recomputed via `rederive_pr_fields()` so a heuristic change still reaches them. Heuristic and uncategorised PRs are never cached: their `sig/*` label may have been applied since the last run, and caching would freeze a wrong SIG for the cycle. Merges with any existing JSON data, preserving manual overrides. PRs that exist in the prior JSON but no longer appear in `git log` and lack `manual_override_*` are dropped, and a warning is logged so the user notices when this happens. PRs from older JSONs without a `release_machinery` field are backfilled by re-running `is_release_machinery()` against their cached title/files.
 9. If `--from-ref` parses as a point-release tag with non-zero patch (e.g. `2510.2`) and `--no-pointrelease-audit` was not set, writes the point-release audit sidecar (see "Point-release awareness and audit" above).
 
 **Output:** Structured JSON with full PR metadata and categorization, plus (optionally) a point-release audit sidecar.
@@ -154,8 +154,9 @@ git log (per repo) ──▶ PR #s     git log (per repo) ──▶ PR #s (may h
 drop PRs in --exclude-json       drop PRs in --exclude-json
     │                                │
     ▼                                ▼
-GitHub API ──▶ all remaining     GitHub API ──▶ all remaining PRs again
-    │           PRs                  │           (no per-PR cache)
+GitHub API ──▶ all remaining     with --reuse-existing: serve
+    │           PRs                  │  label-categorised PRs from the
+    │                                │  previous report, fetch the rest
     ▼                                ▼
 categorize ──▶ JSON              merge with existing JSON
     │                            (re-apply manual_override_* fields,

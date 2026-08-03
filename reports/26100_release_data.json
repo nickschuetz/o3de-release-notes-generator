@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-08-03T18:10:19.602349+00:00",
+    "generated_at": "2026-08-03T18:28:11.722882+00:00",
     "from_ref": "2605.0",
     "to_ref": "origin/development",
     "repos": [
@@ -11,8 +11,8 @@
       "o3de/o3de": "/home/nschuetz/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras"
     },
-    "schema_version": 5,
-    "tool_version": "0.6.3-beta",
+    "schema_version": 6,
+    "tool_version": "0.7.0-beta",
     "pr_count": 200,
     "categorization_summary": {
       "label": 120,
@@ -36,6 +36,14 @@
         "o3de/o3de#19951"
       ],
       "categorized_from_partial_files": []
+    },
+    "reused_from_cache": {
+      "per_repo": {
+        "o3de/o3de": 111,
+        "o3de/o3de-extras": 9
+      },
+      "total": 120,
+      "policy": "label-categorised PRs only; all others re-fetched"
     },
     "excluded_prior_releases": {
       "sources": [
@@ -69,7 +77,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-08-03T18:10:19.602349+00:00"
+      "end": "2026-08-03T18:28:11.722882+00:00"
     }
   },
   "pull_requests": [
