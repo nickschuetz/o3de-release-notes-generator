@@ -421,8 +421,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
-    "schema_version": 4,
-    "tool_version": "0.6.2-beta",
+    "schema_version": 5,
+    "tool_version": "0.6.3-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,
@@ -445,6 +445,12 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "start": "2025-07-29T11:12:47-07:00",
       "end": "2026-08-03T10:00:00+00:00"
     },
+    "file_list_truncated": {
+      "page_size": 100,
+      "count": 9,
+      "prs": ["o3de/o3de#19109", "o3de/o3de#19906"],
+      "categorized_from_partial_files": ["o3de/o3de#19906"]
+    },
     "excluded_prior_releases": {
       "sources": ["/home/user/.../reports/26050_release_data.json"],
       "per_repo": {"o3de/o3de": 188, "o3de/o3de-extras": 30},
@@ -465,6 +471,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "merged_at": "2026-04-20T17:14:14Z",
       "labels": ["sig/content"],
       "files": ["Gems/AtomLyIntegration/.../FlyCameraInputComponent.cpp"],
+      "files_truncated": false,
       "sig_category": "sig/content",
       "categorization_source": "label",
       "description": "Fix for choppy mouse movement in FlyCameraInputComponent.",
@@ -491,6 +498,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `metadata.effective_window` | `{start, end}` window the diff covers. `start` is the earliest merge-base committer-date across repos; `end` is `generated_at`. |
 | `metadata.release_machinery_count` | Number of PRs flagged `release_machinery: true` in this run. |
 | `metadata.tool_version` | Version of `release_notes.py` that produced the file. Present from schema 4. |
+| `files_truncated` | True when the PR hit GitHub's 100-file page cap, so `files` is partial. Matters only when `categorization_source` is `heuristic_files`. |
+| `metadata.file_list_truncated` | Roll-up of the above: how many PRs were capped, which ones, and the subset whose SIG was decided by the file heuristic from a partial list. Verify those before publishing. |
 | `metadata.excluded_prior_releases` | Which prior reports were used as exclusion sources and how many PRs each repo dropped because of them. |
 | `metadata.repo_refs` | Per-repo `{from_ref, to_ref}`. Emitted only when `--repo-from-ref` / `--repo-to-ref` made a repo's range differ from the global one. |
 
