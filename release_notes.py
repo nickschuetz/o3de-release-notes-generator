@@ -25,13 +25,15 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.6.2-beta'
+__version__ = '0.6.3-beta'
 
+# 5: adds per-PR `files_truncated` and metadata.file_list_truncated, so a
+#    curator can see which entries were categorised from a partial file list.
 # 4: adds metadata.tool_version; `flags` no longer carries `stabilization-sync`
 #    and descriptions are no longer truncated mid-sentence, so data written by
 #    <=0.5.0-beta is structurally readable but semantically stale. Version 3
 #    files still load (renderer ignores the legacy flag); re-fetch for accuracy.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
@@ -789,6 +791,11 @@ def extract_pr_numbers_from_git_log(
     return sorted(pr_numbers)
 
 
+# GraphQL page sizes. The truncation check below reads these, so changing a
+# page size cannot leave the check testing the old bound.
+FILES_PAGE_SIZE = 100
+LABELS_PAGE_SIZE = 20
+
 def _build_graphql_query(pr_numbers: list[int]) -> str:
     # Owner/name are GraphQL variables ($owner, $name); never interpolated as
     # strings. PR numbers are integer-validated before they reach this function
@@ -803,8 +810,8 @@ def _build_graphql_query(pr_numbers: list[int]) -> str:
             f'    mergedAt\n'
             f'    url\n'
             f'    author {{ login }}\n'
-            f'    labels(first: 20) {{ nodes {{ name }} }}\n'
-            f'    files(first: 100) {{ nodes {{ path }} }}\n'
+            f'    labels(first: {LABELS_PAGE_SIZE}) {{ nodes {{ name }} }}\n'
+            f'    files(first: {FILES_PAGE_SIZE}) {{ nodes {{ path }} }}\n'
             f'  }}'
         )
 
@@ -942,12 +949,23 @@ def fetch_pr_metadata_batch(
     return all_prs
 
 
+def files_possibly_truncated(pr_data: dict[str, Any]) -> bool:
+    """True when the PR's file list hit the GraphQL page size and may be partial.
+
+    Derived from the stored list, so it also answers correctly for JSON written
+    before `files_truncated` existed.
+    """
+    return len(pr_data.get('files', []) or []) >= FILES_PAGE_SIZE
+
+
 def _normalize_pr_data(raw: dict[str, Any], repo_slug: str) -> dict[str, Any]:
     file_nodes = raw.get('files', {}).get('nodes', [])
-    if len(file_nodes) >= 100:
-        logger.warning('PR #%d in %s has 100+ changed files; file list may be truncated',
-                        raw.get('number', 0), repo_slug)
+    truncated = len(file_nodes) >= FILES_PAGE_SIZE
+    if truncated:
+        logger.warning('PR #%d in %s has %d+ changed files; file list may be truncated',
+                        raw.get('number', 0), repo_slug, FILES_PAGE_SIZE)
     return {
+        'files_truncated': truncated,
         'number': raw.get('number', 0),
         'repo': repo_slug,
         'title': raw.get('title', ''),
@@ -1911,6 +1929,10 @@ def _run_fetch(args: argparse.Namespace) -> int:
             pr['release_machinery'] = is_release_machinery(pr)
         if pr.get('release_machinery'):
             machinery_count += 1
+        # Backfill for JSON written before schema 5. Derivable from the stored
+        # list, so no re-fetch is needed.
+        if 'files_truncated' not in pr:
+            pr['files_truncated'] = files_possibly_truncated(pr)
 
     # Feature #2: per-repo merge-base + effective window, computed best-effort.
     merge_bases: dict[str, dict[str, Any]] = {}
@@ -1940,6 +1962,30 @@ def _run_fetch(args: argparse.Namespace) -> int:
         'categorization_summary': cat_counts,
         'release_machinery_count': machinery_count,
     }
+    # GitHub caps the files connection at FILES_PAGE_SIZE, so a large PR's file
+    # list may be partial. That only changes an outcome when the file heuristic
+    # actually decided the SIG, which is the subset worth a curator's attention.
+    truncated = [f"{pr['repo']}#{pr['number']}" for pr in merged if pr.get('files_truncated')]
+    decided_on_partial = [
+        f"{pr['repo']}#{pr['number']}" for pr in merged
+        if pr.get('files_truncated') and pr.get('categorization_source') == 'heuristic_files'
+    ]
+    if truncated:
+        metadata['file_list_truncated'] = {
+            'page_size': FILES_PAGE_SIZE,
+            'count': len(truncated),
+            'prs': truncated,
+            'categorized_from_partial_files': decided_on_partial,
+        }
+        logger.info('%d PR(s) hit the %d-file page cap; file list may be partial',
+                    len(truncated), FILES_PAGE_SIZE)
+        if decided_on_partial:
+            logger.warning(
+                '%d PR(s) were categorised by the file heuristic from a truncated '
+                'file list; verify their SIG before publishing: %s',
+                len(decided_on_partial), ', '.join(decided_on_partial),
+            )
+
     if exclude_sources:
         metadata['excluded_prior_releases'] = {
             'sources': exclude_sources,
