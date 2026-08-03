@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1-beta] - 2026-08-03
+
+### Fixed
+- **ARCHITECTURE.md stated three different schema versions at once,** none of them current: "schema v5" in the overview, `JSON v4` in the pipeline diagram, and `schema_version: 5` in the Stage 2 description, against a constant of 6. The existing guard passed all three because it matched only the JSON form (`schema_version": N`, quote required) and compared only against `SCHEMA_VERSION - 1`.
+- **"There is no per-PR cache" survived in README.md and ARCHITECTURE.md** after `--reuse-existing` made it false. The `RELEASE_RUNBOOK.md` copy of the same sentence and the ARCHITECTURE incremental-flow diagram were corrected when the flag landed; the surrounding prose in the other two files was not.
+- ARCHITECTURE.md Stage 3 still described filtering "stabilization sync PRs", a heuristic removed in 0.6.0-beta for deleting 57 real changes from a shipped report.
+- The threat-model table credited `_safe_stderr()` with scrubbing only the five classic `gh?_` token shapes; `github_pat_` coverage was added in 0.6.4-beta and is the default shape for new tokens.
+- README's project tree omitted four committed files under `reports/`, and `--version` was documented only in AGENTS.md and SECURITY.md, not in the CLI reference a reader actually consults.
+- ARCHITECTURE.md's test-suite summary predated eight test classes.
+
+### Changed
+- **`test_no_doc_claims_a_superseded_schema_version` now recognises every form** the docs use to state a schema version (JSON, prose, and the `schema v6` / `JSON v6` shorthand used in narrative text and diagrams) and rejects *any* version that is not current, not merely the previous one. Mutation-tested against all three forms that had drifted.
+- Two new tests guard the guard: one asserts the pattern still matches each form, one asserts the doc set mentions the schema version at all, so the check cannot degrade to passing vacuously. That vacuous-pass mode is exactly how the original missed three live errors.
+- **`test_metadata_records_tool_version` no longer hardcodes the version literal.** It forced an edit on every bump while checking nothing that could actually break. The version lives in four places (`release_notes.__version__`, `generate_sbom.PROJECT_VERSION`, `pyproject.toml`, and the README's JSON example); the replacement asserts all four agree, which is the failure mode that exists. Mutation-tested by desyncing each.
+- 3 new tests (359 -> 362).
+
 ## [0.7.0-beta] - 2026-08-03
 
 ### Added

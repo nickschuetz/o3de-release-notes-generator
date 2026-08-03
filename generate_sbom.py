@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 PROJECT_NAME = 'o3de_release_notes_generator'
-PROJECT_VERSION = '0.7.0-beta'
+PROJECT_VERSION = '0.7.1-beta'
 PROJECT_DESCRIPTION = 'Generates O3DE release notes from merged pull requests'
 PROJECT_LICENSE_ID = 'Apache-2.0 OR MIT'
 PROJECT_REPO = 'https://github.com/nickschuetz/o3de-release-notes-generator'
