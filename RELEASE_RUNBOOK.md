@@ -1,0 +1,162 @@
+# Release Runbook
+
+Step-by-step procedure for producing O3DE release notes with this tool. Written
+for the 26.10.0 cycle; the shape is the same for any release.
+
+## 0. Know your refs
+
+| Repo | 26.10.0 `--from-ref` | Notes |
+|------|----------------------|-------|
+| `o3de/o3de` | `2605.0` | Use the latest `2605.N` point-release tag if any have shipped |
+| `o3de/o3de-extras` | `2510.2` | **Not tagged on the 2605 line.** Pass via `--repo-from-ref` |
+
+`--to-ref` is `origin/development` until the stabilization branch is cut, then
+`origin/stabilization/26100`.
+
+Spring releases (`xx.05.0`) are gaming-themed; fall releases (`xx.10.0`) are
+robotics-themed. That shapes the narrative summary, not the tooling.
+
+## 1. Refresh the clones
+
+Stale clones are the most common cause of a wrong PR count. `git log` cannot see
+commits you have not fetched, and missing tags fail the ref preflight.
+
+```bash
+for r in ~/PROJECTS/o3de ~/PROJECTS/o3de-extras; do
+  git -C "$r" fetch --all --tags --prune
+done
+```
+
+## 2. Dry-run first
+
+No GitHub API calls, no files written. Confirms refs resolve, clone paths are
+right, and the PR count is plausible.
+
+```bash
+python release_notes.py fetch \
+  --from-ref 2605.0 \
+  --to-ref origin/development \
+  --repos o3de/o3de o3de/o3de-extras \
+  --repo-path o3de/o3de=~/PROJECTS/o3de \
+  --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
+  --repo-from-ref o3de/o3de-extras=2510.2 \
+  --output-json /tmp/unused.json \
+  --dry-run
+```
+
+Check:
+
+- Every repo reports a PR count. A zero count means the range is wrong.
+- The `PR(s) found via merge commits` line appears for `o3de/o3de`. O3DE uses
+  merge commits for a meaningful share of PRs; a zero there is suspicious.
+- No ref-resolution errors. If a ref does not resolve, either fetch tags or give
+  that repo its own ref with `--repo-from-ref` / `--repo-to-ref`.
+
+## 3. Generate
+
+```bash
+python release_notes.py generate \
+  --from-ref 2605.0 \
+  --to-ref origin/development \
+  --repos o3de/o3de o3de/o3de-extras \
+  --repo-path o3de/o3de=~/PROJECTS/o3de \
+  --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
+  --repo-from-ref o3de/o3de-extras=2510.2 \
+  --output-json reports/release_data.json \
+  --output-md reports/26100_release_notes.md \
+  --release-version 26.10.0 \
+  --log-file reports/generate.log
+```
+
+Roughly one GraphQL request per 30 PRs, so a ~420-PR cycle is about 14 requests.
+
+## 4. Read the reconciliation line
+
+This is the most important check in the runbook.
+
+```
+Reconciliation: 419 PR(s) in JSON, 402 rendered
+Excluded 17 PR(s) from the report: cherry-pick=12, release_machinery=1, uncategorized=4
+```
+
+- The counts are mutually exclusive and sum to the total. Nothing is dropped
+  silently.
+- A sudden jump in any excluded bucket means a heuristic has started
+  over-matching. Investigate before publishing. A filter over-matching on labels
+  is what removed 57 real PRs from the 26.05.0 notes.
+- `uncategorized` should be small. Re-run `render` with `--include-uncategorized`
+  to see them and assign each one via `manual_override_sig`.
+
+## 5. Triage
+
+Inspect what was excluded:
+
+```bash
+python release_notes.py render \
+  --input-json reports/release_data.json \
+  --output-md /tmp/triage.md \
+  --release-version 26.10.0 \
+  --include-uncategorized --include-release-machinery
+```
+
+Fix categorization in `reports/release_data.json` by setting, per PR:
+
+- `manual_override_sig` to reassign the SIG
+- `manual_override_description` to rewrite the bullet
+
+Both survive re-runs. **Editing `sig_category` or `description` directly does
+not survive**: a PR that later disappears from `git log` is dropped unless it
+carries a `manual_override_*` field, and the drop is logged as a WARNING.
+
+## 6. Narrative summary
+
+```bash
+python release_notes.py render \
+  --input-json reports/release_data.json \
+  --output-md reports/26100_release_notes.md \
+  --release-version 26.10.0 \
+  --generate-summary \
+  --summary-hint @reports/hints/prior_release_themes.txt
+```
+
+Keep a hint file per cycle under `reports/hints/` so the theme and tone stay
+stable across mid-cycle re-runs. 26.10.0 is a robotics-themed fall release.
+
+Always read the generated narrative before publishing. It is model output
+derived from untrusted PR titles; tag-like `<` is escaped so it cannot inject
+raw HTML, but nothing validates the claims it makes.
+
+## 7. Point-release audit (when applicable)
+
+If `--from-ref` is a non-zero point-release tag (e.g. `2605.2`), the tool writes
+`reports/26100_release_notes_pointrelease_audit.md`. Every bundled PR from each
+cherry-pick container is marked ✓ (present) or ✗ (missing).
+
+Investigate every ✗ before publishing. Suppress the sidecar with
+`--no-pointrelease-audit` if it is not relevant.
+
+## 8. Pre-publication checklist
+
+- [ ] Clones fetched with `--tags` immediately before the run
+- [ ] Dry-run PR counts plausible for both repos
+- [ ] Reconciliation line read; every exclusion bucket understood
+- [ ] `uncategorized` triaged to zero, or consciously accepted
+- [ ] Point-release audit has no unexplained ✗ entries
+- [ ] Narrative summary read end to end
+- [ ] Spot-check a few bullets against their PRs on GitHub
+- [ ] `metadata.tool_version` in the JSON matches the version you intended to run
+
+## Re-running mid-cycle
+
+Re-run the same command. The full range is re-fetched from GitHub each time
+(there is no per-PR cache), and `manual_override_*` fields are re-applied. Weekly
+runs are comfortably inside GitHub's rate limits.
+
+## Maintaining the tool itself
+
+```bash
+make check    # pytest + ruff + mypy strict + SBOM freshness
+make sbom     # regenerate sbom.cdx.json after touching any .py file
+```
+
+CI runs the same gates on Python 3.10 through 3.13.

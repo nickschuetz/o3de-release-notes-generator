@@ -4,11 +4,15 @@
 
 import json
 import pathlib
+import re
+import stat
 import subprocess
+import sys
 from unittest import mock
 
 import pytest
 
+import generate_sbom
 import release_notes
 
 
@@ -146,6 +150,49 @@ class TestExtractPrNumbers:
             mock_run.return_value = mock.Mock(returncode=128, stdout='', stderr='fatal: bad ref')
             with pytest.raises(RuntimeError, match='git log failed'):
                 release_notes.extract_pr_numbers_from_git_log(tmp_path, 'bad', 'ref')
+
+    def test_extracts_merge_commit_prs(self, tmp_path):
+        # O3DE `development` uses merge commits for a large minority of PRs.
+        # Their number appears only in the merge subject, without parentheses.
+        git_output = (
+            'Merge pull request #19882 from o3de/imgui-console-input-bug\n'
+            'Fixes a bug where the imgui console consumes input events\n'
+            'Squash merged thing (#19900)\n'
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout=git_output, stderr='')
+            result = release_notes.extract_pr_numbers_from_git_log(tmp_path, 'a', 'b')
+        assert result == [19882, 19900]
+
+    def test_merge_commits_are_not_excluded_from_git_log(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout='', stderr='')
+            release_notes.extract_pr_numbers_from_git_log(tmp_path, 'a', 'b')
+        assert '--no-merges' not in mock_run.call_args[0][0]
+
+    def test_merge_pattern_requires_line_start(self, tmp_path):
+        # "reverts Merge pull request #1" in prose must not mint a PR number.
+        git_output = 'Revert of Merge pull request #123 from someone\n'
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout=git_output, stderr='')
+            result = release_notes.extract_pr_numbers_from_git_log(tmp_path, 'a', 'b')
+        assert result == []
+
+    def test_merge_and_squash_reference_deduplicate(self, tmp_path):
+        git_output = (
+            'Merge pull request #500 from o3de/thing\n'
+            'Thing (#500)\n'
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout=git_output, stderr='')
+            result = release_notes.extract_pr_numbers_from_git_log(tmp_path, 'a', 'b')
+        assert result == [500]
+
+    def test_timeout_surfaces_as_runtime_error(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('git', 60)), \
+             pytest.raises(RuntimeError, match='git log'):
+            release_notes.extract_pr_numbers_from_git_log(tmp_path, 'a', 'b')
 
 
 class TestCategorizeByLabels:
@@ -290,13 +337,44 @@ class TestDetectPrFlags:
         pr = {'title': 'Merge stabilization 26050 to dev', 'labels': []}
         assert 'cherry-pick' in release_notes.detect_pr_flags(pr)
 
-    def test_sync_label(self):
-        pr = {'title': 'Some fix', 'labels': ['sync/to-development']}
-        assert 'stabilization-sync' in release_notes.detect_pr_flags(pr)
-
     def test_normal_pr(self):
         pr = {'title': 'Fix a bug in rendering', 'labels': []}
         assert release_notes.detect_pr_flags(pr) == []
+
+    @pytest.mark.parametrize('label', [
+        'sync/to-development',
+        'sync/to-stabilization',
+        'need-sync/to-development',
+    ])
+    def test_workflow_sync_labels_do_not_flag(self, label):
+        # Regression: these labels live on the ORIGINAL substantive PR, not on a
+        # sync container. Flagging them dropped 57 real changes (22% of the
+        # corpus) from the 26.05.0 release notes.
+        pr = {'title': 'Fixes blendshapes ("morph targets") not working', 'labels': [label]}
+        assert release_notes.detect_pr_flags(pr) == []
+
+    def test_sync_labelled_pr_still_renders(self):
+        pr = {
+            'number': 19151, 'repo': 'o3de/o3de', 'url': '',
+            'title': 'Fixes blendshapes not working',
+            'labels': ['sig/graphics-audio', 'sync/to-stabilization'],
+            'sig_category': 'sig/graphics-audio', 'description': 'Fixes blendshapes not working.',
+        }
+        pr['flags'] = release_notes.detect_pr_flags(pr)
+        md = release_notes.render_markdown([pr], '26.10.0')
+        assert 'Fixes blendshapes not working' in md
+
+    def test_legacy_sync_flag_in_old_json_no_longer_excludes(self):
+        # JSON written by <=0.5.0-beta carries the bad flag. Rendering such a
+        # file must not keep dropping the PR; no re-fetch should be required.
+        pr = {
+            'number': 19151, 'repo': 'o3de/o3de', 'url': '',
+            'title': 'Fixes blendshapes not working',
+            'sig_category': 'sig/graphics-audio', 'description': 'Fixes blendshapes not working.',
+            'flags': ['stabilization-sync'],
+        }
+        md = release_notes.render_markdown([pr], '26.10.0')
+        assert 'Fixes blendshapes not working' in md
 
 
 class TestSanitizePrTitle:
@@ -1014,6 +1092,8 @@ class TestDryRun:
             to_ref='b',
             repos=['o3de/o3de'],
             repo_path=None,
+            repo_from_ref=None,
+            repo_to_ref=None,
             default_repo_path=str(repo_dir),
             output_json=str(out_json),
             dry_run=True,
@@ -1120,11 +1200,14 @@ class TestNormalizePrDataTruncation:
 
 
 class TestSchemaVersion:
-    def test_schema_version_is_3(self):
-        # Bumped from 2 -> 3 when release_machinery flag and merge-base metadata
-        # were added. Existing JSON at schema 2 is still readable
+    def test_schema_version_is_4(self):
+        # 3 -> 4 when metadata.tool_version was added and `flags` stopped
+        # carrying `stabilization-sync`. Schema 3 files still load
         # (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
-        assert release_notes.SCHEMA_VERSION == 3
+        assert release_notes.SCHEMA_VERSION == 4
+
+    def test_metadata_records_tool_version(self):
+        assert release_notes.__version__ == '0.6.0-beta'
 
 
 class TestParsePointReleaseTag:
@@ -1576,3 +1659,443 @@ class TestEmitPointReleaseAwarenessLog:
             )
             mock_run.assert_not_called()
         assert not any('Point releases on' in r.message for r in caplog.records)
+
+
+class TestRenderCoverageReconciliation:
+    @staticmethod
+    def _pr(number, sig='sig/build', flags=None, machinery=False):
+        return {
+            'number': number, 'repo': 'o3de/o3de', 'url': '',
+            'title': f'Change {number}', 'description': f'Change {number}.',
+            'sig_category': sig, 'flags': flags or [], 'release_machinery': machinery,
+        }
+
+    def test_counts_sum_to_total(self):
+        prs = [
+            self._pr(1),
+            self._pr(2, flags=['cherry-pick']),
+            self._pr(3, machinery=True),
+            self._pr(4, sig='uncategorized'),
+            self._pr(5),
+        ]
+        counts = release_notes.summarize_render_coverage(prs)
+        excluded = sum(v for k, v in counts.items() if k.startswith('excluded_'))
+        assert counts['total'] == 5
+        assert counts['rendered'] == 2
+        assert counts['rendered'] + excluded == counts['total']
+
+    def test_reason_breakdown(self):
+        prs = [
+            self._pr(1, flags=['cherry-pick']),
+            self._pr(2, machinery=True),
+            self._pr(3, sig='uncategorized'),
+        ]
+        counts = release_notes.summarize_render_coverage(prs)
+        assert counts['excluded_cherry-pick'] == 1
+        assert counts['excluded_release_machinery'] == 1
+        assert counts['excluded_uncategorized'] == 1
+        assert counts['rendered'] == 0
+
+    def test_opt_in_flags_move_prs_into_rendered(self):
+        prs = [self._pr(1, machinery=True), self._pr(2, sig='uncategorized')]
+        counts = release_notes.summarize_render_coverage(
+            prs, include_uncategorized=True, include_release_machinery=True,
+        )
+        assert counts['rendered'] == 2
+
+    def test_matches_render_markdown_bullet_count(self):
+        prs = [
+            self._pr(1),
+            self._pr(2, flags=['cherry-pick']),
+            self._pr(3, machinery=True),
+            self._pr(4, sig='uncategorized'),
+            self._pr(5, sig='sig/core'),
+        ]
+        md = release_notes.render_markdown(prs, '26.10.0')
+        counts = release_notes.summarize_render_coverage(prs)
+        assert md.count('\n- ') == counts['rendered']
+
+    def test_legacy_sync_flag_counted_as_rendered(self):
+        counts = release_notes.summarize_render_coverage(
+            [self._pr(1, flags=['stabilization-sync'])]
+        )
+        assert counts['rendered'] == 1
+
+    def test_warns_when_prs_dropped(self, caplog):
+        import logging
+        with caplog.at_level(logging.INFO, logger='o3de.release_notes'):
+            release_notes.log_render_coverage(
+                release_notes.summarize_render_coverage([self._pr(1, flags=['cherry-pick'])])
+            )
+        assert any(r.levelno == logging.WARNING for r in caplog.records)
+        assert any('Reconciliation' in r.message for r in caplog.records)
+
+    def test_no_warning_when_nothing_dropped(self, caplog):
+        import logging
+        with caplog.at_level(logging.INFO, logger='o3de.release_notes'):
+            release_notes.log_render_coverage(
+                release_notes.summarize_render_coverage([self._pr(1)])
+            )
+        assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+class TestMarkdownEscaping:
+    def test_single_escape_in_combined_description(self):
+        # Regression: the combined title+body path escaped twice, turning \[ into
+        # \\[ which renders as a literal backslash plus an UNESCAPED bracket.
+        title = 'Fix crash in [Atom] `render` pipeline'
+        body = ('Completely unrelated wording about widget doohickey thingamabob '
+                'whatsit gizmo contraption apparatus.')
+        result = release_notes._build_pr_description(title, body)
+        assert '\\\\' not in result
+        assert '\\[Atom\\]' in result
+
+    @staticmethod
+    def _has_live_tag(text):
+        """True if any '<' that opens a tag is left unescaped."""
+        return re.search(r'(?<!\\)<[a-zA-Z/!?]', text) is not None
+
+    def test_html_tag_opener_escaped_in_title(self):
+        result = release_notes._sanitize_pr_title_for_markdown(
+            'Add <img src=x onerror=alert(1)> support'
+        )
+        assert not self._has_live_tag(result)
+        assert '\\<img' in result
+
+    def test_script_tag_escaped(self):
+        result = release_notes._sanitize_pr_title_for_markdown('Fix <script>alert(1)</script>')
+        assert not self._has_live_tag(result)
+        assert '\\<script' in result
+        assert '\\</script' in result
+
+    def test_arrow_not_escaped(self):
+        # Real 26.05.0 titles: escaping every '<' would mangle these.
+        result = release_notes._sanitize_pr_title_for_markdown(
+            'Meshlets: fix 64->32 narrowing when building IndexBufferView size'
+        )
+        assert '64->32' in result
+        assert '\\' not in result
+
+    def test_less_than_with_space_not_escaped(self):
+        result = release_notes._sanitize_pr_title_for_markdown('Guard when count < 32 items')
+        assert 'count < 32' in result
+
+    def test_html_escaped_in_body_derived_description(self):
+        body = ('This change repairs the <img src=x onerror=alert(1)> widget doohickey '
+                'gizmo contraption apparatus thingy.')
+        result = release_notes._build_pr_description('Repair widget', body)
+        assert not self._has_live_tag(result)
+
+    def test_existing_escapes_unchanged(self):
+        assert release_notes._sanitize_pr_title_for_markdown('Fix bug (#19709)') == 'Fix bug.'
+        assert release_notes._sanitize_pr_title_for_markdown(
+            '[Editor] Fix paths'
+        ) == '\\[Editor\\] Fix paths.'
+
+    def test_summary_html_neutralised(self):
+        cleaned = release_notes._clean_summary('The release adds <script>alert(1)</script> support.')
+        assert not self._has_live_tag(cleaned)
+        assert '\\<script' in cleaned
+
+    def test_summary_markdown_emphasis_preserved(self):
+        cleaned = release_notes._clean_summary('This adds **Open Particle System** support.')
+        assert '**Open Particle System**' in cleaned
+
+
+class TestSubprocessTimeoutHandling:
+    def test_gh_command_timeout_becomes_runtime_error(self):
+        with mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('gh', 30)), \
+             pytest.raises(RuntimeError, match='timed out'):
+            release_notes._run_gh_command(['gh', 'api', 'graphql'])
+
+    def test_gh_missing_binary_becomes_runtime_error(self):
+        with mock.patch('release_notes.subprocess.run', side_effect=OSError('no gh')), \
+             pytest.raises(RuntimeError, match='failed to run'):
+            release_notes._run_gh_command(['gh', 'api', 'graphql'])
+
+    def test_batch_fetch_survives_timeout(self):
+        # A timeout mid-run must not abort the whole fetch with a traceback.
+        with mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('gh', 30)):
+            result = release_notes.fetch_pr_metadata_batch('o3de/o3de', [1, 2, 3])
+        assert result == []
+
+    def test_gh_auth_check_timeout_returns_false(self):
+        with mock.patch('release_notes.shutil.which', return_value='/usr/bin/gh'), \
+             mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('gh', 10)):
+            assert release_notes._check_gh_available() is False
+
+
+class TestDescriptionLengthPolicy:
+    def test_overlong_paragraph_falls_back_to_title(self):
+        # Regression: _extract_first_paragraph used to truncate to exactly 300
+        # chars, so the ">300 -> use the title" guard never fired and 37 of the
+        # 256 descriptions in the 26.05.0 corpus ended mid-sentence, several on
+        # a severed URL.
+        title = 'Decouple AssImp from Scene API'
+        body = 'We would like to use a different library for scene asset import. ' * 8
+        result = release_notes._build_pr_description(title, body)
+        assert result == 'Decouple AssImp from Scene API.'
+        assert not result.endswith('...')
+
+    def test_extract_first_paragraph_does_not_truncate(self):
+        body = 'word ' * 200
+        assert len(release_notes._extract_first_paragraph(body)) > \
+            release_notes.MAX_DESCRIPTION_CHARS
+
+    def test_in_range_paragraph_still_used(self):
+        title = 'Fix the widget'
+        body = ('This change repairs the widget so that it no longer drops frames when '
+                'the viewport is resized during play mode.')
+        assert release_notes._build_pr_description(title, body).startswith('This change repairs')
+
+    def test_too_short_paragraph_falls_back_to_title(self):
+        assert release_notes._build_pr_description('Fix the widget', 'Yes.') == 'Fix the widget.'
+
+
+class TestAtomicWriteIntegrity:
+    def test_preserves_existing_file_mode(self, tmp_path):
+        # Regression: mkstemp() creates 0600 and os.replace() keeps that mode,
+        # so every rewrite silently made the output owner-only.
+        target = tmp_path / 'out.json'
+        target.write_text('{}')
+        target.chmod(0o644)
+        release_notes.write_json_atomic({'pull_requests': []}, target)
+        assert stat.S_IMODE(target.stat().st_mode) == 0o644
+
+    def test_new_file_gets_default_mode(self, tmp_path):
+        target = tmp_path / 'new.md'
+        release_notes.write_markdown_atomic('# notes\n', target)
+        assert stat.S_IMODE(target.stat().st_mode) == release_notes.DEFAULT_OUTPUT_MODE
+
+    def test_content_round_trips(self, tmp_path):
+        target = tmp_path / 'out.json'
+        release_notes.write_json_atomic({'pull_requests': [{'number': 1}]}, target)
+        assert json.loads(target.read_text())['pull_requests'][0]['number'] == 1
+
+    def test_no_temp_files_left_behind(self, tmp_path):
+        target = tmp_path / 'out.md'
+        release_notes.write_markdown_atomic('body\n', target)
+        assert [p.name for p in tmp_path.iterdir()] == ['out.md']
+
+    def test_failure_cleans_up_temp_file(self, tmp_path):
+        target = tmp_path / 'out.md'
+        with mock.patch('release_notes.os.replace', side_effect=OSError('boom')), \
+             pytest.raises(OSError):
+            release_notes.write_markdown_atomic('body\n', target)
+        assert list(tmp_path.iterdir()) == []
+
+
+class TestSbomIntegrity:
+    def test_version_matches_release_notes(self):
+        assert release_notes.__version__ == generate_sbom.PROJECT_VERSION
+
+    def test_version_matches_pyproject(self):
+        text = (pathlib.Path(__file__).parent.parent / 'pyproject.toml').read_text()
+        assert f'version = "{generate_sbom.PROJECT_VERSION}"' in text
+
+    def test_stdlib_inventory_is_derived_not_hardcoded(self, tmp_path):
+        (tmp_path / 'release_notes.py').write_text('import zoneinfo\nfrom decimal import Decimal\n')
+        modules = generate_sbom.discover_stdlib_modules(tmp_path)
+        assert 'zoneinfo' in modules
+        assert 'decimal' in modules
+
+    def test_inventory_excludes_project_and_test_modules(self, tmp_path):
+        (tmp_path / 'release_notes.py').write_text(
+            'import release_notes\nimport pytest\nfrom unittest import mock\n'
+        )
+        assert generate_sbom.discover_stdlib_modules(tmp_path) == []
+
+    def test_inventory_covers_every_real_import(self):
+        project_dir = pathlib.Path(__file__).parent.parent
+        modules = generate_sbom.discover_stdlib_modules(project_dir)
+        for expected in ('contextlib', 'shlex', 'typing', 'stat'):
+            assert expected in modules
+
+    def test_substantive_document_is_deterministic(self, tmp_path):
+        project_dir = pathlib.Path(__file__).parent.parent
+        first = generate_sbom.generate_sbom(project_dir)
+        second = generate_sbom.generate_sbom(project_dir)
+        assert generate_sbom._substantive(first) == generate_sbom._substantive(second)
+        assert first['serialNumber'] == second['serialNumber']
+
+    def test_serial_number_tracks_content(self, tmp_path):
+        (tmp_path / 'release_notes.py').write_text('import json\n')
+        first = generate_sbom.generate_sbom(tmp_path)
+        (tmp_path / 'release_notes.py').write_text('import json\nimport csv\n')
+        second = generate_sbom.generate_sbom(tmp_path)
+        assert first['serialNumber'] != second['serialNumber']
+
+    def test_dependency_refs_all_resolve(self):
+        sbom = generate_sbom.generate_sbom(pathlib.Path(__file__).parent.parent)
+        refs = {c['bom-ref'] for c in sbom['components']}
+        assert set(sbom['dependencies'][0]['dependsOn']) <= refs
+        assert sbom['dependencies'][0]['ref'] == sbom['metadata']['component']['bom-ref']
+
+    def test_purl_does_not_claim_a_pypi_package(self):
+        sbom = generate_sbom.generate_sbom(pathlib.Path(__file__).parent.parent)
+        for component in sbom['components']:
+            assert not component.get('purl', '').startswith('pkg:pypi/')
+
+    def test_document_is_environment_independent(self, tmp_path):
+        # No field may carry the running interpreter's exact version, or the
+        # document differs between a CI runner and a workstation.
+        import platform
+        sbom = generate_sbom.generate_sbom(pathlib.Path(__file__).parent.parent)
+        rendered = json.dumps(generate_sbom._substantive(sbom))
+        running = platform.python_version()
+        if running != generate_sbom.MIN_PYTHON_VERSION:
+            assert running not in rendered
+
+    def test_check_mode_detects_stale_sbom(self, tmp_path, monkeypatch, capsys):
+        (tmp_path / 'release_notes.py').write_text('import json\n')
+        (tmp_path / 'sbom.cdx.json').write_text('{"metadata": {}, "components": []}')
+        monkeypatch.setattr(generate_sbom, '__file__', str(tmp_path / 'generate_sbom.py'))
+        monkeypatch.setattr(sys, 'argv', ['generate_sbom.py', '--check'])
+        assert generate_sbom.main() == 1
+
+    def test_regeneration_is_a_noop_when_current(self, tmp_path, monkeypatch):
+        (tmp_path / 'release_notes.py').write_text('import json\n')
+        monkeypatch.setattr(generate_sbom, '__file__', str(tmp_path / 'generate_sbom.py'))
+        monkeypatch.setattr(sys, 'argv', ['generate_sbom.py'])
+        assert generate_sbom.main() == 0
+        first = (tmp_path / 'sbom.cdx.json').read_text()
+        assert generate_sbom.main() == 0
+        assert (tmp_path / 'sbom.cdx.json').read_text() == first
+
+
+class TestSchemaVersionProvenance:
+    def test_schema_version_is_current(self):
+        assert release_notes.SCHEMA_VERSION == 4
+
+    def test_previous_schema_still_loads(self, tmp_path):
+        path = tmp_path / 'old.json'
+        path.write_text(json.dumps({
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION - 1},
+            'pull_requests': [],
+        }))
+        assert release_notes.load_existing_json(path) is not None
+
+    def test_two_versions_back_is_rejected(self, tmp_path):
+        path = tmp_path / 'ancient.json'
+        path.write_text(json.dumps({
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION - 2},
+            'pull_requests': [],
+        }))
+        assert release_notes.load_existing_json(path) is None
+
+
+class TestPerRepoRefs:
+    def test_defaults_to_global_ref(self):
+        mapping = release_notes.parse_repo_ref_mappings(
+            None, '2605.0', ['o3de/o3de', 'o3de/o3de-extras'], '--repo-from-ref',
+        )
+        assert mapping == {'o3de/o3de': '2605.0', 'o3de/o3de-extras': '2605.0'}
+
+    def test_override_for_untagged_repo(self):
+        # o3de/o3de-extras has no 2605.0 tag; without an override the whole
+        # multi-repo run aborts on that repo.
+        mapping = release_notes.parse_repo_ref_mappings(
+            ['o3de/o3de-extras=origin/stabilization/26050'],
+            '2605.0', ['o3de/o3de', 'o3de/o3de-extras'], '--repo-from-ref',
+        )
+        assert mapping['o3de/o3de'] == '2605.0'
+        assert mapping['o3de/o3de-extras'] == 'origin/stabilization/26050'
+
+    def test_rejects_malformed_mapping(self):
+        with pytest.raises(ValueError, match='--repo-from-ref'):
+            release_notes.parse_repo_ref_mappings(
+                ['not-a-mapping'], '2605.0', ['o3de/o3de'], '--repo-from-ref')
+
+    def test_validates_override_ref(self):
+        with pytest.raises(ValueError, match='Invalid git reference'):
+            release_notes.parse_repo_ref_mappings(
+                ['o3de/o3de=--exec=evil'], '2605.0', ['o3de/o3de'], '--repo-from-ref')
+
+    def test_ref_exists_true_on_success(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout='abc\n', stderr='')
+            assert release_notes.ref_exists(tmp_path, '2605.0') is True
+
+    def test_ref_exists_false_on_missing(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=128, stdout='', stderr='')
+            assert release_notes.ref_exists(tmp_path, '2605.0') is False
+
+    def test_ref_exists_false_on_timeout(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('git', 15)):
+            assert release_notes.ref_exists(tmp_path, '2605.0') is False
+
+    def test_preflight_reports_missing_ref_with_remedy(self, tmp_path):
+        with mock.patch('release_notes.ref_exists', return_value=False):
+            problems = release_notes.verify_refs_exist(
+                {'o3de/o3de-extras': tmp_path},
+                {'o3de/o3de-extras': '2605.0'},
+                {'o3de/o3de-extras': 'origin/development'},
+                ['o3de/o3de-extras'],
+            )
+        assert len(problems) == 2
+        assert '--repo-from-ref' in problems[0]
+
+    def test_preflight_silent_when_refs_resolve(self, tmp_path):
+        with mock.patch('release_notes.ref_exists', return_value=True):
+            assert release_notes.verify_refs_exist(
+                {'o3de/o3de': tmp_path},
+                {'o3de/o3de': '2605.0'},
+                {'o3de/o3de': 'origin/development'},
+                ['o3de/o3de'],
+            ) == []
+
+
+class TestRepeatableMappingFlags:
+    @staticmethod
+    def _parse(argv):
+        import argparse
+        parser = argparse.ArgumentParser()
+        release_notes.add_parser_args(parser)
+        return parser.parse_args(argv)
+
+    _BASE = ['fetch', '--from-ref', 'a', '--to-ref', 'b', '--output-json', 'o.json']
+
+    def test_repeated_repo_path_flags_accumulate(self):
+        # Regression: bare nargs='*' kept only the last occurrence, so the
+        # README's multi-repo example silently used --default-repo-path for
+        # every repo but the last one.
+        args = self._parse(self._BASE + [
+            '--repo-path', 'o3de/o3de=/a',
+            '--repo-path', 'o3de/o3de-extras=/b',
+        ])
+        assert args.repo_path == ['o3de/o3de=/a', 'o3de/o3de-extras=/b']
+
+    def test_single_flag_multiple_values_still_works(self):
+        args = self._parse(self._BASE + [
+            '--repo-path', 'o3de/o3de=/a', 'o3de/o3de-extras=/b',
+        ])
+        assert args.repo_path == ['o3de/o3de=/a', 'o3de/o3de-extras=/b']
+
+    def test_repeated_repo_from_ref_flags_accumulate(self):
+        args = self._parse(self._BASE + [
+            '--repo-from-ref', 'o3de/o3de=2605.0',
+            '--repo-from-ref', 'o3de/o3de-extras=2510.2',
+        ])
+        assert len(args.repo_from_ref) == 2
+
+    def test_repeated_repos_flags_accumulate(self):
+        args = self._parse(self._BASE + ['--repos', 'o3de/o3de', '--repos', 'o3de/o3de-extras'])
+        assert args.repos == ['o3de/o3de', 'o3de/o3de-extras']
+
+    def test_repos_defaults_applied_in_main(self, monkeypatch):
+        monkeypatch.setattr(sys, 'argv', ['release_notes', *self._BASE])
+        with mock.patch('release_notes._run_fetch', return_value=0) as mock_fetch:
+            release_notes.main()
+        assert mock_fetch.call_args[0][0].repos == release_notes.DEFAULT_REPOS
+
+    def test_both_paths_resolve_after_fix(self, tmp_path):
+        mapping = release_notes.parse_repo_path_mappings(
+            ['o3de/o3de=/a', 'o3de/o3de-extras=/b'], '.', ['o3de/o3de', 'o3de/o3de-extras'],
+        )
+        assert str(mapping['o3de/o3de']) == '/a'
+        assert str(mapping['o3de/o3de-extras']) == '/b'
