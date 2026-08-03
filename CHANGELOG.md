@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1-beta] - 2026-08-03
+
+### Security
+- `_safe_stderr()` now also scrubs fine-grained personal access tokens (`github_pat_…`). The pattern previously covered only the classic `ghp_/gho_/ghu_/ghs_/ghr_` shapes, so a fine-grained token appearing in subprocess stderr would have been logged verbatim. Documented as covered in SECURITY.md; it was not.
+
+### Fixed
+- **README examples were wrong by default.** Nine of eleven `fetch` / `generate` examples, including the Quick Start, omitted `--exclude-json`. Copy-pasting the Quick Start produced a 369-PR window of which 188 had already shipped in 26.05.0, which is the exact failure 0.6.0-beta was written to prevent. Every example now carries the flag and writes to a per-release output path.
+- Quick Start comment claimed "everything since 26.05.0", which is what the command did *not* do without the exclusion flag.
+- Example figures were internally inconsistent: the JSON schema block claimed `pr_count: 419` with a categorization summary summing to 419, and the reconciliation sample showed 419/402. Both now use the real post-exclusion numbers (201 = 181 `o3de` + 20 `o3de-extras`) and add up.
+- Sample Output described a 369-PR run; that is the pre-exclusion figure.
+- Narrative-summary docs omitted that release-machinery PRs are excluded from the prompt, and that summary output has HTML tag openers escaped.
+- `-v` was documented without its `--verbose` long form.
+- AGENTS.md still described point-release tags with the three-component `X.Y.N` notation; they are two-component.
+
+### Changed
+- **Architecture diagrams redrawn.** The pipeline diagram predated the ref preflight, the prior-release exclusion stage, and render reconciliation; the incremental-flow diagram did not show exclusion being re-applied after the merge. The trust-boundary diagram gains the `--exclude-json` source as a trusted local input, notes that atomic writes fsync and preserve mode, and has its box borders realigned.
+- SECURITY.md, AGENTS.md, and CONTRIBUTING.md updated for the widened token scrub, single-pass markdown/HTML escaping, subprocess timeout handling, and permission-preserving atomic writes.
+- 7 new tests (305 -> 312) covering every token shape the scrubber claims to handle.
+
 ## [0.6.0-beta] - 2026-08-03
 
 Accuracy-focused release ahead of the O3DE 26.10.0 cycle. Three defects in this

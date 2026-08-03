@@ -33,7 +33,7 @@ These are not preferences; they are project invariants. PRs that violate them wi
 - **No `shell=True`.** Every `subprocess.run` call uses list arguments, with `encoding='utf-8', errors='replace'`.
 - **Validate untrusted input at the boundary.** Git refs, repo slugs, file paths, PR numbers, summary commands, and summary timeouts are all validated by named functions. Reuse them.
 - **GraphQL goes through variables, not strings.** Owner/name/anything user-influenced gets passed via `gh api graphql -f key=value`, not interpolated into the query body.
-- **No tokens in logs.** All subprocess stderr passes through `_safe_stderr()` before being logged.
+- **No tokens in logs.** All subprocess stderr passes through `_safe_stderr()` before being logged; it covers classic (`ghp_` family) and fine-grained (`github_pat_`) token shapes.
 - **Atomic writes.** Use `write_text_atomic()`, which fsyncs before the rename and preserves the destination file's permission bits. Do not hand-roll `mkstemp` + `os.replace()`: on its own that silently downgrades outputs to 0600.
 - **Escape exactly once.** Strip decorations first, then escape. Re-escaping an escaped string turns `\[` into `\\[`, which renders as a literal backslash and an *unescaped* bracket.
 - **Account for every dropped PR.** Any new filter must be represented in `summarize_render_coverage()` so the reconciliation line stays exhaustive.
