@@ -31,6 +31,8 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Regeneration is a no-op when the substantive content is unchanged, so
+      # this no longer produces a timestamp-only commit on every push.
       - name: Generate SBOM
         run: python generate_sbom.py
 

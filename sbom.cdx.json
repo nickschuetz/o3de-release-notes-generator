@@ -3,9 +3,8 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
   "version": 1,
-  "serialNumber": "urn:uuid:cbe78533-77d1-443a-9428-471c6de5814b",
   "metadata": {
-    "timestamp": "2026-05-20T20:34:22.506362+00:00",
+    "timestamp": "2026-08-03T16:27:50.114892+00:00",
     "tools": {
       "components": [
         {
@@ -18,8 +17,9 @@
     },
     "component": {
       "type": "application",
+      "bom-ref": "o3de_release_notes_generator",
       "name": "o3de_release_notes_generator",
-      "version": "0.5.0-beta",
+      "version": "0.6.0-beta",
       "description": "Generates O3DE release notes from merged pull requests",
       "licenses": [
         {
@@ -52,10 +52,11 @@
   "components": [
     {
       "type": "library",
+      "bom-ref": "stdlib:argparse",
       "name": "argparse",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/argparse@3.12.13",
+      "purl": "pkg:generic/argparse@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: argparse",
       "properties": [
         {
@@ -66,10 +67,41 @@
     },
     {
       "type": "library",
-      "name": "datetime",
-      "version": "3.12.13",
+      "bom-ref": "stdlib:ast",
+      "name": "ast",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/datetime@3.12.13",
+      "purl": "pkg:generic/ast@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: ast",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "stdlib:contextlib",
+      "name": "contextlib",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/contextlib@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: contextlib",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "stdlib:datetime",
+      "name": "datetime",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/datetime@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: datetime",
       "properties": [
         {
@@ -80,10 +112,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:hashlib",
       "name": "hashlib",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/hashlib@3.12.13",
+      "purl": "pkg:generic/hashlib@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: hashlib",
       "properties": [
         {
@@ -94,10 +127,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:json",
       "name": "json",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/json@3.12.13",
+      "purl": "pkg:generic/json@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: json",
       "properties": [
         {
@@ -108,10 +142,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:logging",
       "name": "logging",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/logging@3.12.13",
+      "purl": "pkg:generic/logging@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: logging",
       "properties": [
         {
@@ -122,10 +157,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:os",
       "name": "os",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/os@3.12.13",
+      "purl": "pkg:generic/os@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: os",
       "properties": [
         {
@@ -136,10 +172,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:pathlib",
       "name": "pathlib",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/pathlib@3.12.13",
+      "purl": "pkg:generic/pathlib@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: pathlib",
       "properties": [
         {
@@ -150,10 +187,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:platform",
       "name": "platform",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/platform@3.12.13",
+      "purl": "pkg:generic/platform@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: platform",
       "properties": [
         {
@@ -164,10 +202,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:re",
       "name": "re",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/re@3.12.13",
+      "purl": "pkg:generic/re@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: re",
       "properties": [
         {
@@ -178,10 +217,26 @@
     },
     {
       "type": "library",
-      "name": "shutil",
-      "version": "3.12.13",
+      "bom-ref": "stdlib:shlex",
+      "name": "shlex",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/shutil@3.12.13",
+      "purl": "pkg:generic/shlex@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: shlex",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "stdlib:shutil",
+      "name": "shutil",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/shutil@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: shutil",
       "properties": [
         {
@@ -192,10 +247,26 @@
     },
     {
       "type": "library",
-      "name": "subprocess",
-      "version": "3.12.13",
+      "bom-ref": "stdlib:stat",
+      "name": "stat",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/subprocess@3.12.13",
+      "purl": "pkg:generic/stat@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: stat",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "stdlib:subprocess",
+      "name": "subprocess",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/subprocess@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: subprocess",
       "properties": [
         {
@@ -206,10 +277,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:sys",
       "name": "sys",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/sys@3.12.13",
+      "purl": "pkg:generic/sys@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: sys",
       "properties": [
         {
@@ -220,10 +292,11 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:tempfile",
       "name": "tempfile",
-      "version": "3.12.13",
+      "version": "3.10",
       "scope": "required",
-      "purl": "pkg:pypi/cpython-stdlib/tempfile@3.12.13",
+      "purl": "pkg:generic/tempfile@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: tempfile",
       "properties": [
         {
@@ -233,32 +306,50 @@
       ]
     },
     {
+      "type": "library",
+      "bom-ref": "stdlib:typing",
+      "name": "typing",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/typing@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: typing",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
       "type": "file",
+      "bom-ref": "file:release_notes.py",
       "name": "release_notes.py",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "abd849f3a58813a71d2df0b2fcd295a5b7855ee268a2c1d8adaf887c8bd8fbd4"
+          "content": "e751cf49617981830cc9c7901fa97d834b0bbd4ea99c5ae24e6bf1970a93a795"
         }
       ]
     },
     {
       "type": "file",
+      "bom-ref": "file:generate_sbom.py",
       "name": "generate_sbom.py",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "8d1ea0b87183d6bbf44d8910f1a81bbfd806278694c9280bddcd83575fcab703"
+          "content": "418acc3c94c284e03dca4343bb2b271c0e4927032ac85dc39509c98bc7a94986"
         }
       ]
     },
     {
       "type": "file",
+      "bom-ref": "file:tests/test_release_notes.py",
       "name": "tests/test_release_notes.py",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "31760c9074b33614e6d585305894695e64a62ec40f90a1e6e631b6c36e39272c"
+          "content": "f0cd9e8ed5edfe4e4cbbc1528d2cf86fa90c889a39c9d55c05516f49aa8ace7b"
         }
       ]
     }
@@ -267,20 +358,29 @@
     {
       "ref": "o3de_release_notes_generator",
       "dependsOn": [
-        "argparse",
-        "datetime",
-        "hashlib",
-        "json",
-        "logging",
-        "os",
-        "pathlib",
-        "platform",
-        "re",
-        "shutil",
-        "subprocess",
-        "sys",
-        "tempfile"
+        "stdlib:argparse",
+        "stdlib:ast",
+        "stdlib:contextlib",
+        "stdlib:datetime",
+        "stdlib:hashlib",
+        "stdlib:json",
+        "stdlib:logging",
+        "stdlib:os",
+        "stdlib:pathlib",
+        "stdlib:platform",
+        "stdlib:re",
+        "stdlib:shlex",
+        "stdlib:shutil",
+        "stdlib:stat",
+        "stdlib:subprocess",
+        "stdlib:sys",
+        "stdlib:tempfile",
+        "stdlib:typing",
+        "file:release_notes.py",
+        "file:generate_sbom.py",
+        "file:tests/test_release_notes.py"
       ]
     }
-  ]
+  ],
+  "serialNumber": "urn:uuid:b8bafa61-5271-40d4-8639-603098c68cc9"
 }

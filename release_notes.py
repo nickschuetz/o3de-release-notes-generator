@@ -11,6 +11,7 @@ import pathlib
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -20,14 +21,26 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.5.0-beta'
+__version__ = '0.6.0-beta'
 
-SCHEMA_VERSION = 3
+# 4: adds metadata.tool_version; `flags` no longer carries `stabilization-sync`
+#    and descriptions are no longer truncated mid-sentence, so data written by
+#    <=0.5.0-beta is structurally readable but semantically stale. Version 3
+#    files still load (renderer ignores the legacy flag); re-fetch for accuracy.
+SCHEMA_VERSION = 4
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
 REPO_PATH_MAPPING_PATTERN = re.compile(r'^([a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+)=(.+)$')
 PR_NUMBER_PATTERN = re.compile(r'\(#(\d+)\)')
+
+# O3DE uses two merge strategies on `development`. Squash-merges put the PR
+# number in the subject as `(#NNNN)`; merge-commit PRs produce
+# `Merge pull request #NNNN from owner/branch` with no parentheses, and their
+# constituent commits carry no PR reference at all. Matching only the squash
+# form (and passing --no-merges to git log) silently loses every merge-commit
+# PR: 19 of them in the 2605.0..development window alone.
+MERGE_COMMIT_PR_PATTERN = re.compile(r'^Merge pull request #(\d+)\b')
 
 DEFAULT_REPOS = ['o3de/o3de']
 
@@ -342,6 +355,84 @@ def parse_repo_path_mappings(
     return mappings
 
 
+def parse_repo_ref_mappings(
+    entries: list[str] | None,
+    default_ref: str,
+    repos: list[str],
+    flag_name: str,
+) -> dict[str, str]:
+    """Resolve per-repo git refs, falling back to the global ref.
+
+    Release lines do not tag every repo. `o3de/o3de` carries `2605.0` but
+    `o3de/o3de-extras` does not, so a single global --from-ref aborts the whole
+    multi-repo run on the repo that lacks the tag.
+    """
+    mappings: dict[str, str] = {}
+
+    for entry in entries or []:
+        match = REPO_PATH_MAPPING_PATTERN.match(entry)
+        if not match:
+            raise ValueError(
+                f'Invalid {flag_name} mapping: {entry!r}. Use owner/repo=REF format.'
+            )
+        slug, ref = match.group(1), match.group(2)
+        validate_repo_slug(slug)
+        mappings[slug] = validate_git_ref(ref)
+
+    for repo in repos:
+        if repo not in mappings:
+            mappings[repo] = validate_git_ref(default_ref)
+
+    return mappings
+
+
+def ref_exists(repo_path: pathlib.Path, ref: str) -> bool:
+    ref = validate_git_ref(ref)
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--verify', '--quiet', f'{ref}^{{commit}}'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=15,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('git rev-parse failed for %s in %s: %s', ref, repo_path, e)
+        return False
+    return result.returncode == 0
+
+
+def verify_refs_exist(
+    repo_path_map: dict[str, pathlib.Path],
+    from_ref_map: dict[str, str],
+    to_ref_map: dict[str, str],
+    repos: list[str],
+) -> list[str]:
+    """Preflight every (repo, ref) pair and return human-readable problems.
+
+    Catching this upfront turns a mid-run `git log` abort, after minutes of
+    GitHub API calls, into an actionable error before any work starts.
+    """
+    problems: list[str] = []
+    for repo_slug in repos:
+        repo_path = repo_path_map.get(repo_slug)
+        if repo_path is None:
+            continue
+        for label, ref in (('--from-ref', from_ref_map.get(repo_slug, '')),
+                           ('--to-ref', to_ref_map.get(repo_slug, ''))):
+            if not ref:
+                continue
+            if not ref_exists(repo_path, ref):
+                problems.append(
+                    f'{repo_slug}: {label} {ref!r} does not resolve in {repo_path}. '
+                    f'Fetch tags (`git -C {repo_path} fetch --tags`) or override with '
+                    f'--repo-from-ref/--repo-to-ref {repo_slug}=<ref>.'
+                )
+    return problems
+
+
 MAX_STDERR_LOG_LEN = 200
 
 # Defense-in-depth: scrub GitHub token shapes from stderr before logging.
@@ -625,23 +716,42 @@ def extract_pr_numbers_from_git_log(
     from_ref = validate_git_ref(from_ref)
     to_ref = validate_git_ref(to_ref)
 
-    result = subprocess.run(
-        ['git', 'log', '--format=%s', f'{from_ref}..{to_ref}', '--no-merges'],
-        cwd=str(repo_path.resolve()),
-        capture_output=True,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
-        timeout=60,
-    )
+    # Merge commits are deliberately included: they are the only place a
+    # merge-commit PR's number appears. Duplicates across the two patterns are
+    # collapsed by the set.
+    try:
+        result = subprocess.run(
+            ['git', 'log', '--format=%s', f'{from_ref}..{to_ref}'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=60,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        raise RuntimeError(f'git log {from_ref}..{to_ref} failed in {repo_path}: {e}') from e
     if result.returncode != 0:
         logger.error('git log failed: %s', _safe_stderr(result.stderr))
         raise RuntimeError(f'git log failed with exit code {result.returncode}')
 
     pr_numbers = set()
+    merge_commit_prs = 0
     for line in result.stdout.splitlines():
         for match in PR_NUMBER_PATTERN.finditer(line):
             pr_numbers.add(int(match.group(1)))
+        merge_match = MERGE_COMMIT_PR_PATTERN.match(line)
+        if merge_match:
+            number = int(merge_match.group(1))
+            if number not in pr_numbers:
+                merge_commit_prs += 1
+            pr_numbers.add(number)
+
+    if merge_commit_prs:
+        logger.info(
+            '%d PR(s) found via merge commits (`Merge pull request #N`) in %s',
+            merge_commit_prs, repo_path,
+        )
 
     return sorted(pr_numbers)
 
@@ -675,14 +785,22 @@ def _build_graphql_query(pr_numbers: list[int]) -> str:
 
 
 def _run_gh_command(args: list[str], timeout: int = 30) -> dict[str, Any]:
-    result = subprocess.run(
-        args,
-        capture_output=True,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
-        timeout=timeout,
-    )
+    # A timeout or a missing binary must surface as RuntimeError like any other
+    # gh failure. Letting TimeoutExpired escape aborted the whole run with a
+    # traceback and discarded every batch already fetched.
+    try:
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f'gh command timed out after {timeout}s') from e
+    except (subprocess.SubprocessError, OSError) as e:
+        raise RuntimeError(f'gh command failed to run: {e}') from e
     if result.returncode != 0:
         stderr = _safe_stderr(result.stderr)
         if 'rate limit' in stderr.lower() or '403' in stderr:
@@ -702,14 +820,18 @@ def _check_gh_available() -> bool:
         logger.error('gh CLI is required but not found. Install from https://cli.github.com/')
         return False
 
-    result = subprocess.run(
-        ['gh', 'auth', 'status'],
-        capture_output=True,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
-        timeout=10,
-    )
+    try:
+        result = subprocess.run(
+            ['gh', 'auth', 'status'],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=10,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.error('Could not run `gh auth status`: %s', e)
+        return False
     if result.returncode != 0:
         logger.error('gh CLI is not authenticated. Run: gh auth login')
         return False
@@ -878,7 +1000,29 @@ def categorize_pr(pr_data: dict[str, Any]) -> tuple[str, str]:
     return 'uncategorized', 'uncategorized'
 
 
+# Flags that remove a PR from the rendered report and the summary prompt.
+# `stabilization-sync` is deliberately absent: it used to be set by a substring
+# match on any label containing "sync", which matched O3DE's *workflow-tracking*
+# labels (`sync/to-stabilization`, `sync/to-development`,
+# `need-sync/to-development`). Those labels live on the ORIGINAL substantive PR,
+# not on a sync container, so the filter deleted 57 real changes (22% of the
+# corpus) from the 26.05.0 notes. Old JSON files may still carry the flag; by
+# keeping it out of this set they now render correctly without a re-fetch.
+EXCLUDED_FLAGS = frozenset({'cherry-pick'})
+
+
+def is_excluded_by_flags(pr_data: dict[str, Any]) -> bool:
+    return bool(EXCLUDED_FLAGS.intersection(pr_data.get('flags', []) or []))
+
+
 def detect_pr_flags(pr_data: dict[str, Any]) -> list[str]:
+    """Detect flags on a PR. Only title evidence is trusted for cherry-pick
+    containers.
+
+    Labels are NOT used: no O3DE label distinguishes a sync container from a
+    normal PR. In the 26.05.0 corpus `sync/to-stabilization` appeared on 30
+    ordinary PRs and on 2 containers, making it useless as an exclusion signal.
+    """
     flags = []
     title = pr_data.get('title', '')
     for pattern in CHERRY_PICK_PATTERNS:
@@ -886,24 +1030,40 @@ def detect_pr_flags(pr_data: dict[str, Any]) -> list[str]:
             flags.append('cherry-pick')
             break
 
-    labels = pr_data.get('labels', [])
-    if any('sync' in lbl for lbl in labels):
-        flags.append('stabilization-sync')
-
     return flags
 
 
+MARKDOWN_ESCAPE_CHARS = '[]|`'
+
+# Markdown renderers used to publish O3DE release notes (Hugo/goldmark, GitHub)
+# pass raw HTML straight through, so an untrusted PR title containing
+# `<img src=x onerror=...>` would become live HTML on o3de.org. Escape only
+# tag-*like* `<` so ordinary arrows in titles ("fix 64->32 narrowing",
+# "Move camera passes ROS2->ROS2Sensors") stay readable in the raw markdown.
+HTML_TAG_OPENER_PATTERN = re.compile(r'<(?=[a-zA-Z/!?])')
+
+TRAILING_PR_REF_PATTERN = re.compile(r'\(#\d+\)\s*$')
+
+
+def _escape_markdown(text: str) -> str:
+    escaped = ''.join(f'\\{ch}' if ch in MARKDOWN_ESCAPE_CHARS else ch for ch in text)
+    return HTML_TAG_OPENER_PATTERN.sub('\\\\<', escaped)
+
+
+def _strip_title_decorations(title: str) -> str:
+    """Remove the trailing `(#NNNN)` ref and any leading `#` heading markers.
+
+    Kept separate from escaping so callers that compose a longer string can
+    strip once and escape once. Escaping twice turns `\\[` into `\\\\[`, which
+    markdown renders as a literal backslash followed by an *unescaped* bracket,
+    defeating the escape it was meant to apply.
+    """
+    title = TRAILING_PR_REF_PATTERN.sub('', title.strip()).strip()
+    return title.lstrip('#').strip()
+
+
 def _sanitize_pr_title_for_markdown(title: str) -> str:
-    title = title.strip()
-    title = re.sub(r'\(#\d+\)\s*$', '', title).strip()
-    title = title.lstrip('#').strip()
-    sanitized = []
-    for ch in title:
-        if ch in '[]|`':
-            sanitized.append(f'\\{ch}')
-        else:
-            sanitized.append(ch)
-    result = ''.join(sanitized)
+    result = _escape_markdown(_strip_title_decorations(title))
     if result and not result.endswith('.'):
         result += '.'
     return result
@@ -932,6 +1092,11 @@ BULLET_PATTERN = re.compile(r'^[\-\*]\s+')
 
 MAX_PR_BODY_BYTES = 65536
 
+# Upper bound for a rendered bullet's description. Longer first paragraphs fall
+# back to the PR title rather than being truncated mid-sentence.
+MIN_DESCRIPTION_CHARS = 20
+MAX_DESCRIPTION_CHARS = 300
+
 
 def _build_pr_description(title: str, body: str) -> str:
     sanitized_title = _sanitize_pr_title_for_markdown(title)
@@ -948,7 +1113,8 @@ def _build_pr_description(title: str, body: str) -> str:
     if not first_paragraph:
         return sanitized_title
 
-    if len(first_paragraph) <= 20 or len(first_paragraph) > 300:
+    if (len(first_paragraph) <= MIN_DESCRIPTION_CHARS
+            or len(first_paragraph) > MAX_DESCRIPTION_CHARS):
         return sanitized_title
 
     title_words = set(re.findall(r'[a-zA-Z]{3,}', title.lower()))
@@ -956,8 +1122,10 @@ def _build_pr_description(title: str, body: str) -> str:
     overlap = title_words & para_words
 
     if len(title_words) > 0 and len(overlap) / len(title_words) < 0.2:
-        combined = f'{sanitized_title.rstrip(".")}: {first_paragraph}'
-        if len(combined) <= 300:
+        # Compose from the RAW title, not the already-escaped one, so the result
+        # passes through _sanitize_pr_title_for_markdown exactly once.
+        combined = f'{_strip_title_decorations(title)}: {first_paragraph}'
+        if len(combined) <= MAX_DESCRIPTION_CHARS:
             return _sanitize_pr_title_for_markdown(combined)
         return sanitized_title
 
@@ -991,10 +1159,13 @@ def _extract_first_paragraph(body: str) -> str:
     if is_bullet_list:
         return ''
 
-    paragraph = ' '.join(paragraph_lines)
-    if len(paragraph) > 300:
-        paragraph = paragraph[:297] + '...'
-    return paragraph
+    # Returned untruncated on purpose. _build_pr_description owns the length
+    # policy: a paragraph longer than MAX_DESCRIPTION_CHARS falls back to the
+    # title. Truncating here instead made that guard dead code (the result was
+    # always exactly 300 chars), which is how mid-sentence descriptions ending
+    # in a severed URL reached the 26.05.0 notes. The 64KB body cap upstream
+    # keeps this bounded.
+    return ' '.join(paragraph_lines)
 
 
 def _format_pr_reference(repo_slug: str, pr_number: int, url: str = '') -> str:
@@ -1066,8 +1237,7 @@ def _build_summary_prompt(
 ) -> str:
     by_sig: dict[str, list[str]] = {}
     for pr in pr_list:
-        flags = pr.get('flags', [])
-        if 'cherry-pick' in flags or 'stabilization-sync' in flags:
+        if is_excluded_by_flags(pr):
             continue
         if not include_release_machinery and pr.get('release_machinery'):
             continue
@@ -1161,7 +1331,10 @@ def _clean_summary(text: str) -> str:
                 cleaned = True
                 continue
             break
-    return '\n'.join(lines).strip()
+    # The narrative is inserted verbatim into the published markdown. A PR title
+    # carrying a prompt injection could steer the model into emitting raw HTML,
+    # so neutralise tag openers here too. Markdown emphasis is left intact.
+    return HTML_TAG_OPENER_PATTERN.sub('\\\\<', '\n'.join(lines).strip())
 
 
 def _resolve_hint(hint: str) -> str:
@@ -1257,6 +1430,60 @@ def generate_summary(
 DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
 
 
+def summarize_render_coverage(
+    pr_list: list[dict[str, Any]],
+    include_uncategorized: bool = False,
+    include_release_machinery: bool = False,
+) -> dict[str, int]:
+    """Account for every PR in the input: how many reach the report, and why the
+    rest do not.
+
+    Reasons are evaluated in the same precedence order `render_markdown` applies
+    and are mutually exclusive, so `rendered` plus every `excluded_*` count sums
+    to `total`. Curators get an explicit reconciliation instead of having to
+    notice that a number looks low; the 57-PR `stabilization-sync` regression in
+    26.05.0 went unnoticed precisely because nothing reported this.
+    """
+    counts: dict[str, int] = {'total': len(pr_list), 'rendered': 0}
+
+    for pr in pr_list:
+        excluded_flags = sorted(EXCLUDED_FLAGS.intersection(pr.get('flags', []) or []))
+        if excluded_flags:
+            key = f'excluded_{excluded_flags[0]}'
+            counts[key] = counts.get(key, 0) + 1
+            continue
+        if not include_release_machinery and pr.get('release_machinery'):
+            counts['excluded_release_machinery'] = counts.get('excluded_release_machinery', 0) + 1
+            continue
+        if not include_uncategorized and pr.get('sig_category', 'uncategorized') == 'uncategorized':
+            counts['excluded_uncategorized'] = counts.get('excluded_uncategorized', 0) + 1
+            continue
+        counts['rendered'] += 1
+
+    return counts
+
+
+def log_render_coverage(counts: dict[str, int]) -> None:
+    """Emit the reconciliation line, at WARNING when anything was dropped."""
+    logger.info(
+        'Reconciliation: %d PR(s) in JSON, %d rendered',
+        counts.get('total', 0), counts.get('rendered', 0),
+    )
+    excluded = {
+        k[len('excluded_'):]: v
+        for k, v in sorted(counts.items())
+        if k.startswith('excluded_') and v
+    }
+    if excluded:
+        logger.warning(
+            'Excluded %d PR(s) from the report: %s. '
+            'Re-run render with --include-uncategorized / --include-release-machinery '
+            'to inspect them.',
+            sum(excluded.values()),
+            ', '.join(f'{k}={v}' for k, v in excluded.items()),
+        )
+
+
 def render_markdown(
     pr_list: list[dict[str, Any]],
     version: str,
@@ -1268,8 +1495,7 @@ def render_markdown(
     uncategorized = []
 
     for pr in pr_list:
-        flags = pr.get('flags', [])
-        if 'cherry-pick' in flags or 'stabilization-sync' in flags:
+        if is_excluded_by_flags(pr):
             continue
         if not include_release_machinery and pr.get('release_machinery'):
             continue
@@ -1327,39 +1553,52 @@ def render_markdown(
     return '\n'.join(lines) + '\n'
 
 
-def write_json_atomic(data: dict[str, Any], path: pathlib.Path) -> None:
+# tempfile.mkstemp() creates files 0600. os.replace() preserves the temp file's
+# mode, so without an explicit chmod every output this tool writes ends up
+# owner-only, even when replacing a world-readable file (the committed
+# sbom.cdx.json was 0600 on disk for exactly this reason).
+DEFAULT_OUTPUT_MODE = 0o644
+
+
+def write_text_atomic(content: str, path: pathlib.Path, suffix: str) -> None:
+    """Write `content` to `path` atomically, durably, and without changing its
+    permissions.
+
+    fsync before the rename is what makes the SC-28 claim real: os.replace()
+    alone is atomic with respect to *other readers*, but on a crash the renamed
+    inode can still be empty if its data never reached disk.
+    """
     path = path.resolve()
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(path.parent),
-        prefix='.release_notes_',
-        suffix='.json.tmp',
-    )
     try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False, sort_keys=False)
-            f.write('\n')
-        os.replace(tmp_path, str(path))
-    except Exception:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp_path)
-        raise
+        target_mode: int | None = stat.S_IMODE(path.stat().st_mode)
+    except OSError:
+        target_mode = None
 
-
-def write_markdown_atomic(content: str, path: pathlib.Path) -> None:
-    path = path.resolve()
     fd, tmp_path = tempfile.mkstemp(
         dir=str(path.parent),
         prefix='.release_notes_',
-        suffix='.md.tmp',
+        suffix=suffix,
     )
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as f:
             f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp_path, target_mode if target_mode is not None else DEFAULT_OUTPUT_MODE)
         os.replace(tmp_path, str(path))
     except Exception:
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)
         raise
+
+
+def write_json_atomic(data: dict[str, Any], path: pathlib.Path) -> None:
+    content = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False) + '\n'
+    write_text_atomic(content, path, '.json.tmp')
+
+
+def write_markdown_atomic(content: str, path: pathlib.Path) -> None:
+    write_text_atomic(content, path, '.md.tmp')
 
 
 def load_existing_json(path: pathlib.Path) -> dict[str, Any] | None:
@@ -1402,6 +1641,23 @@ def _run_fetch(args: argparse.Namespace) -> int:
             logger.error('Not a git repository: %s (for %s)', rpath, slug)
             return 1
 
+    try:
+        from_ref_map = parse_repo_ref_mappings(
+            getattr(args, 'repo_from_ref', None), args.from_ref, args.repos, '--repo-from-ref',
+        )
+        to_ref_map = parse_repo_ref_mappings(
+            getattr(args, 'repo_to_ref', None), args.to_ref, args.repos, '--repo-to-ref',
+        )
+    except ValueError as e:
+        logger.error('%s', e)
+        return 1
+
+    problems = verify_refs_exist(repo_path_map, from_ref_map, to_ref_map, args.repos)
+    if problems:
+        for problem in problems:
+            logger.error('%s', problem)
+        return 1
+
     # Feature #3: point-release awareness. If --from-ref looks like a point
     # release (X.Y.N with N>0), surface the sibling tags and the implicit
     # equivalence with the major tag, computed against the first repo. The same
@@ -1418,14 +1674,17 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 logger.error('%s', e)
                 return 1
             local_path = repo_path_map[repo_slug]
+            repo_from_ref = from_ref_map[repo_slug]
+            repo_to_ref = to_ref_map[repo_slug]
             try:
-                pr_numbers = extract_pr_numbers_from_git_log(local_path, args.from_ref, args.to_ref)
+                pr_numbers = extract_pr_numbers_from_git_log(
+                    local_path, repo_from_ref, repo_to_ref)
             except (RuntimeError, ValueError) as e:
                 logger.error('%s', e)
                 return 1
             logger.info(
                 '[dry-run] %s: %d PRs would be fetched between %s..%s (%s)',
-                repo_slug, len(pr_numbers), args.from_ref, args.to_ref, local_path,
+                repo_slug, len(pr_numbers), repo_from_ref, repo_to_ref, local_path,
             )
             if pr_numbers:
                 preview = ', '.join(f'#{n}' for n in pr_numbers[:10])
@@ -1445,10 +1704,12 @@ def _run_fetch(args: argparse.Namespace) -> int:
             return 1
 
         local_path = repo_path_map[repo_slug]
+        repo_from_ref = from_ref_map[repo_slug]
+        repo_to_ref = to_ref_map[repo_slug]
         logger.info('Extracting PR numbers from git log for %s (%s..%s) at %s',
-                     repo_slug, args.from_ref, args.to_ref, local_path)
+                     repo_slug, repo_from_ref, repo_to_ref, local_path)
         try:
-            pr_numbers = extract_pr_numbers_from_git_log(local_path, args.from_ref, args.to_ref)
+            pr_numbers = extract_pr_numbers_from_git_log(local_path, repo_from_ref, repo_to_ref)
         except (RuntimeError, ValueError) as e:
             logger.error('%s', e)
             return 1
@@ -1456,7 +1717,8 @@ def _run_fetch(args: argparse.Namespace) -> int:
         logger.info('Found %d PRs in %s', len(pr_numbers), repo_slug)
 
         if not pr_numbers:
-            logger.warning('No PRs found in %s between %s and %s', repo_slug, args.from_ref, args.to_ref)
+            logger.warning('No PRs found in %s between %s and %s',
+                           repo_slug, repo_from_ref, repo_to_ref)
             continue
 
         logger.info('Fetching PR metadata from GitHub for %s', repo_slug)
@@ -1493,7 +1755,11 @@ def _run_fetch(args: argparse.Namespace) -> int:
     merge_bases: dict[str, dict[str, Any]] = {}
     effective_window_start = None
     for repo_slug, rpath in repo_path_map.items():
-        mb = extract_merge_base(rpath, args.from_ref, args.to_ref)
+        mb = extract_merge_base(
+            rpath,
+            from_ref_map.get(repo_slug, args.from_ref),
+            to_ref_map.get(repo_slug, args.to_ref),
+        )
         if mb is None:
             continue
         sha, date = mb
@@ -1508,10 +1774,17 @@ def _run_fetch(args: argparse.Namespace) -> int:
         'repos': args.repos,
         'repo_paths': {k: str(v) for k, v in repo_path_map.items()},
         'schema_version': SCHEMA_VERSION,
+        'tool_version': __version__,
         'pr_count': len(merged),
         'categorization_summary': cat_counts,
         'release_machinery_count': machinery_count,
     }
+    if any(v != args.from_ref for v in from_ref_map.values()) or \
+            any(v != args.to_ref for v in to_ref_map.values()):
+        metadata['repo_refs'] = {
+            slug: {'from_ref': from_ref_map[slug], 'to_ref': to_ref_map[slug]}
+            for slug in args.repos
+        }
     if merge_bases:
         metadata['merge_bases'] = merge_bases
     if effective_window_start:
@@ -1677,6 +1950,12 @@ def _run_render(args: argparse.Namespace) -> int:
         include_release_machinery=include_release_machinery,
     )
 
+    log_render_coverage(summarize_render_coverage(
+        data['pull_requests'],
+        include_uncategorized=args.include_uncategorized,
+        include_release_machinery=include_release_machinery,
+    ))
+
     write_markdown_atomic(content, output_md)
     logger.info('Wrote release notes to %s', output_md)
 
@@ -1711,12 +1990,24 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
                         help='Starting git reference (tag or commit)')
     parser.add_argument('--to-ref', required=True,
                         help='Ending git reference (branch or tag)')
-    parser.add_argument('--repos', nargs='+', default=DEFAULT_REPOS,
+    # action='extend' so BOTH documented forms accumulate:
+    #   --repo-path a=/x b=/y      and      --repo-path a=/x --repo-path b=/y
+    # With bare nargs='*' the second form silently kept only the last flag, so
+    # the multi-repo example in the README quietly fell back to
+    # --default-repo-path for every repo but one.
+    parser.add_argument('--repos', nargs='+', action='extend', default=None,
                         help='GitHub repos in owner/repo format (default: o3de/o3de)')
-    parser.add_argument('--repo-path', nargs='*', default=None,
-                        help='Per-repo local clone paths as owner/repo=/path/to/clone')
+    parser.add_argument('--repo-path', nargs='*', action='extend', default=None,
+                        help='Per-repo local clone paths as owner/repo=/path/to/clone '
+                             '(repeatable)')
     parser.add_argument('--default-repo-path', default='.',
                         help='Default local clone path for repos without explicit mapping (default: .)')
+    parser.add_argument('--repo-from-ref', nargs='*', action='extend', default=None,
+                        help='Per-repo override for --from-ref as owner/repo=REF. Use when a '
+                             'release tag exists in some repos but not others (o3de/o3de-extras '
+                             'is not tagged on every line).')
+    parser.add_argument('--repo-to-ref', nargs='*', action='extend', default=None,
+                        help='Per-repo override for --to-ref as owner/repo=REF')
     parser.add_argument('--output-json', required=True,
                         help='Output JSON file path')
     parser.add_argument('--dry-run', action='store_true',
@@ -1796,6 +2087,9 @@ def main() -> int:
     args = parser.parse_args()
 
     _configure_logging(args.verbose, getattr(args, 'log_file', None))
+
+    if getattr(args, 'repos', None) is None:
+        args.repos = list(DEFAULT_REPOS)
 
     return cast(int, args.func(args))
 

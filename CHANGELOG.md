@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0-beta] - 2026-08-03
+
+Accuracy-focused release ahead of the O3DE 26.10.0 cycle. Three defects in this
+group caused real content loss in the shipped 26.05.0 notes; re-running against
+the same window recovers 55 PRs (188 rendered -> 243).
+
+### Fixed
+- **Workflow `sync/*` labels no longer delete PRs from the report.** `detect_pr_flags()` flagged any PR whose label merely *contained* the substring `sync`, which matched O3DE's workflow-tracking labels (`sync/to-stabilization`, `sync/to-development`, `need-sync/to-development`). Those labels sit on the original substantive PR, not on a sync container, so 57 of the 256 PRs in the 26.05.0 corpus (22%) were silently excluded, among them "Fixes blendshapes not working", "Fix Clang20 compile errors", and "Fix call to single-device function in multi-device RayTracingTlas". No O3DE label distinguishes a container from an ordinary PR, so labels are no longer consulted at all; only title evidence flags a cherry-pick. Rendering ignores the legacy flag, so JSON written by older versions renders correctly with no re-fetch.
+- **Merge-commit PRs are no longer invisible.** `git log` ran with `--no-merges` and only matched the squash-merge form `(#NNNN)`, but O3DE `development` uses merge commits for a large minority of PRs (`Merge pull request #NNNN from ...`, no parentheses) whose constituent commits carry no PR reference at all. 19 PRs in the `2605.0..development` window were unreachable. Merges are now included and matched by `MERGE_COMMIT_PR_PATTERN`; the count discovered this way is logged.
+- **Descriptions are escaped exactly once.** The combined title-plus-body path escaped an already-escaped title, turning `\[` into `\\[`, which markdown renders as a literal backslash followed by an *unescaped* bracket. Three bullets in the shipped 26.05.0 notes carried the artifact.
+- **Over-long first paragraphs fall back to the title.** `_extract_first_paragraph()` pre-truncated to exactly 300 characters, so the `>300 -> use the title` guard in `_build_pr_description()` was dead code. 37 of 256 descriptions ended mid-sentence, several on a severed URL. Length policy now lives solely in `_build_pr_description()` (`MIN_DESCRIPTION_CHARS` / `MAX_DESCRIPTION_CHARS`).
+- **Repeated mapping flags accumulate.** `--repo-path` (and the new ref flags) used bare `nargs='*'`, so the repeated-flag form documented in the README kept only the last occurrence and every other repo silently fell back to `--default-repo-path`. All mapping flags now use `action='extend'`, supporting both `--flag a=1 b=2` and `--flag a=1 --flag b=2`.
+- **Subprocess timeouts no longer abort a run.** `subprocess.TimeoutExpired` escaped `extract_pr_numbers_from_git_log()`, `fetch_pr_metadata_batch()`, and `_check_gh_available()`, killing a run with a traceback and discarding every batch already fetched. All call sites now convert `SubprocessError` / `OSError` into handled errors.
+- **Atomic writes preserve permissions and durability.** `tempfile.mkstemp()` creates 0600 and `os.replace()` preserved it, so every output was silently downgraded to owner-only (the committed `sbom.cdx.json` was 0600 on disk). The destination's mode is now mirrored, and content is `fsync`ed before the rename so a crash cannot leave a zero-length file.
+
+### Added
+- **Render reconciliation accounting.** `summarize_render_coverage()` partitions every input PR into `rendered` plus mutually exclusive `excluded_*` buckets; `log_render_coverage()` prints the totals and warns whenever anything is dropped. The 26.05.0 regression went unnoticed precisely because nothing reported this.
+- **Raw HTML escaping.** Markdown renderers used to publish O3DE notes pass raw HTML through, so `<img src=x onerror=...>` in an untrusted PR title would become live HTML on a published page. Tag-like `<` is now escaped in titles, body-derived descriptions, and LLM narrative output; ordinary arrows (`64->32`) stay readable.
+- **Per-repo git refs:** `--repo-from-ref` / `--repo-to-ref` accept `owner/repo=REF`. Release lines are not tagged uniformly (`o3de/o3de` carries `2605.0`, `o3de/o3de-extras` does not), and a single global ref aborts the whole multi-repo run on the untagged repo.
+- **Ref preflight.** `verify_refs_exist()` resolves every `(repo, ref)` pair with `git rev-parse --verify` before any git log or API work and reports each failure with its remedy.
+- **`metadata.tool_version`** records the generating version, and `metadata.repo_refs` records per-repo ranges when they differ from the global ones.
+- `generate_sbom.py --check` and `make sbom-check`: exit non-zero when the committed SBOM is stale. Wired into CI.
+- `RELEASE_RUNBOOK.md`: step-by-step procedure for running a release cycle.
+- 69 new tests (224 -> 293).
+
+### Changed
+- **Schema version bumped 3 -> 4.** Adds `metadata.tool_version`; `flags` no longer carries `stabilization-sync` and descriptions are no longer truncated mid-sentence, so data written by <=0.5.0-beta is structurally readable but semantically stale. Schema 3 files still load; re-fetch for accuracy.
+- **SBOM is deterministic and self-describing.** The stdlib inventory is discovered by `ast`-parsing the sources instead of a hand-maintained list that had drifted (it omitted `contextlib`, `shlex`, and `typing`). Components carry `bom-ref` so `dependsOn` resolves instead of dangling. Purls moved from `pkg:pypi/cpython-stdlib/...` (a package that does not exist on PyPI) to `pkg:generic/`. The substantive document carries no wall-clock value and no running-interpreter version, so regeneration is a no-op when nothing changed, and CI stops committing a timestamp-only SBOM on every push.
+- Documentation corrected throughout: the incremental flow re-fetches the full range (it never fetched "new PRs only"), title and body are joined with a colon (not an em dash), point-release tags are two-component, and examples target 26.10.0.
+
 ## [0.5.0-beta] - 2026-05-20
 
 ### Added

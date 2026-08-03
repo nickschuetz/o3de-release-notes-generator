@@ -43,7 +43,7 @@ jobs:
         run: python release_notes.py --version
 
       - name: Verify SBOM regenerator runs
-        run: python generate_sbom.py
+        run: python generate_sbom.py --check
 
   lint:
     runs-on: ubuntu-latest
@@ -63,3 +63,9 @@ jobs:
 
       - name: Mypy strict
         run: python -m mypy release_notes.py generate_sbom.py
+
+      # The SBOM's substantive content is deterministic (no wall-clock, no
+      # running-interpreter version), so a mismatch here means it is genuinely
+      # stale rather than merely regenerated at a different moment.
+      - name: SBOM is current
+        run: python generate_sbom.py --check
