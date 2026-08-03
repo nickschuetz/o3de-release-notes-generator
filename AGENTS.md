@@ -74,6 +74,7 @@ PR discovery requires BOTH `PR_NUMBER_PATTERN` (squash merges, `(#N)`) and `MERG
 - The o3de repo is always read-only; this tool never writes to it
 - `--repo-path` takes `owner/repo=/path` mappings for multi-repo support; `--repo-from-ref` / `--repo-to-ref` do the same for git refs, needed because `o3de/o3de-extras` is not tagged on every release line. All three use `action='extend'` so repeated flags accumulate
 - Refs are preflighted with `verify_refs_exist()` before any git log or API work
+- `--exclude-json` drops PRs already reported in a prior release. This is NOT optional for a major-release window: a `main`-line tag shares only an ancient merge-base with `development`, so `2605.0..development` spans two cycles (188 of 369 PRs had already shipped in 26.05.0). Ancestry and date cutoffs both fail here; the previous report is the only reliable separator
 - `--generate-summary` pipes a prompt via stdin to an LLM (default: `ollama run --nowordwrap qwen2.5:14b`; use `claude -p` for cloud, or `qwen2.5:32b` if you have ~24GB VRAM)
 - `--summary-hint` injects narrative guidance into the LLM prompt; accepts inline text or `@filepath` to read from a file
 - `--summary-timeout` bounds the LLM runtime (default 300s, range 10–3600s)
