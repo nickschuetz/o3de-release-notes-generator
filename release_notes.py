@@ -19,13 +19,14 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from typing import Any, cast
 
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.6.3-beta'
+__version__ = '0.6.4-beta'
 
 # 5: adds per-PR `files_truncated` and metadata.file_list_truncated, so a
 #    curator can see which entries were categorised from a partial file list.
@@ -824,6 +825,50 @@ def _build_graphql_query(pr_numbers: list[int]) -> str:
     )
 
 
+class GhCommandError(RuntimeError):
+    """A `gh` invocation failed. Carries the scrubbed stderr for classification."""
+
+    def __init__(self, message: str, stderr: str = '') -> None:
+        super().__init__(message)
+        self.stderr = stderr
+
+
+# A PR number that GitHub cannot resolve is permanent: retrying cannot help.
+# It usually means the number came from an issue reference in a commit subject,
+# e.g. "Fix prefab path expansion (#18886) (#19254)" where only the second is
+# the PR. Parse the offending numbers out so the batch can drop them and retry,
+# instead of degrading to one request per PR.
+UNRESOLVABLE_PR_PATTERN = re.compile(
+    r'Could not resolve to a PullRequest with the number of (\d+)', re.IGNORECASE,
+)
+
+# Failures worth retrying. Anything else is treated as permanent.
+TRANSIENT_ERROR_MARKERS = (
+    'rate limit', 'secondary rate', 'abuse detection',
+    'timed out', 'timeout', 'connection reset', 'connection refused',
+    'temporary failure', 'bad gateway', 'service unavailable',
+    '502', '503', '504',
+)
+
+MAX_BATCH_ATTEMPTS = 3
+BACKOFF_BASE_SECONDS = 2.0
+MAX_BACKOFF_SECONDS = 30.0
+
+
+def _unresolvable_pr_numbers(stderr: str) -> set[int]:
+    return {int(m.group(1)) for m in UNRESOLVABLE_PR_PATTERN.finditer(stderr or '')}
+
+
+def _is_transient_error(stderr: str) -> bool:
+    lowered = (stderr or '').lower()
+    return any(marker in lowered for marker in TRANSIENT_ERROR_MARKERS)
+
+
+def _backoff_seconds(attempt: int) -> float:
+    """Exponential, capped. attempt is 0-based."""
+    return float(min(BACKOFF_BASE_SECONDS * (2 ** attempt), MAX_BACKOFF_SECONDS))
+
+
 def _run_gh_command(args: list[str], timeout: int = 30) -> dict[str, Any]:
     # A timeout or a missing binary must surface as RuntimeError like any other
     # gh failure. Letting TimeoutExpired escape aborted the whole run with a
@@ -838,21 +883,21 @@ def _run_gh_command(args: list[str], timeout: int = 30) -> dict[str, Any]:
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as e:
-        raise RuntimeError(f'gh command timed out after {timeout}s') from e
+        raise GhCommandError(f'gh command timed out after {timeout}s', 'timed out') from e
     except (subprocess.SubprocessError, OSError) as e:
-        raise RuntimeError(f'gh command failed to run: {e}') from e
+        raise GhCommandError(f'gh command failed to run: {e}', str(e)) from e
     if result.returncode != 0:
         stderr = _safe_stderr(result.stderr)
         if 'rate limit' in stderr.lower() or '403' in stderr:
-            logger.error('GitHub API rate limit exceeded. Try again later.')
+            logger.error('GitHub API rate limit exceeded. Backing off.')
         else:
             logger.error('gh command failed: %s', stderr)
-        raise RuntimeError(f'gh command failed with exit code {result.returncode}')
+        raise GhCommandError(f'gh command failed with exit code {result.returncode}', stderr)
 
     try:
         return cast(dict[str, Any], json.loads(result.stdout))
     except json.JSONDecodeError as e:
-        raise RuntimeError(f'gh returned non-JSON output: {e}') from e
+        raise GhCommandError(f'gh returned non-JSON output: {e}', str(e)) from e
 
 
 def _check_gh_available() -> bool:
@@ -882,6 +927,59 @@ def _check_gh_available() -> bool:
 MAX_PR_NUMBER = 999999
 
 
+def _fetch_batch_with_retry(
+    batch: list[int],
+    batch_num: int,
+    owner: str,
+    repo: str,
+) -> dict[str, Any] | None:
+    """Fetch one batch, handling the two failure modes that are worth handling.
+
+    Returns the response, or None when the batch could not be salvaged and the
+    caller should fall back to one request per PR.
+
+    An unresolvable PR number is permanent, so the batch drops it and retries
+    immediately: previously a single bad number (an issue reference picked up
+    from a commit subject) failed the whole batch and cost 30 individual
+    requests. A transient failure backs off exponentially instead of instantly
+    degrading to 30 requests, which is the worst possible response to a rate
+    limit.
+    """
+    remaining = list(batch)
+
+    for attempt in range(MAX_BATCH_ATTEMPTS):
+        if not remaining:
+            return None
+        try:
+            return _run_gh_command(
+                ['gh', 'api', 'graphql',
+                 '-f', f'query={_build_graphql_query(remaining)}',
+                 '-f', f'owner={owner}',
+                 '-f', f'name={repo}'],
+                timeout=60,
+            )
+        except GhCommandError as e:
+            unresolvable = _unresolvable_pr_numbers(e.stderr) & set(remaining)
+            if unresolvable:
+                remaining = [n for n in remaining if n not in unresolvable]
+                logger.warning(
+                    'Batch %d: %s not resolvable as pull request(s) (likely an issue '
+                    'reference in a commit subject); dropping and retrying %d PR(s)',
+                    batch_num, ', '.join(f'#{n}' for n in sorted(unresolvable)), len(remaining),
+                )
+                continue
+            if _is_transient_error(e.stderr) and attempt < MAX_BATCH_ATTEMPTS - 1:
+                delay = _backoff_seconds(attempt)
+                logger.warning(
+                    'Batch %d failed transiently (attempt %d/%d); retrying in %.0fs',
+                    batch_num, attempt + 1, MAX_BATCH_ATTEMPTS, delay,
+                )
+                time.sleep(delay)
+                continue
+            return None
+    return None
+
+
 def fetch_pr_metadata_batch(
     repo_slug: str,
     pr_numbers: list[int],
@@ -906,17 +1004,9 @@ def fetch_pr_metadata_batch(
         total_batches = (total + batch_size - 1) // batch_size
         logger.info('Fetching PRs batch %d/%d (%d PRs)', batch_num, total_batches, len(batch))
 
-        query = _build_graphql_query(batch)
-        try:
-            data = _run_gh_command(
-                ['gh', 'api', 'graphql',
-                 '-f', f'query={query}',
-                 '-f', f'owner={owner}',
-                 '-f', f'name={repo}'],
-                timeout=60,
-            )
-        except RuntimeError:
-            logger.warning('Batch %d failed, trying individual PRs', batch_num)
+        data = _fetch_batch_with_retry(batch, batch_num, owner, repo)
+        if data is None:
+            logger.warning('Batch %d unrecoverable, trying individual PRs', batch_num)
             for num in batch:
                 try:
                     single_query = _build_graphql_query([num])

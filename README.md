@@ -181,6 +181,13 @@ python release_notes.py generate --from-ref 2605.0 --to-ref origin/development \
 A full range costs roughly one GraphQL request per 30 PRs, so a ~420-PR cycle is
 about 14 requests. Weekly re-runs are comfortably inside GitHub's rate limits.
 
+Two batch failures are handled specifically rather than by splitting the batch
+into one request per PR. A PR number GitHub cannot resolve is permanent (usually
+an issue reference picked up from a commit subject, e.g. `Fix thing (#18886)
+(#19254)`): the batch drops it and retries once. A transient failure, such as a
+secondary rate limit, backs off exponentially up to 3 attempts. Only an
+unrecognised failure falls back to per-PR requests.
+
 ### Multi-repo with separate local clones
 
 ```bash
@@ -422,7 +429,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 5,
-    "tool_version": "0.6.3-beta",
+    "tool_version": "0.6.4-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,
