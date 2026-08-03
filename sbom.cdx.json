@@ -4,7 +4,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-03T17:57:39.227089+00:00",
+    "timestamp": "2026-08-03T18:10:45.453387+00:00",
     "tools": {
       "components": [
         {
@@ -19,7 +19,7 @@
       "type": "application",
       "bom-ref": "o3de_release_notes_generator",
       "name": "o3de_release_notes_generator",
-      "version": "0.6.3-beta",
+      "version": "0.6.4-beta",
       "description": "Generates O3DE release notes from merged pull requests",
       "licenses": [
         {
@@ -307,6 +307,21 @@
     },
     {
       "type": "library",
+      "bom-ref": "stdlib:time",
+      "name": "time",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/time@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: time",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "stdlib:typing",
       "name": "typing",
       "version": "3.10",
@@ -327,7 +342,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "8411d9a414cfe5a9e473b88b2f09164517c48b38615db6a9f29b73ec6f52a3b1"
+          "content": "e8a3457e2a93460bee7ef385a997b93296ae1102276efb7eea97ad36b519f072"
         }
       ]
     },
@@ -338,7 +353,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "df9c261cdf9b9f5ed23794f0f6df2582549c31632b431b5e7342d747ce4fecf8"
+          "content": "f94c8916faec1eb040c348c91abb81cc96a82fc4aae9cbaf0f0ff6528e95a076"
         }
       ]
     },
@@ -349,7 +364,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "e62db0c8889d5cbe1bbab78c359a640b7b83814b947b6039ceab894dd771f330"
+          "content": "bb8a2fe635dd472971a523bde5fd3f15c17a375a76f229ba491f3ef34f40dd6a"
         }
       ]
     }
@@ -375,6 +390,7 @@
         "stdlib:subprocess",
         "stdlib:sys",
         "stdlib:tempfile",
+        "stdlib:time",
         "stdlib:typing",
         "file:release_notes.py",
         "file:generate_sbom.py",
@@ -382,5 +398,5 @@
       ]
     }
   ],
-  "serialNumber": "urn:uuid:9c68e577-3487-491d-96ff-7b4e61d9df74"
+  "serialNumber": "urn:uuid:b860b868-c5cd-433a-839d-87bceb9965bc"
 }
