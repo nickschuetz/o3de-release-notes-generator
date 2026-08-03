@@ -21,7 +21,7 @@ You only need Python 3.10+ on `PATH`. There is no `pip install` step because the
 
 1. **Open or claim an issue** before doing significant work, so duplicate effort can be avoided.
 2. **Branch from `main`.** Use a descriptive branch name (`fix/title-tiebreak-determinism`, `feat/dry-run`, etc).
-3. **Add or update tests** for any behavior change. The full suite must pass on Python 3.10 through 3.13; CI runs all four (`.github/workflows/test.yml`).
+3. **Add or update tests** for any behavior change. The full suite must pass on Python 3.10 through 3.13; CI runs all four (`.github/workflows/test.yml`). CI runs on every pull request regardless of its base branch, so stacked PRs are checked too.
 4. **Update documentation** when you add or change a flag, an environment expectation, or a public function. The relevant places are usually `README.md`, `ARCHITECTURE.md`, and `AGENTS.md`. If the change is user-visible, also add an entry to `CHANGELOG.md` under a new `[Unreleased]` heading or the next pending version.
 5. **Open a PR** against `main`. Keep PRs focused and small where possible.
 

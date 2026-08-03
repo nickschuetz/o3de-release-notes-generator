@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3-beta] - 2026-08-03
+
+### Added
+- **Truncated file lists are recorded, not just warned about.** GitHub caps the files connection at 100 nodes, so a large PR's `files` array may be partial. Each PR now carries `files_truncated`, and metadata gains `file_list_truncated` with the page size, count, capped PRs, and `categorized_from_partial_files`: the subset whose SIG was decided by the *file* heuristic and is therefore actually at risk. A truncated list is harmless when a label or the title decided the SIG, so only that subset raises a WARNING. Verified against the live 26.10.0 window: 9 PRs capped, none categorised by the file heuristic.
+- `FILES_PAGE_SIZE` / `LABELS_PAGE_SIZE` replace two hardcoded page sizes, so the GraphQL query and the truncation check read the same constant and cannot drift. A test asserts they agree.
+
+### Changed
+- **Schema 4 -> 5.** Adds per-PR `files_truncated` and `metadata.file_list_truncated`. Schema 4 files still load and are backfilled on merge, since `files_possibly_truncated()` derives the answer from the stored list; no re-fetch required.
+- **CI runs on every pull request regardless of base branch.** `pull_request: branches: [main]` meant a stacked PR (base = another feature branch) reported "no checks reported" and could have been merged unverified. `sbom.yml` is deliberately unchanged, since it pushes commits and should stay scoped to `main`.
+- 5 new tests (328 -> 333).
+
 ## [0.6.2-beta] - 2026-08-03
 
 ### Fixed
