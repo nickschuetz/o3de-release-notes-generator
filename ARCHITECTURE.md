@@ -4,43 +4,42 @@
 
 The release notes generator is a standalone Python project with zero external dependencies. It consists of two main scripts:
 
-- **`release_notes.py`** - Three-stage pipeline (Extract, Categorize, Render) that generates O3DE release notes from merged pull requests.
+- **`release_notes.py`** - Pipeline (preflight, extract, exclude, fetch, categorize, render) that generates O3DE release notes from merged pull requests. The intermediate JSON is schema v4.
 - **`generate_sbom.py`** - Generates a CycloneDX 1.5 SBOM for supply chain transparency.
 
 Both scripts use only Python stdlib modules and interact with external systems (git, GitHub API) exclusively through the `gh` CLI and `git` commands via `subprocess` with list arguments.
 
 ```
-                    ┌──────────────────────────────────────────────────────────────┐
-                    │                     release_notes.py                         │
-                    │                                                              │
-                    │   ┌───────────┐     ┌──────────────┐     ┌──────────────┐    │
- Local git clones ─▶│   │  Extract  │────▶│  Categorize  │────▶│   Render     │    │
-   (read-only,      │   │           │     │              │     │              │    │
-    per-repo)       │   │ git log   │     │ 1. Labels    │     │ Markdown     │    │
-                    │   │ PR #s     │     │ 2. Title     │     │ by SIG       │    │
-                    │   │ merge-    │     │ 3. Files     │     │ (filters     │    │
-                    │   │  base     │     │ + machinery  │     │  machinery)  │    │
-                    │   └─────┬─────┘     └──────┬───────┘     └──────┬───────┘    │
-                    │         │                  │                    │            │
-                    │         ▼                  ▼                    ▼            │
-                    │   ┌───────────┐     ┌──────────────┐     ┌──────────────┐    │
-                    │   │  gh CLI   │     │ JSON cache   │     │  .md output  │    │
-                    │   │  GraphQL  │     │ (editable,   │     │ + optional   │    │
-                    │   │           │     │  schema v4)  │     │  LLM summary │    │
-                    │   └───────────┘     └──────────────┘     └──────┬───────┘    │
-                    │                                                 │            │
-                    │                            point-release audit  │            │
-                    │                            sidecar (auto when ◀─┘            │
-                    │                            from-ref is X.Y.N)                │
-                    └──────────────────────────────────────────────────────────────┘
-                          │                     ▲                      │
-                          ▼                     │                      ▼
-                     GitHub API           Human / AI agent       Feature list /
-                     (batched,            edits JSON for         release notes
-                      auth via            manual overrides       (.md file) +
-                      gh CLI)                                    audit sidecar
+   Local git clones                     prior release report(s)
+   (read-only, per-repo)                via --exclude-json
+          │                                      │
+          ▼                                      ▼
+   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌──────────────┐
+   │  Preflight  │──▶│   Extract   │──▶│   Exclude   │──▶│    Fetch     │──▶ GitHub
+   │ rev-parse   │   │ git log:    │   │ drop PRs    │   │ gh CLI,      │    GraphQL
+   │ every       │   │ squash AND  │   │ already in  │   │ GraphQL,     │    API
+   │ (repo, ref) │   │ merge-      │   │ a prior     │   │ 30 PRs/req   │
+   │ before any  │   │ commit      │   │ report      │   │              │
+   │ work        │   │ patterns;   │   │             │   │              │
+   │             │   │ merge-base  │   │             │   │              │
+   └─────────────┘   └─────────────┘   └─────────────┘   └──────┬───────┘
+                                                                │
+   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐       │
+   │    Render    │◀──│   JSON v4    │◀──│  Categorize  │◀──────┘
+   │ markdown by  │   │ (editable;   │   │ 1. labels    │
+   │ SIG; filters │   │  human or AI │   │ 2. title     │
+   │ flags and    │   │  sets        │   │ 3. files     │
+   │ machinery;   │   │  manual_     │   │ + release-   │
+   │ reconciles   │   │  override_*) │   │   machinery  │
+   │ every PR;    │   │              │   │   flag       │
+   │ optional LLM │   │              │   │              │
+   │ summary      │   │              │   │              │
+   └──────┬───────┘   └──────────────┘   └──────────────┘
+          │
+          ▼
+   .md release notes  +  point-release audit sidecar
+   (when --from-ref is a point-release tag with a non-zero patch)
 ```
-
 ## Project Components
 
 ### `release_notes.py`
@@ -147,25 +146,29 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 The tool supports re-running throughout the pre-release cycle. Each run re-fetches every PR in the range from GitHub (there is no per-PR cache; batching keeps a ~420-PR cycle to roughly 14 GraphQL requests), and manual edits to the JSON (via `manual_override_sig` and `manual_override_description`) are re-applied on top of the fresh data.
 
 ```
-First run:                    Subsequent runs:
+First run:                       Subsequent runs:
 
-git log (per repo) ──▶ PR #s  git log (per repo) ──▶ PR #s (may have grown)
-    │                             │
-    ▼                             ▼
-GitHub API ──▶ all PRs        GitHub API ──▶ all PRs again
-    │                             │
-    ▼                             ▼
-categorize ──▶ JSON           merge with existing JSON
-    │                         (preserve manual_override_* fields)
-    ▼                             │
-write JSON                        ▼
-    │                         write updated JSON
-    ▼                             │
-(optional) LLM summary            ▼
-    │                         (optional) LLM summary
-    ▼                             │
-render .md                        ▼
-                              render updated .md
+git log (per repo) ──▶ PR #s     git log (per repo) ──▶ PR #s (may have grown)
+    │                                │
+    ▼                                ▼
+drop PRs in --exclude-json       drop PRs in --exclude-json
+    │                                │
+    ▼                                ▼
+GitHub API ──▶ all remaining     GitHub API ──▶ all remaining PRs again
+    │           PRs                  │           (no per-PR cache)
+    ▼                                ▼
+categorize ──▶ JSON              merge with existing JSON
+    │                            (re-apply manual_override_* fields,
+    │                             re-filter against --exclude-json)
+    ▼                                │
+write JSON                           ▼
+    │                            write updated JSON
+    ▼                                │
+(optional) LLM summary               ▼
+    │                            (optional) LLM summary
+    ▼                                │
+render .md + reconciliation          ▼
+                                 render updated .md + reconciliation
 ```
 
 ## SBOM Generation
@@ -193,30 +196,32 @@ The `generate_sbom.py` script produces a CycloneDX 1.5 JSON SBOM at `sbom.cdx.js
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
-│                        TRUSTED: local user environment                   │
+│                       TRUSTED: local user environment                     │
 │                                                                           │
-│   user CLI args ──┐                                                       │
-│   gh credentials ─┼──▶ release_notes.py ──▶ output: JSON, .md (atomic)    │
-│   local git repo ─┘         │                                             │
-│                             │ subprocess (list args, no shell=True)       │
-│        ┌────────────────────┼─────────────────────────┐                   │
-│        ▼                    ▼                         ▼                   │
-│ ┌────────────┐       ┌────────────┐            ┌─────────────┐            │
-│ │ git log    │       │ gh CLI     │            │ summary cmd │            │
-│ │ (read-only)│       │ (auth via  │            │ (ollama /   │            │
-│ │            │       │  keyring)  │            │  claude /   │            │
-│ │            │       │            │            │  custom)    │            │
-│ └────────────┘       └─────┬──────┘            └──────┬──────┘            │
-│                            │                          │                   │
-└────────────────────────────┼──────────────────────────┼───────────────────┘
-                             │                          │
-            ═══════════════ trust boundary ═══════════════
-                             │                          │
-                ┌────────────▼──────────┐    ┌──────────▼──────────┐
-                │   GitHub GraphQL API  │    │  LLM (local/cloud)  │
-                │   (PR titles, bodies, │    │  (untrusted output, │
-                │    labels; UNTRUSTED) │    │   sanitized into MD)│
-                └───────────────────────┘    └─────────────────────┘
+│   user CLI args ────┐                                                     │
+│   gh credentials ───┤                                                     │
+│   local git repos ──┼──▶ release_notes.py ──▶ output: JSON, .md           │
+│   prior report      │            │            (atomic, fsync,             │
+│   (--exclude-json) ─┘            │             mode-preserving)           │
+│                                  │ subprocess (list args, no shell=True)  │
+│        ┌─────────────────────────┼─────────────────────────┐              │
+│        ▼                         ▼                         ▼              │
+│ ┌────────────┐           ┌────────────┐            ┌─────────────┐        │
+│ │ git log /  │           │ gh CLI     │            │ summary cmd │        │
+│ │ rev-parse  │           │ (auth via  │            │ (ollama /   │        │
+│ │ (read-only)│           │  keyring)  │            │  claude /   │        │
+│ │            │           │            │            │  custom)    │        │
+│ └────────────┘           └─────┬──────┘            └──────┬──────┘        │
+│                                │                          │               │
+└────────────────────────────────┼──────────────────────────┼───────────────┘
+                                 │                          │
+              ═══════════════ trust boundary ═══════════════
+                                 │                          │
+                    ┌────────────▼──────────┐    ┌──────────▼──────────┐
+                    │   GitHub GraphQL API  │    │  LLM (local/cloud)  │
+                    │   (PR titles, bodies, │    │  (untrusted output, │
+                    │    labels; UNTRUSTED) │    │   escaped into MD)  │
+                    └───────────────────────┘    └─────────────────────┘
 ```
 
 Everything inside the trusted box is data the user controls or gh's credential store. Anything crossing a trust boundary (GitHub API responses, LLM output) is treated as untrusted: validated structurally, sanitized for markdown, and never used to construct shell commands or file paths.

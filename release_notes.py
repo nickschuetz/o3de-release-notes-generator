@@ -21,7 +21,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.6.0-beta'
+__version__ = '0.6.1-beta'
 
 # 4: adds metadata.tool_version; `flags` no longer carries `stabilization-sync`
 #    and descriptions are no longer truncated mid-sentence, so data written by
@@ -438,7 +438,11 @@ MAX_STDERR_LOG_LEN = 200
 # Defense-in-depth: scrub GitHub token shapes from stderr before logging.
 # gh CLI is unlikely to print tokens, but if it ever does, we don't want them
 # in CI logs.
-GH_TOKEN_PATTERN = re.compile(r'\bgh[pousr]_[A-Za-z0-9]{20,}\b')
+# Classic tokens (ghp_/gho_/ghu_/ghs_/ghr_) and fine-grained PATs, which use a
+# github_pat_ prefix and may contain underscores in the body.
+GH_TOKEN_PATTERN = re.compile(
+    r'\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b'
+)
 
 
 def _safe_stderr(text: str) -> str:

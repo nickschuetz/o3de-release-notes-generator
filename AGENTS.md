@@ -20,24 +20,28 @@ python generate_sbom.py
 ## Key commands
 
 ```bash
-# Generate release notes (most common usage)
+# Generate release notes (most common usage).
+# --exclude-json is NOT optional for a major release: without it the window
+# reaches back past the previous release and re-publishes its content.
 python release_notes.py generate \
   --from-ref <start-tag> --to-ref <end-branch> \
   --default-repo-path /path/to/o3de \
-  --output-json release_data.json \
-  --output-md release_notes.md \
+  --exclude-json reports/<previous>_release_data.json \
+  --output-json reports/<version>_release_data.json \
+  --output-md reports/<version>_release_notes.md \
   --release-version <version>
 
 # Fetch only (JSON output for programmatic use)
 python release_notes.py fetch \
   --from-ref <start-tag> --to-ref <end-branch> \
   --default-repo-path /path/to/o3de \
-  --output-json release_data.json
+  --exclude-json reports/<previous>_release_data.json \
+  --output-json reports/<version>_release_data.json
 
 # Render only (from existing JSON)
 python release_notes.py render \
-  --input-json release_data.json \
-  --output-md release_notes.md \
+  --input-json reports/<version>_release_data.json \
+  --output-md reports/<version>_release_notes.md \
   --release-version <version>
 ```
 
@@ -49,7 +53,7 @@ python release_notes.py render \
 - All user inputs validated with regex before use in subprocess or file I/O
 - GraphQL queries use server-side variables (`$owner`, `$name`); never string-interpolate owner/repo into the query body
 - Atomic file writes via `tempfile.mkstemp()` + `os.replace()`
-- Logging via `logging.getLogger('o3de.release_notes')`; never log secrets; subprocess stderr passes through `_safe_stderr()` (token-scrub + truncate)
+- Logging via `logging.getLogger('o3de.release_notes')`; never log secrets; subprocess stderr passes through `_safe_stderr()` (scrubs classic and `github_pat_` token shapes, then truncates)
 - Return codes: 0 = success, 1 = failure
 - PR titles and descriptions sanitized for markdown AND HTML before rendering; escape exactly once (`_strip_title_decorations` then `_escape_markdown`), never re-escape an already-escaped string; PR bodies capped at 64KB before extraction
 - Subprocess call sites must convert `subprocess.SubprocessError` and `OSError` into handled errors; never let `TimeoutExpired` escape and discard a run's work
@@ -80,7 +84,7 @@ PR discovery requires BOTH `PR_NUMBER_PATTERN` (squash merges, `(#N)`) and `MERG
 - `--summary-timeout` bounds the LLM runtime (default 300s, range 10–3600s)
 - `--dry-run` previews which PRs would be fetched (from local `git log`) without calling the GitHub API or writing files
 - `--log-file PATH` appends logs to a file in addition to stderr
-- `--no-pointrelease-audit` suppresses the audit sidecar that's normally written when `--from-ref` looks like a point-release tag (`X.Y.N`, `N>0`); the sidecar cross-checks each cherry-pick container PR's bundled fixes against the rendered report
+- `--no-pointrelease-audit` suppresses the audit sidecar that's normally written when `--from-ref` looks like a point-release tag (`MAJOR.PATCH` with a non-zero patch, e.g. `2605.2`); the sidecar cross-checks each cherry-pick container PR's bundled fixes against the rendered report
 - `--include-release-machinery` re-includes PRs flagged `release_machinery: true` (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`-only diffs) in the rendered output. Default is to filter them; turn on for point-release notes where machinery IS the content
 - JSON intermediate format supports `manual_override_sig` and `manual_override_description` fields; these must be preserved on incremental re-runs
 - **Labels are not evidence of a sync container.** `sync/to-stabilization` and friends live on ordinary PRs; a substring match on them once deleted 57 real changes from a shipped report. Only title evidence flags a cherry-pick

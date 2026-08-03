@@ -1208,7 +1208,7 @@ class TestSchemaVersion:
         assert release_notes.SCHEMA_VERSION == 4
 
     def test_metadata_records_tool_version(self):
-        assert release_notes.__version__ == '0.6.0-beta'
+        assert release_notes.__version__ == '0.6.1-beta'
 
 
 class TestParsePointReleaseTag:
@@ -2234,3 +2234,22 @@ class TestPriorReleaseExclusion:
             '--exclude-json', 'one.json', '--exclude-json', 'two.json',
         ])
         assert args.exclude_json == ['one.json', 'two.json']
+
+
+class TestTokenRedactionCoverage:
+    @pytest.mark.parametrize('token', [
+        'ghp_abcdefghijklmnopqrstuvwxyz012345',
+        'gho_abcdefghijklmnopqrstuvwxyz012345',
+        'ghu_abcdefghijklmnopqrstuvwxyz012345',
+        'ghs_abcdefghijklmnopqrstuvwxyz012345',
+        'ghr_abcdefghijklmnopqrstuvwxyz012345',
+        'github_pat_11ABCDEFG0aBcDeFgHiJk_ZYXWVUTSRQPONMLKJIHGFEDCBA1234567890abcdef',
+    ])
+    def test_token_shape_is_redacted(self, token):
+        out = release_notes._safe_stderr(f'error: bad credentials for {token} here')
+        assert token not in out
+        assert '<redacted-token>' in out
+
+    def test_ordinary_text_untouched(self):
+        assert release_notes._safe_stderr('fatal: bad revision 2605.0') == \
+            'fatal: bad revision 2605.0'

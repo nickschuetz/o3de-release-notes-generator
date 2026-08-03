@@ -16,19 +16,27 @@ Currently in use for the **O3DE 26.10.0** cycle. See [RELEASE_RUNBOOK.md](RELEAS
 ## Quick Start
 
 ```bash
-# Generate release notes for 26.10.0 (everything since 26.05.0)
+# Generate release notes for 26.10.0 (everything since the 26.05.0 report)
 python release_notes.py generate \
   --from-ref 2605.0 \
   --to-ref origin/development \
   --default-repo-path /path/to/o3de \
-  --output-json release_data.json \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md 26100_release_notes.md \
   --release-version 26.10.0
 ```
 
-Switch `--to-ref` to `origin/stabilization/26100` once that branch is cut. For a
-real run you also need `--exclude-json` pointed at the previous release's report;
-see [Excluding the Previous Release](#excluding-the-previous-release). If point releases ship on the `2605` line, use the latest of them (`2605.1`, `2605.2`, …) as `--from-ref`.
+`--exclude-json` is not optional for a major release. A release tag sits on the
+`main` line and shares only an ancient merge-base with `development`, so without
+it this window reaches back to 2025-07-29 and re-publishes 188 PRs that already
+shipped in 26.05.0. The previous report is committed at
+`reports/26050_release_data.json`, so the command above works in a fresh clone.
+See [Excluding the Previous Release](#excluding-the-previous-release).
+
+Switch `--to-ref` to `origin/stabilization/26100` once that branch is cut. If
+point releases ship on the `2605` line, use the latest of them (`2605.1`,
+`2605.2`, …) as `--from-ref`.
 
 ## Project Structure
 
@@ -98,7 +106,7 @@ python release_notes.py fetch \
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
 | `--no-pointrelease-audit` | No | off | Skip the point-release audit sidecar even when `--from-ref` looks like a point-release tag (`MAJOR.PATCH` with a non-zero patch) |
 | `--log-file` | No | - | Append logs to this file in addition to stderr |
-| `-v` | No | - | Verbose logging |
+| `-v`, `--verbose` | No | - | Verbose logging |
 
 ### `render` - Generate markdown from JSON
 
@@ -142,7 +150,8 @@ python release_notes.py generate \
   --from-ref 2605.0 \
   --to-ref origin/development \
   --default-repo-path ~/PROJECTS/o3de \
-  --output-json release_data.json \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md 26100_release_notes.md \
   --release-version 26.10.0
 ```
@@ -156,12 +165,16 @@ run (there is no per-PR cache), but manual edits in the JSON are preserved:
 ```bash
 # Week 1
 python release_notes.py generate --from-ref 2605.0 --to-ref origin/development \
-  --default-repo-path ~/PROJECTS/o3de --output-json release_data.json \
+  --default-repo-path ~/PROJECTS/o3de \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md notes.md --release-version 26.10.0
 
 # Week 2 (same command; re-fetches the full range, re-applies your overrides)
 python release_notes.py generate --from-ref 2605.0 --to-ref origin/development \
-  --default-repo-path ~/PROJECTS/o3de --output-json release_data.json \
+  --default-repo-path ~/PROJECTS/o3de \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md notes.md --release-version 26.10.0
 ```
 
@@ -193,7 +206,8 @@ Each repo runs `git log` against its own local clone. The `--default-repo-path` 
 python release_notes.py generate \
   --from-ref 2605.0 --to-ref origin/development \
   --default-repo-path ~/PROJECTS/o3de \
-  --output-json release_data.json \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md notes.md \
   --release-version 26.10.0 \
   --generate-summary
@@ -227,7 +241,8 @@ Use `--summary-hint` to guide the LLM toward specific themes or tone:
 python release_notes.py generate \
   --from-ref 2605.0 --to-ref origin/development \
   --default-repo-path ~/PROJECTS/o3de \
-  --output-json release_data.json \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md notes.md \
   --release-version 26.10.0 \
   --generate-summary \
@@ -250,7 +265,8 @@ This is useful for longer guidance or when reusing the same narrative direction 
 python release_notes.py fetch \
   --from-ref 2605.0 --to-ref origin/development \
   --default-repo-path ~/PROJECTS/o3de \
-  --output-json release_data.json
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json
 ```
 
 ### Include uncategorized PRs for triage
@@ -259,7 +275,8 @@ python release_notes.py fetch \
 python release_notes.py generate \
   --from-ref 2605.0 --to-ref origin/development \
   --default-repo-path ~/PROJECTS/o3de \
-  --output-json release_data.json \
+  --exclude-json reports/26050_release_data.json \
+  --output-json 26100_release_data.json \
   --output-md notes.md \
   --release-version 26.10.0 \
   --include-uncategorized
@@ -271,11 +288,13 @@ python release_notes.py generate \
 python release_notes.py fetch \
   --from-ref 2605.0 --to-ref origin/development \
   --default-repo-path ~/PROJECTS/o3de \
+  --exclude-json reports/26050_release_data.json \
   --output-json /tmp/unused.json \
   --dry-run
 ```
 
-Reads `git log` locally and prints the PR numbers that would be fetched. No GitHub API calls; no files written. Always do this first: it verifies refs and clone paths, and it is the cheapest way to confirm the PR count looks right before a long run.
+Reads `git log` locally and prints the PR numbers that would be fetched, with the
+exclusion applied so the preview matches what a real run would fetch. No GitHub API calls; no files written. Always do this first: it verifies refs and clone paths, and it is the cheapest way to confirm the PR count looks right before a long run.
 
 ### Generating notes when point releases have shipped on the previous line
 
@@ -289,6 +308,7 @@ python release_notes.py generate \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
   --repo-from-ref o3de/o3de-extras=2510.2 \
+  --exclude-json reports/26050_release_data.json \
   --output-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
   --release-version 26.10.0
@@ -305,7 +325,8 @@ The tool auto-detects the point-release pattern and:
 
 ## Sample Output
 
-A real run against `o3de/o3de` 26.05.0 → `development` (369 PRs) renders something like:
+A real run over the 26.10.0 window (`o3de/o3de`, 181 PRs after excluding the
+26.05.0 report) renders something like:
 
 ```markdown
 # 26.10.0 Release Notes
@@ -374,9 +395,9 @@ Every `render` (and the render half of `generate`) prints an explicit account of
 what reached the report and what did not:
 
 ```
-[INFO] o3de.release_notes: Reconciliation: 419 PR(s) in JSON, 402 rendered
-[WARNING] o3de.release_notes: Excluded 17 PR(s) from the report: cherry-pick=12,
-          release_machinery=1, uncategorized=4. Re-run render with
+[INFO] o3de.release_notes: Reconciliation: 201 PR(s) in JSON, 190 rendered
+[WARNING] o3de.release_notes: Excluded 11 PR(s) from the report: cherry-pick=7,
+          release_machinery=1, uncategorized=3. Re-run render with
           --include-uncategorized / --include-release-machinery to inspect them.
 ```
 
@@ -401,13 +422,13 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 4,
-    "tool_version": "0.6.0-beta",
-    "pr_count": 419,
+    "tool_version": "0.6.1-beta",
+    "pr_count": 201,
     "categorization_summary": {
-      "label": 268,
-      "heuristic_title": 92,
-      "heuristic_files": 55,
-      "uncategorized": 4
+      "label": 131,
+      "heuristic_title": 45,
+      "heuristic_files": 22,
+      "uncategorized": 3
     },
     "release_machinery_count": 1,
     "merge_bases": {
@@ -518,10 +539,10 @@ When `--generate-summary` is enabled, the tool builds a structured prompt from t
 
 **How it works:**
 1. PRs are grouped by SIG with up to 15 titles per group (truncated for large sections)
-2. Cherry-picks and uncategorized PRs are excluded from the prompt
+2. Cherry-picks, release-machinery PRs, and uncategorized PRs are excluded from the prompt
 3. If `--summary-hint` is provided (inline text or `@filepath`), it's injected as "additional guidance from the release manager"
 4. The prompt asks for a 2-3 paragraph narrative in the style of previous O3DE release notes
-5. The LLM's output is cleaned (preamble/dividers stripped) and replaces the `<!-- TODO -->` placeholder
+5. The LLM's output is cleaned (preamble/dividers stripped, HTML tag openers escaped) and replaces the `<!-- TODO -->` placeholder
 
 **Default command:** `ollama run --nowordwrap qwen2.5:14b` ([Ollama](https://ollama.com/) with Qwen 2.5 14B). Override with `--summary-cmd`. The default targets a ~12GB VRAM budget so it works on a typical workstation; bump up to `qwen2.5:32b` if you have the headroom, or use `claude -p` for the highest quality.
 
@@ -570,7 +591,7 @@ CI from committing a timestamp-only SBOM change on every push.
 python -m pytest tests/ -v
 ```
 
-305 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
+312 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
 resolution, render reconciliation accounting, markdown/HTML escaping (including
 the double-escape and raw-HTML regressions), subprocess timeout handling, atomic
 write permissions and durability, SBOM determinism and dependency-graph
@@ -597,7 +618,7 @@ Key highlights:
 - All subprocess output decoded with `encoding='utf-8', errors='replace'`
 - All user inputs validated with regex before use
 - GraphQL queries use server-side variables (`$owner`, `$name`); no string interpolation
-- GitHub auth delegated to `gh` CLI; stderr scrubbed for token shapes before logging
+- GitHub auth delegated to `gh` CLI; stderr scrubbed for classic (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`) and fine-grained (`github_pat_`) token shapes before logging
 - Atomic file writes prevent data corruption
 - PR titles and descriptions sanitized for markdown **and raw HTML** (tag-like `<` is escaped, so an `<img onerror=...>` in a PR title cannot become live HTML on a published page); PR bodies capped at 64KB before extraction
 - LLM summary output passes through the same HTML neutralization
