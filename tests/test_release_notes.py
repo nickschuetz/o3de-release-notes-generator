@@ -1215,7 +1215,28 @@ class TestSchemaVersion:
         assert release_notes.SCHEMA_VERSION == 6
 
     def test_metadata_records_tool_version(self):
-        assert release_notes.__version__ == '0.7.0-beta'
+        assert release_notes.__version__.endswith('-beta')
+
+    def test_version_is_consistent_across_the_project(self):
+        # The version lives in four places that must be bumped together:
+        # release_notes.__version__, generate_sbom.PROJECT_VERSION,
+        # pyproject.toml, and the README's JSON example. Hardcoding the literal
+        # here only forced an edit per bump without checking the thing that can
+        # actually go wrong, which is the four drifting apart.
+        import generate_sbom
+
+        root = pathlib.Path(__file__).resolve().parent.parent
+        pyproject = root / 'pyproject.toml'
+        match = re.search(r'^version = "([^"]+)"', pyproject.read_text(encoding='utf-8'),
+                          re.M)
+        assert match is not None, 'pyproject.toml has no version line'
+
+        readme = (root / 'README.md').read_text(encoding='utf-8')
+        readme_versions = set(re.findall(r'"tool_version":\s*"([^"]+)"', readme))
+
+        assert release_notes.__version__ == generate_sbom.PROJECT_VERSION
+        assert match.group(1) == release_notes.__version__
+        assert readme_versions == {release_notes.__version__}
 
 
 class TestParsePointReleaseTag:
@@ -2382,10 +2403,40 @@ class TestDocumentationAccuracy:
                     run = []
         assert sorted(set(misaligned)) == []
 
+    # Matches every way the docs state a schema version: the JSON form
+    # (`"schema_version": 6`), the prose form (`schema_version: 6`), and the
+    # shorthand used in narrative text and ASCII diagrams (`schema v6`,
+    # `JSON v6`). The original check required the closing quote of the JSON
+    # form and only compared against SCHEMA_VERSION - 1, so ARCHITECTURE.md
+    # sat on `schema v5`, `JSON v4`, and `schema_version: 5` simultaneously
+    # while the suite stayed green.
+    SCHEMA_VERSION_MENTION = re.compile(
+        r'(?:schema[_ ]version["\']?\s*[:=]\s*|schema\s+v|JSON\s+v)(\d+)',
+        re.IGNORECASE,
+    )
+
     def test_no_doc_claims_a_superseded_schema_version(self):
-        stale = f'schema_version": {release_notes.SCHEMA_VERSION - 1}'
-        offenders = [n for n, t in self._docs().items() if stale in t]
+        offenders = []
+        for name, text in self._docs().items():
+            for match in self.SCHEMA_VERSION_MENTION.finditer(text):
+                if int(match.group(1)) != release_notes.SCHEMA_VERSION:
+                    offenders.append(f'{name}: {match.group(0)!r}')
         assert offenders == []
+
+    def test_schema_version_mention_pattern_actually_matches_each_form(self):
+        # Guards the guard. If the pattern stops recognising a form, the check
+        # above degrades to passing vacuously, which is how the old one failed.
+        forms = ['"schema_version": 6', 'schema_version: 6', 'schema v6',
+                 'JSON v6', "'schema_version': 6"]
+        for form in forms:
+            found = self.SCHEMA_VERSION_MENTION.findall(form)
+            assert found == ['6'], f'pattern missed {form!r}'
+
+    def test_schema_version_check_is_not_vacuous(self):
+        # Every doc that pins the schema version must be visible to the check,
+        # so a doc set that mentions it nowhere cannot pass by silence.
+        alltext = '\n'.join(self._docs().values())
+        assert self.SCHEMA_VERSION_MENTION.search(alltext) is not None
 
 
 class TestAuditChecksRenderedSet:

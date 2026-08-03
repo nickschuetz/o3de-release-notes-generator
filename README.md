@@ -58,6 +58,10 @@ o3de-release-notes-generator/
 │   └── test_release_notes.py       # Unit tests
 ├── reports/                        # Per-release reports (committed)
 │   ├── 26050_release_data.json     # 26.05.0 report; exclusion source for 26.10.0
+│   ├── 26050_release_notes.md      # 26.05.0 rendered notes
+│   ├── 26050_release_notes_pointrelease_audit.md
+│   ├── 26100_release_data.json     # 26.10.0 working draft
+│   ├── 26100_release_notes.md      # 26.10.0 rendered draft
 │   └── hints/                      # Reusable --summary-hint files
 ├── .github/
 │   └── workflows/
@@ -72,6 +76,10 @@ o3de-release-notes-generator/
 ## CLI Reference
 
 The tool has three subcommands: `fetch`, `render`, and `generate`.
+
+`python release_notes.py --version` prints the tool version and exits. It is
+worth quoting in bug reports, since `metadata.tool_version` in the JSON records
+which build produced a given report.
 
 ### `fetch` - Extract PR data from GitHub into JSON
 
@@ -107,7 +115,7 @@ python release_notes.py fetch \
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
 | `--no-pointrelease-audit` | No | off | Skip the point-release audit sidecar even when `--from-ref` looks like a point-release tag (`MAJOR.PATCH` with a non-zero patch) |
-| `--log-file` | No | - | Append logs to this file in addition to stderr |
+| `--log-file` | No | - | Append logs to this file in addition to stderr. The path is validated like any other output path; if it is unwritable the run continues with stderr-only logging rather than aborting |
 | `-v`, `--verbose` | No | - | Verbose logging |
 
 ### `render` - Generate markdown from JSON
@@ -137,7 +145,7 @@ python release_notes.py render \
 | `--summary-cmd` | No | `ollama run --nowordwrap qwen2.5:14b` | Command to generate the summary |
 | `--summary-hint` | No | - | Narrative guidance: inline text or `@filepath` to read from a file |
 | `--summary-timeout` | No | `300` | Timeout (seconds) for the summary command (range: 10–3600) |
-| `--log-file` | No | - | Append logs to this file in addition to stderr |
+| `--log-file` | No | - | Append logs to this file in addition to stderr. The path is validated like any other output path; if it is unwritable the run continues with stderr-only logging rather than aborting |
 
 ### `generate` - Fetch and render in one step
 
@@ -160,9 +168,11 @@ python release_notes.py generate \
 
 ### Incremental update during pre-release
 
-Re-run the same command. Every PR in the range is re-fetched from GitHub on each
-run (there is no per-PR cache), but manual edits in the JSON are preserved:
-`manual_override_sig` and `manual_override_description` survive re-runs.
+Re-run the same command. By default every PR in the range is re-fetched from
+GitHub on each run; add `--reuse-existing` to serve label-categorised PRs from
+the previous report instead (see below). Either way, manual edits in the JSON are
+preserved: `manual_override_sig` and `manual_override_description` survive
+re-runs.
 
 ```bash
 # Week 1
@@ -440,7 +450,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.7.0-beta",
+    "tool_version": "0.7.1-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,

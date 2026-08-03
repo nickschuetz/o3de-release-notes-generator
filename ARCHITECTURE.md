@@ -4,7 +4,7 @@
 
 The release notes generator is a standalone Python project with zero external dependencies. It consists of two main scripts:
 
-- **`release_notes.py`** - Pipeline (preflight, extract, exclude, fetch, categorize, render) that generates O3DE release notes from merged pull requests. The intermediate JSON is schema v5.
+- **`release_notes.py`** - Pipeline (preflight, extract, exclude, fetch, categorize, render) that generates O3DE release notes from merged pull requests. The intermediate JSON is schema v6.
 - **`generate_sbom.py`** - Generates a CycloneDX 1.5 SBOM for supply chain transparency.
 
 Both scripts use only Python stdlib modules and interact with external systems (git, GitHub API) exclusively through the `gh` CLI and `git` commands via `subprocess` with list arguments.
@@ -25,7 +25,7 @@ Both scripts use only Python stdlib modules and interact with external systems (
    └─────────────┘   └─────────────┘   └─────────────┘   └──────┬───────┘
                                                                 │
    ┌──────────────┐   ┌──────────────┐   ┌──────────────┐       │
-   │    Render    │◀──│   JSON v4    │◀──│  Categorize  │◀──────┘
+   │    Render    │◀──│   JSON v6    │◀──│  Categorize  │◀──────┘
    │ markdown by  │   │ (editable;   │   │ 1. labels    │
    │ SIG; filters │   │  human or AI │   │ 2. title     │
    │ flags and    │   │  sets        │   │ 3. files     │
@@ -77,7 +77,9 @@ Generates a CycloneDX 1.5 JSON SBOM (`sbom.cdx.json`). Captures project metadata
 
 ### `tests/test_release_notes.py`
 
-Unit tests using `pytest` and `unittest.mock`. Covers input validation (including injection attempts and stderr token redaction), multi-repo path parsing, SIG categorization (labels, title heuristics, file heuristics, priority ordering, deterministic tiebreaks), GraphQL variable shape, summary prompt building, summary generation (success, failure, timeout, timeout-bounds validation), markdown rendering (with and without summary, with release-machinery filtering), incremental merging with manual-override preservation and drop warnings, dry-run behavior, atomic file I/O, JSON loading/validation, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, audit sidecar generation, release-machinery classification (title + file-path heuristics), and point-release awareness log line.
+Unit tests using `pytest` and `unittest.mock`. No network calls; every `gh` / `git` / LLM invocation is mocked. Covers input validation (including injection attempts and stderr token redaction across all six token shapes), multi-repo path and ref parsing, repeatable mapping flags, SIG categorization (labels, title heuristics, file heuristics, priority ordering, deterministic tiebreaks), GraphQL variable shape, batch-failure classification and backoff, file-list truncation recording, summary prompt building, summary generation (success, failure, timeout, timeout-bounds validation), markdown and HTML escaping, description length policy, markdown rendering (with and without summary, with release-machinery filtering), render-coverage reconciliation, incremental merging with manual-override preservation and drop warnings, `--reuse-existing` cache eligibility and field re-derivation, `--log-file` validation, prior-release exclusion, dry-run behavior, atomic file I/O and mode preservation, SBOM integrity and determinism, JSON loading/validation, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, audit sidecar generation against the rendered set, release-machinery classification (title + file-path heuristics), point-release awareness log line, and documentation accuracy (see below).
+
+`TestDocumentationAccuracy` checks the docs against the code rather than against a reviewer's memory: every CLI flag must appear in the docs, the README's JSON example must parse and be internally consistent, the documented schema version must match `SCHEMA_VERSION` (in both JSON and prose form, and against every superseded version, not just the previous one), relative links must resolve, ASCII diagram box runs must be equal width, and every `fetch`/`generate` example must carry `--exclude-json`. Each check was mutation-tested to confirm it fails when the claim it guards is broken.
 
 ### `.github/workflows/sbom.yml`
 
@@ -115,7 +117,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
    - **File path heuristic:** Matches changed file paths against directory-to-SIG maps (derived from `.github/CODEOWNERS`). Uses longest-match-wins: for overlapping patterns (e.g., `AzCore/AzCore/Math/` vs `AzCore/`), the most specific match determines the SIG.
 5. Detects flags (cherry-pick, from title evidence only) for filtering.
 6. Tags each PR with `release_machinery: True/False` via `is_release_machinery()`. True when the title matches `RELEASE_MACHINERY_TITLE_PATTERNS` (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) **or** when every changed file matches `RELEASE_MACHINERY_FILE_PATTERNS` (a deliberately narrow set: `engine.json` / `sbom.cdx.json` / `version.txt`). Used by Stage 3 to filter non-product PRs out of the rendered report by default.
-7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 5`, `tool_version`, `pr_count`, and `release_machinery_count`.
+7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 6`, `tool_version`, `pr_count`, `release_machinery_count`, and (when `--reuse-existing` is used) `reused_from_cache`.
 8. With `--reuse-existing`, PRs categorised by label in the previous report are served from it instead of being re-fetched, and their derived fields are recomputed via `rederive_pr_fields()` so a heuristic change still reaches them. Heuristic and uncategorised PRs are never cached: their `sig/*` label may have been applied since the last run, and caching would freeze a wrong SIG for the cycle. Merges with any existing JSON data, preserving manual overrides. PRs that exist in the prior JSON but no longer appear in `git log` and lack `manual_override_*` are dropped, and a warning is logged so the user notices when this happens. PRs from older JSONs without a `release_machinery` field are backfilled by re-running `is_release_machinery()` against their cached title/files.
 9. If `--from-ref` parses as a point-release tag with non-zero patch (e.g. `2510.2`) and `--no-pointrelease-audit` was not set, writes the point-release audit sidecar (see "Point-release awareness and audit" above).
 
@@ -130,7 +132,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 **Process:**
 1. If `--generate-summary` is enabled, builds a structured prompt from the PR data and passes it via stdin to the configured LLM command (default: `ollama run --nowordwrap qwen2.5:14b`; or `claude -p` for cloud, or `qwen2.5:32b` for ~24 GB VRAM hosts) via subprocess with list args. LLM preamble text and dividers are stripped from the output. PRs flagged `release_machinery` are excluded from the prompt unless `--include-release-machinery` is set.
 2. Groups PRs by SIG category.
-3. Filters out cherry-picks and stabilization sync PRs.
+3. Filters out PRs carrying a flag in `EXCLUDED_FLAGS` (currently `cherry-pick` only, from title evidence). Sync-label detection was removed: no O3DE label distinguishes a sync container from an ordinary PR, and matching on one deleted 57 real changes from a shipped report.
 4. Filters out PRs flagged `release_machinery: True` unless `--include-release-machinery` is set (default off for major releases; turn on for point-release notes where machinery IS the content).
 5. Renders markdown with fixed SIG ordering matching the established O3DE release notes format.
 6. Inserts the LLM-generated narrative summary (or a placeholder if summary generation is disabled or fails).
@@ -143,7 +145,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 
 ## Incremental Update Flow
 
-The tool supports re-running throughout the pre-release cycle. Each run re-fetches every PR in the range from GitHub (there is no per-PR cache; batching keeps a ~420-PR cycle to roughly 14 GraphQL requests), and manual edits to the JSON (via `manual_override_sig` and `manual_override_description`) are re-applied on top of the fresh data.
+The tool supports re-running throughout the pre-release cycle. By default each run re-fetches every PR in the range from GitHub; batching keeps a ~420-PR cycle to roughly 14 GraphQL requests. `--reuse-existing` serves label-categorised PRs from the previous report instead, cutting a 200-PR run from 8 requests to 4. Either way, manual edits to the JSON (via `manual_override_sig` and `manual_override_description`) are re-applied on top of the resulting data.
 
 ```
 First run:                       Subsequent runs:
@@ -231,7 +233,7 @@ Everything inside the trusted box is data the user controls or gh's credential s
 
 | Asset | Threat | Mitigation |
 |-------|--------|------------|
-| GitHub auth token | Exposure in logs or code | Delegated to `gh` CLI credential store; never handled directly. `_safe_stderr()` scrubs `ghp_/gho_/ghu_/ghs_/ghr_` token shapes from any subprocess stderr before logging (defense-in-depth). |
+| GitHub auth token | Exposure in logs or code | Delegated to `gh` CLI credential store; never handled directly. `_safe_stderr()` scrubs both the classic `ghp_/gho_/ghu_/ghs_/ghr_` shapes and fine-grained `github_pat_` tokens from any subprocess stderr before logging (defense-in-depth). Fine-grained PATs are the default for new tokens, so covering only the classic shapes left the common case unredacted. |
 | PR titles (untrusted) | Markdown injection in rendered output | Sanitized: `#`, `[`, `]`, `` ` ``, `\|` escaped; trailing PR refs stripped. Escaping runs exactly once; composing an already-escaped string and re-escaping it produced `\\[`, which renders as a literal backslash plus an **unescaped** bracket. |
 | PR titles / bodies (untrusted) | **Raw HTML injection** in published output | Markdown renderers used to publish O3DE notes (Hugo/goldmark, GitHub) pass raw HTML through, so `<img src=x onerror=...>` in a PR title would become live HTML on o3de.org. `<` is escaped whenever it opens a tag (`<[a-zA-Z/!?]`); ordinary comparisons and arrows (`64->32`) are left readable. |
 | PR titles (untrusted) | LLM prompt injection via summary prompt | Title is inserted as data, not instruction. The summary output is human-reviewed before publishing and is only ever placed in the markdown intro, never executed, never used as a path or command. Worst case: a release manager rejects a tampered narrative. |
