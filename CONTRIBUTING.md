@@ -10,6 +10,7 @@ cd o3de-release-notes-generator
 
 make test         # run pytest (you don't even need to install the project)
 make sbom         # regenerate sbom.cdx.json
+make sbom-check   # verify sbom.cdx.json is current (CI runs this)
 make lint         # ruff (skipped if not installed)
 make typecheck    # mypy (skipped if not installed)
 ```
@@ -20,7 +21,7 @@ You only need Python 3.10+ on `PATH`. There is no `pip install` step because the
 
 1. **Open or claim an issue** before doing significant work, so duplicate effort can be avoided.
 2. **Branch from `main`.** Use a descriptive branch name (`fix/title-tiebreak-determinism`, `feat/dry-run`, etc).
-3. **Add or update tests** for any behavior change. The full suite must pass on Python 3.10, 3.11, and 3.12; CI runs all three (`.github/workflows/test.yml`).
+3. **Add or update tests** for any behavior change. The full suite must pass on Python 3.10 through 3.13; CI runs all four (`.github/workflows/test.yml`).
 4. **Update documentation** when you add or change a flag, an environment expectation, or a public function. The relevant places are usually `README.md`, `ARCHITECTURE.md`, and `AGENTS.md`. If the change is user-visible, also add an entry to `CHANGELOG.md` under a new `[Unreleased]` heading or the next pending version.
 5. **Open a PR** against `main`. Keep PRs focused and small where possible.
 
@@ -33,7 +34,10 @@ These are not preferences; they are project invariants. PRs that violate them wi
 - **Validate untrusted input at the boundary.** Git refs, repo slugs, file paths, PR numbers, summary commands, and summary timeouts are all validated by named functions. Reuse them.
 - **GraphQL goes through variables, not strings.** Owner/name/anything user-influenced gets passed via `gh api graphql -f key=value`, not interpolated into the query body.
 - **No tokens in logs.** All subprocess stderr passes through `_safe_stderr()` before being logged.
-- **Atomic writes.** Use `tempfile.mkstemp()` + `os.replace()` for any file you produce.
+- **Atomic writes.** Use `write_text_atomic()`, which fsyncs before the rename and preserves the destination file's permission bits. Do not hand-roll `mkstemp` + `os.replace()`: on its own that silently downgrades outputs to 0600.
+- **Escape exactly once.** Strip decorations first, then escape. Re-escaping an escaped string turns `\[` into `\\[`, which renders as a literal backslash and an *unescaped* bracket.
+- **Account for every dropped PR.** Any new filter must be represented in `summarize_render_coverage()` so the reconciliation line stays exhaustive.
+- **Regenerate the SBOM.** If you touch `release_notes.py`, `generate_sbom.py`, or the tests, run `make sbom` and commit the result; `make sbom-check` gates CI.
 - **Deterministic output.** When tiebreaking between SIGs (labels or title keywords), use `SIG_CANONICAL_ORDER`. Do not introduce ordering that depends on dict iteration or API response order.
 - **Comments explain why, not what.** Good identifier names already describe what the code does, comment only when the why is non-obvious (a hidden constraint, a subtle invariant, a workaround for a specific bug).
 

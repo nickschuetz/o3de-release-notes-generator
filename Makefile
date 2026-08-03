@@ -3,7 +3,7 @@
 # work on a fresh clone without `pip install`. Optional tools (ruff, mypy)
 # print a hint and exit cleanly if not installed, rather than failing.
 
-.PHONY: help test sbom lint typecheck dry-run-help all check clean
+.PHONY: help test sbom sbom-check lint typecheck dry-run-help all check clean
 
 PYTHON ?= python
 
@@ -11,9 +11,10 @@ help:
 	@echo "Targets:"
 	@echo "  test         Run pytest"
 	@echo "  sbom         Regenerate sbom.cdx.json"
+	@echo "  sbom-check   Verify sbom.cdx.json is current (CI gate)"
 	@echo "  lint         Run ruff (skipped if not installed)"
 	@echo "  typecheck    Run mypy (skipped if not installed)"
-	@echo "  check        test + lint + typecheck"
+	@echo "  check        test + lint + typecheck + sbom-check"
 	@echo "  clean        Remove __pycache__, .pytest_cache, *.pyc"
 
 test:
@@ -21,6 +22,9 @@ test:
 
 sbom:
 	$(PYTHON) generate_sbom.py
+
+sbom-check:
+	$(PYTHON) generate_sbom.py --check
 
 lint:
 	@if $(PYTHON) -m ruff --version >/dev/null 2>&1; then \
@@ -36,7 +40,7 @@ typecheck:
 		echo "mypy not installed — skipping (install with: pip install mypy)"; \
 	fi
 
-check: test lint typecheck
+check: test lint typecheck sbom-check
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

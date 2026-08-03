@@ -26,7 +26,7 @@ Both scripts use only Python stdlib modules and interact with external systems (
                     │   ┌───────────┐     ┌──────────────┐     ┌──────────────┐    │
                     │   │  gh CLI   │     │ JSON cache   │     │  .md output  │    │
                     │   │  GraphQL  │     │ (editable,   │     │ + optional   │    │
-                    │   │           │     │  schema v3)  │     │  LLM summary │    │
+                    │   │           │     │  schema v4)  │     │  LLM summary │    │
                     │   └───────────┘     └──────────────┘     └──────┬───────┘    │
                     │                                                 │            │
                     │                            point-release audit  │            │
@@ -51,13 +51,19 @@ The main script. Three subcommands (`fetch`, `render`, `generate`) exposed via `
 - `SIG_TITLE_KEYWORDS` - Dict mapping SIG names to title keyword lists for heuristic categorization.
 - `SIG_FILE_PATH_PATTERNS` - Dict mapping SIG names to file path prefixes for heuristic categorization.
 - `SIG_CANONICAL_ORDER` - List defining the fixed section ordering in rendered markdown.
-- `CHERRY_PICK_PATTERNS` - Regex list that flags PR titles as cherry-picks or stabilization-syncs (filtered from rendered output via the per-PR `flags` field).
+- `CHERRY_PICK_PATTERNS` - Regex list that flags PR titles as cherry-pick containers (filtered from rendered output via the per-PR `flags` field). **Title evidence only.** Labels are deliberately not consulted: no O3DE label distinguishes a sync container from an ordinary PR (`sync/to-stabilization` sat on 30 ordinary PRs and 2 containers in the 26.05.0 corpus), and a substring match on it previously deleted 57 real changes from the report.
+- `EXCLUDED_FLAGS` - The single source of truth for which `flags` values remove a PR from the report and the summary prompt. The legacy `stabilization-sync` value is absent, so JSON written by older versions renders correctly without a re-fetch.
+- `MERGE_COMMIT_PR_PATTERN` - Matches `Merge pull request #NNNN`, the only place a merge-commit PR's number appears. Required alongside `PR_NUMBER_PATTERN`; see "Stage 1: Extract".
 - `POINTRELEASE_CONTAINER_PATTERNS` - Regex list (subset of cherry-pick patterns specialised for *containers*: commits whose bodies enumerate bundled PRs via the `(#NNNN)` convention). Used by `extract_pointrelease_containers()` when writing the audit sidecar.
 - `POINT_RELEASE_TAG_PATTERN` - Compiled regex matching `X.Y` style tags (e.g. `2510.2`) so the tool can detect point-release refs and emit the awareness log line / audit sidecar.
 - `RELEASE_MACHINERY_TITLE_PATTERNS` - Regex list matching titles that clearly indicate non-product PRs (`Update version`, `Update SBOM`, `Update Linux GPG key`, `Cherry pick … pointrelease`, `Merge … pointrelease into main`, etc.).
 - `RELEASE_MACHINERY_FILE_PATTERNS` - Narrow file-path patterns (`engine.json` / `sbom.cdx.json` / `version.txt`). Used by `is_release_machinery()` only when ALL changed files match. Deliberately excludes `.github/workflows/` so real CI improvements aren't filtered.
 
-**Multi-repo support:** The `parse_repo_path_mappings()` function resolves per-repo local clone paths. Each repo can have its own clone via `--repo-path owner/repo=/path`, with `--default-repo-path` as the fallback.
+**Multi-repo support:** The `parse_repo_path_mappings()` function resolves per-repo local clone paths. Each repo can have its own clone via `--repo-path owner/repo=/path`, with `--default-repo-path` as the fallback. `parse_repo_ref_mappings()` does the same for git refs via `--repo-from-ref` / `--repo-to-ref`, which exist because release lines are not tagged uniformly: `o3de/o3de` carries `2605.0` while `o3de/o3de-extras` does not, and a single global ref would abort the whole run on the untagged repo. All mapping flags use `action='extend'`, so both `--flag a=1 b=2` and `--flag a=1 --flag b=2` accumulate.
+
+**Preflight:** `verify_refs_exist()` resolves every `(repo, from-ref)` and `(repo, to-ref)` pair with `git rev-parse --verify` before any git log or API work, and reports each failure with the remedy. This converts a mid-run abort, potentially after minutes of GitHub calls, into an actionable error at second zero.
+
+**Reconciliation:** `summarize_render_coverage()` partitions the input PR list into `rendered` plus one mutually exclusive `excluded_*` bucket per reason, and `log_render_coverage()` emits it (WARNING when anything was dropped). The counts sum to the total by construction, so a filter regression cannot hide.
 
 **Summary generation:** The `generate_summary()` function builds a structured prompt from categorized PR data and passes it via stdin to a configurable LLM command via subprocess (list args, no `shell=True`). Default: `ollama run --nowordwrap qwen2.5:14b` (local, ~12 GB VRAM); also supports `qwen2.5:32b` for ~24 GB hosts and `claude -p` (cloud). The `_clean_summary()` function strips LLM preamble text and dividers from the output. Command is parsed via `shlex.split()`. Optional `--summary-hint` injects release manager guidance into the prompt; it accepts inline text or `@filepath` to read from a file (resolved via `_resolve_hint()`). Enabled via `--generate-summary`; disabled by default. PRs flagged `release_machinery: True` are excluded from the prompt unless `--include-release-machinery` is set, so the LLM stays focused on product changes.
 
@@ -85,9 +91,10 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 
 **Process:**
 1. Resolves per-repo local clone paths via `parse_repo_path_mappings()`.
-2. For each repo, runs `git log --format=%s <from>..<to> --no-merges` via `subprocess.run()` with list arguments against that repo's local clone.
-3. Parses PR numbers from commit subjects using regex `\(#(\d+)\)`.
-4. Deduplicates and sorts per repo.
+2. Resolves per-repo refs via `parse_repo_ref_mappings()` and preflights them with `verify_refs_exist()`.
+3. For each repo, runs `git log --format=%s <from>..<to>` via `subprocess.run()` with list arguments against that repo's local clone. **Merge commits are included on purpose.**
+4. Parses PR numbers from commit subjects with two patterns: `\(#(\d+)\)` for squash merges and `^Merge pull request #(\d+)` for merge commits. O3DE uses both strategies on `development`; a merge-commit PR's constituent commits carry no PR reference, so excluding merges lost those PRs entirely (19 of them in the 26.05.0 → 26.10.0 window). The number found via merge commits is logged.
+5. Deduplicates and sorts per repo.
 
 **Output:** Sorted list of PR numbers per repo.
 
@@ -100,14 +107,14 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 **Process:**
 1. For each repo, constructs GraphQL queries batching up to 30 PRs per request (~8 requests for a typical release of ~230 PRs). Queries fetch title, body, labels, files, author, and merge date. The query uses GraphQL variables (`$owner`, `$name`) instead of string interpolation, so owner/name never appear in the query body.
 2. Executes via `gh api graphql -f query=… -f owner=… -f name=…` (subprocess with list args). Each repo's PRs are fetched from the correct GitHub owner/repo.
-3. PR descriptions are built from the PR body's first meaningful paragraph (20-300 chars; skipping template headers, checklists, URLs, images, `<img>` tags, and bullet lists). The body is capped at 64KB before extraction so a pathological body cannot blow up regex/string ops. When the paragraph shares less than 20% word overlap with the title, both are combined with an em dash for standalone readability. Falls back to the sanitized title if the body is empty, too short, too long, or entirely noise.
+3. PR descriptions are built from the PR body's first meaningful paragraph (20-300 chars; skipping template headers, checklists, URLs, images, `<img>` tags, and bullet lists). The body is capped at 64KB before extraction so a pathological body cannot blow up regex/string ops. When the paragraph shares less than 20% word overlap with the title, both are combined with a colon for standalone readability, composed from the raw title and escaped exactly once (escaping twice turned `\[` into `\\[`, which renders as a literal backslash plus an *unescaped* bracket). Falls back to the sanitized title if the body is empty, too short, longer than `MAX_DESCRIPTION_CHARS`, or entirely noise. The over-length case genuinely falls back now: `_extract_first_paragraph()` returns untruncated text and `_build_pr_description()` owns the length policy, where previously the paragraph was pre-truncated to exactly 300 chars and the guard was dead code, producing descriptions that ended mid-sentence on a severed URL.
 4. For each PR, categorizes by SIG using three methods in priority order:
    - **Label match:** Checks for `sig/*` GitHub labels. Highest confidence. When multiple SIG labels are present, the SIG earliest in `SIG_CANONICAL_ORDER` wins (deterministic, does not depend on label-return order from GitHub).
    - **Title heuristic:** Matches title keywords against per-SIG keyword maps. Best-keyword-count wins; on ties, the SIG earliest in `SIG_CANONICAL_ORDER` wins.
    - **File path heuristic:** Matches changed file paths against directory-to-SIG maps (derived from `.github/CODEOWNERS`). Uses longest-match-wins: for overlapping patterns (e.g., `AzCore/AzCore/Math/` vs `AzCore/`), the most specific match determines the SIG.
-5. Detects flags (cherry-pick, stabilization-sync) for filtering.
+5. Detects flags (cherry-pick, from title evidence only) for filtering.
 6. Tags each PR with `release_machinery: True/False` via `is_release_machinery()`. True when the title matches `RELEASE_MACHINERY_TITLE_PATTERNS` (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) **or** when every changed file matches `RELEASE_MACHINERY_FILE_PATTERNS` (a deliberately narrow set: `engine.json` / `sbom.cdx.json` / `version.txt`). Used by Stage 3 to filter non-product PRs out of the rendered report by default.
-7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 3`, `pr_count`, and `release_machinery_count`.
+7. Computes per-repo `merge_bases` via `extract_merge_base()` (sha + committer-date) and aggregates the earliest committer-date into `effective_window.start`. Writes these into `metadata` alongside `schema_version: 4`, `tool_version`, `pr_count`, and `release_machinery_count`.
 8. Merges with any existing JSON data, preserving manual overrides. PRs that exist in the prior JSON but no longer appear in `git log` and lack `manual_override_*` are dropped, and a warning is logged so the user notices when this happens. PRs from older JSONs without a `release_machinery` field are backfilled by re-running `is_release_machinery()` against their cached title/files.
 9. If `--from-ref` parses as a point-release tag with non-zero patch (e.g. `2510.2`) and `--no-pointrelease-audit` was not set, writes the point-release audit sidecar (see "Point-release awareness and audit" above).
 
@@ -126,15 +133,16 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 4. Filters out PRs flagged `release_machinery: True` unless `--include-release-machinery` is set (default off for major releases; turn on for point-release notes where machinery IS the content).
 5. Renders markdown with fixed SIG ordering matching the established O3DE release notes format.
 6. Inserts the LLM-generated narrative summary (or a placeholder if summary generation is disabled or fails).
-7. Sanitizes PR titles for markdown (escapes special characters).
+7. Sanitizes PR titles for markdown (escapes `[`, `]`, `` ` ``, `|`) and for HTML (escapes `<` when it opens a tag, leaving ordinary arrows like `64->32` readable).
+8. Emits the reconciliation line accounting for every input PR.
 
 **Output:** Markdown file.
 
-**Trust boundary:** Output is written atomically to prevent corruption. PR titles are sanitized to prevent markdown injection. The summary command is executed via subprocess with list args (no `shell=True`). The LLM's output is inserted as-is into the markdown intro section; it is not interpolated into shell commands or other untrusted contexts.
+**Trust boundary:** Output is written atomically (`tempfile.mkstemp()` + `fsync` + `os.replace()`), preserving the destination's permission bits. PR titles are sanitized to prevent markdown injection. The summary command is executed via subprocess with list args (no `shell=True`). The LLM's output is inserted as-is into the markdown intro section; it is not interpolated into shell commands or other untrusted contexts.
 
 ## Incremental Update Flow
 
-The tool supports re-running throughout the pre-release cycle. On subsequent runs, only new PRs are fetched from GitHub, and any manual edits to the JSON (via `manual_override_sig` and `manual_override_description` fields) are preserved.
+The tool supports re-running throughout the pre-release cycle. Each run re-fetches every PR in the range from GitHub (there is no per-PR cache; batching keeps a ~420-PR cycle to roughly 14 GraphQL requests), and manual edits to the JSON (via `manual_override_sig` and `manual_override_description`) are re-applied on top of the fresh data.
 
 ```
 First run:                    Subsequent runs:
@@ -142,7 +150,7 @@ First run:                    Subsequent runs:
 git log (per repo) ──▶ PR #s  git log (per repo) ──▶ PR #s (may have grown)
     │                             │
     ▼                             ▼
-GitHub API ──▶ all PRs        GitHub API ──▶ new PRs only
+GitHub API ──▶ all PRs        GitHub API ──▶ all PRs again
     │                             │
     ▼                             ▼
 categorize ──▶ JSON           merge with existing JSON
@@ -164,12 +172,16 @@ The `generate_sbom.py` script produces a CycloneDX 1.5 JSON SBOM at `sbom.cdx.js
 
 **Contents:**
 - Project metadata (name, version, license, repo URL)
-- 13 Python stdlib modules declared as framework dependencies with package URLs
+- Python stdlib modules declared as dependencies, discovered by `ast`-parsing `SOURCE_FILES` rather than from a hand-maintained list (the old static list had drifted, omitting `contextlib`, `shlex`, and `typing`)
+- `bom-ref` on every component, so `dependencies[].dependsOn` resolves instead of dangling
+- `pkg:generic/` purls; the previous `pkg:pypi/cpython-stdlib/...` named a package that does not exist on PyPI, which makes scanners report phantom components
 - SHA-256 hashes of all source files (`release_notes.py`, `generate_sbom.py`, `tests/test_release_notes.py`)
 - Explicit `cdx:externalDependencies: none` property
 - Dependency graph linking the project to its stdlib modules
 
-**Automation:** The `.github/workflows/sbom.yml` workflow regenerates the SBOM on every push to `main` that changes `*.py` files. The workflow uses `github-actions[bot]` to commit the updated SBOM, preventing infinite trigger loops (bot commits don't trigger workflows by default).
+**Determinism:** the substantive document (everything except `metadata.timestamp` and the content-derived `serialNumber`) is a pure function of repository content. It deliberately records the project's minimum Python version rather than `platform.python_version()`, so a 3.12 CI runner and a 3.14 workstation produce identical output. `generate_sbom.py --check` exits non-zero when the committed SBOM is stale, and a plain regeneration is a no-op when nothing substantive changed.
+
+**Automation:** The `.github/workflows/sbom.yml` workflow regenerates the SBOM on every push to `main` that changes `*.py` files. The workflow uses `github-actions[bot]` to commit the updated SBOM, preventing infinite trigger loops (bot commits don't trigger workflows by default). Because regeneration is now a no-op when content is unchanged, the "commit only if changed" guard actually fires; previously the wall-clock timestamp guaranteed a diff and produced an SBOM commit on every qualifying push.
 
 **Atomic writes:** Like the main script, the SBOM generator uses `tempfile.mkstemp()` + `os.replace()` for crash-safe file output.
 
@@ -212,7 +224,8 @@ Everything inside the trusted box is data the user controls or gh's credential s
 | Asset | Threat | Mitigation |
 |-------|--------|------------|
 | GitHub auth token | Exposure in logs or code | Delegated to `gh` CLI credential store; never handled directly. `_safe_stderr()` scrubs `ghp_/gho_/ghu_/ghs_/ghr_` token shapes from any subprocess stderr before logging (defense-in-depth). |
-| PR titles (untrusted) | Markdown injection in rendered output | Sanitized: `#`, `[`, `]`, `` ` ``, `\|` escaped; trailing PR refs stripped |
+| PR titles (untrusted) | Markdown injection in rendered output | Sanitized: `#`, `[`, `]`, `` ` ``, `\|` escaped; trailing PR refs stripped. Escaping runs exactly once; composing an already-escaped string and re-escaping it produced `\\[`, which renders as a literal backslash plus an **unescaped** bracket. |
+| PR titles / bodies (untrusted) | **Raw HTML injection** in published output | Markdown renderers used to publish O3DE notes (Hugo/goldmark, GitHub) pass raw HTML through, so `<img src=x onerror=...>` in a PR title would become live HTML on o3de.org. `<` is escaped whenever it opens a tag (`<[a-zA-Z/!?]`); ordinary comparisons and arrows (`64->32`) are left readable. |
 | PR titles (untrusted) | LLM prompt injection via summary prompt | Title is inserted as data, not instruction. The summary output is human-reviewed before publishing and is only ever placed in the markdown intro, never executed, never used as a path or command. Worst case: a release manager rejects a tampered narrative. |
 | PR bodies (untrusted) | Markdown/HTML injection via body extraction | First paragraph only (20-300 chars); body capped at 64KB before extraction; images, `<img>` tags, bullet lists, and template noise filtered; combined with title only when word overlap <20%; sanitized before rendering |
 | Git refs (user input) | Command injection via subprocess | Validated against `^[a-zA-Z0-9._/-]+$`; must not start with `-` |
@@ -223,9 +236,13 @@ Everything inside the trusted box is data the user controls or gh's credential s
 | JSON data files | Corruption from interrupted writes | Atomic writes via `tempfile` + `os.replace()` |
 | GitHub API responses | Malformed data | Validated structure before use; missing fields default safely |
 | LLM summary command | Command injection via `--summary-cmd` | Command parsed via `shlex.split()` (respects shell quoting), executed via subprocess with list args; executable checked via `shutil.which()` before invocation; runtime bounded by `--summary-timeout` (10–3600s). |
-| LLM output | Prompt injection in generated narrative | Output is inserted into markdown intro only; not used in shell commands, file paths, or API calls. Output is reviewed by a human before publishing. |
+| LLM output | Prompt injection in generated narrative | Output is inserted into markdown intro only; not used in shell commands, file paths, or API calls. Tag-like `<` is escaped by `_clean_summary()` so an injected instruction cannot land raw HTML in the published page. Output is reviewed by a human before publishing. |
+| Long-running `git` / `gh` calls | Unhandled `TimeoutExpired` aborts a run and discards completed work | Every subprocess call site converts `SubprocessError` and `OSError` into a handled error. A timed-out GraphQL batch degrades to per-PR retries instead of terminating the process with a traceback. |
+| Output files | Permission downgrade / truncated file on crash | `tempfile.mkstemp()` creates 0600 and `os.replace()` preserves it, so writes silently made outputs owner-only; the destination's mode is now mirrored explicitly. Content is `fsync`ed before the rename so a crash cannot leave a zero-length file. |
+| Git refs that do not exist | Mid-run abort after minutes of API calls | `verify_refs_exist()` preflights every `(repo, ref)` pair before any work and reports the remedy. |
 | Subprocess stderr | Sensitive data in CI logs | All subprocess output decoded with `encoding='utf-8', errors='replace'`; stderr passed through `_safe_stderr()` (token-scrub + 200-char truncation) before logging. |
-| Supply chain | Undetected dependency changes | CycloneDX SBOM with source file SHA-256 hashes; auto-updated via CI (`sbom.yml`); GitHub Actions pinned to commit SHAs (not floating tags). |
+| Supply chain | Undetected dependency changes | CycloneDX SBOM with source file SHA-256 hashes; module inventory derived by `ast`-parsing the sources so it cannot drift; deterministic substantive content makes `generate_sbom.py --check` a real staleness gate in CI; GitHub Actions pinned to commit SHAs (not floating tags). |
+| Release report | Silent content loss from an over-matching filter | `summarize_render_coverage()` accounts for every input PR in mutually exclusive buckets and logs a WARNING whenever anything is excluded. |
 
 ### OWASP Top 10 Mapping
 
@@ -244,10 +261,10 @@ Everything inside the trusted box is data the user controls or gh's credential s
 | Control | Implementation |
 |---------|---------------|
 | **SI-10 (Information Input Validation)** | All external inputs (git refs, repo slugs, file paths) validated with regex patterns and length limits before use. |
-| **SI-15 (Information Output Filtering)** | PR titles sanitized for markdown special characters before rendering. Only whitelisted fields from API responses are used. |
-| **AU-3 (Content of Audit Records)** | Structured log format with severity levels. Categorization summary logged on each run. |
-| **SC-28 (Protection of Information at Rest)** | Atomic file writes via `tempfile.mkstemp()` + `os.replace()` prevent data corruption from interrupted writes. |
-| **CM-7 (Least Functionality)** | Minimal stdlib-only implementation. No unnecessary network calls (only fetches new PRs on re-run). No write access to the O3DE repository. |
+| **SI-15 (Information Output Filtering)** | PR titles and body-derived descriptions sanitized for markdown special characters and HTML tag openers before rendering, exactly once. LLM narrative output passes the same filter. Only whitelisted fields from API responses are used. |
+| **AU-3 (Content of Audit Records)** | Structured log format with severity levels. Categorization summary, merge-commit discovery count, and a full render reconciliation (rendered vs. each exclusion reason) logged on each run. `metadata.tool_version` records which build produced a given JSON. |
+| **SC-28 (Protection of Information at Rest)** | Atomic file writes via `tempfile.mkstemp()` + `fsync` + `os.replace()` prevent data corruption from interrupted writes; the destination's permission bits are preserved rather than downgraded to 0600. |
+| **CM-7 (Least Functionality)** | Minimal stdlib-only implementation. Read-only network access, batched at 30 PRs per GraphQL request. No write access to the O3DE repository. |
 | **SA-8 (Security and Privacy Engineering Principles)** | CycloneDX SBOM generated and maintained for supply chain transparency. Source file integrity verified via SHA-256 hashes. |
 
 ### Input Validation Specifications
@@ -257,6 +274,7 @@ Everything inside the trusted box is data the user controls or gh's credential s
 | Git ref | `^[a-zA-Z0-9._/-]+$` | 256 | Must not start with `-` |
 | Repo slug | `^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$` | 128 | Exactly one `/` |
 | Repo path mapping | `^(owner/repo)=(.+)$` | N/A | Repo slug validated separately; path resolved via `pathlib`; `.git` existence checked |
+| Repo ref mapping | `^(owner/repo)=(.+)$` | 256 | Repo slug and ref each validated by their own function; ref must resolve via `git rev-parse --verify` in preflight |
 | Output path | N/A (uses pathlib) | OS limit | Parent must exist; optional base-dir containment |
 | Version string | Free text (user-facing) | N/A | Used only in markdown heading |
 | PR number | Parsed as `int()` | 999999 | Must be 1-999999; validated before GraphQL query construction |
@@ -270,7 +288,8 @@ Everything inside the trusted box is data the user controls or gh's credential s
 Every subprocess call uses list arguments:
 
 ```python
-subprocess.run(['git', 'log', '--format=%s', f'{from_ref}..{to_ref}'], ...)
+subprocess.run(['git', 'log', '--format=%s', f'{from_ref}..{to_ref}'], ...)  # merges included
+subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{ref}^{{commit}}'], ...)
 subprocess.run(['gh', 'api', 'graphql',
                 '-f', f'query={query}',
                 '-f', f'owner={owner}',
