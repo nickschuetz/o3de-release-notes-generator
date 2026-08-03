@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2-beta] - 2026-08-03
+
+### Fixed
+- **The point-release audit reported a false green.** `_maybe_write_pointrelease_audit()` built its "present in report" set from the collected JSON, while the renderer applied flag, release-machinery, and uncategorized filters the audit knew nothing about. A bundled fix that was collected but filtered out therefore showed a ✓. The control designed to prove no point-release fix was lost could certify a loss as fine.
+
+### Changed
+- **`classify_for_report()` is now the single source of truth for report membership.** It maps each PR to the reason it is kept out, or `None` if it renders. `summarize_render_coverage()` and the point-release audit both read it, so the reconciliation counts and the audit cannot disagree about what is in the report.
+- **The audit sidecar distinguishes three states instead of two:** ✓ rendered, ⚠ collected but filtered out (with the reason), ✗ not found at all. The ⚠ state is the one that matters: the fix shipped in a point release, so a reader expects it in the next major's notes. The summary line counts all three and says "Action required before publishing" when either non-green state is non-empty.
+- 5 new tests (323 -> 328).
+
 ## [0.6.1-beta] - 2026-08-03
 
 ### Security

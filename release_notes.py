@@ -25,7 +25,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.6.1-beta'
+__version__ = '0.6.2-beta'
 
 # 4: adds metadata.tool_version; `flags` no longer carries `stabilization-sync`
 #    and descriptions are no longer truncated mid-sentence, so data written by
@@ -647,19 +647,30 @@ def write_pointrelease_audit(
     lines.append(
         "Each entry below is a cherry-pick container PR found on the previous\n"
         "stabilization branch between the predecessor major tag and the from-ref.\n"
-        "The bundled PRs are extracted from the container's commit body. A ✓\n"
-        "means the bundled PR appears in the rendered report (via its\n"
-        "development-side merge); a ✗ means it is missing and worth\n"
-        "investigating.\n"
+        "The bundled PRs are extracted from the container's commit body, then\n"
+        "checked against what the report actually renders:\n"
+        "\n"
+        "- ✓ present in the rendered report, via its development-side merge\n"
+        "- ⚠ collected but filtered OUT of the report (reason shown). These are\n"
+        "  the dangerous ones: the fix shipped in the point release, so a reader\n"
+        "  expects it here. Confirm the filter is right before publishing.\n"
+        "- ✗ not found at all. Investigate.\n"
+        "\n"
+        "The ⚠ state exists because comparing against the collected JSON rather\n"
+        "than the rendered output reports a green tick for a fix the reader will\n"
+        "never see.\n"
     )
 
     grand_total_containers = 0
     grand_total_bundled = 0
     grand_total_present = 0
+    grand_total_filtered = 0
+    grand_total_missing = 0
 
     for repo_slug, repo_audit in audit_data.get('per_repo', {}).items():
         containers = repo_audit.get('containers', [])
         present = repo_audit.get('present_pr_numbers', set())
+        filtered = repo_audit.get('filtered_pr_numbers', {})
         lines.append(f"\n## {repo_slug}\n")
         if not containers:
             lines.append("_No cherry-pick containers found in this repo._\n")
@@ -678,15 +689,29 @@ def write_pointrelease_audit(
                 if b in present:
                     grand_total_present += 1
                     lines.append(f"  - ✓ #{b}: present in report via dev-side merge")
+                elif b in filtered:
+                    grand_total_filtered += 1
+                    lines.append(
+                        f"  - ⚠ #{b}: collected but FILTERED OUT of the report "
+                        f"({filtered[b]}); shipped in the point release, so verify"
+                    )
                 else:
-                    lines.append(f"  - ✗ #{b}: NOT in report (investigate)")
+                    grand_total_missing += 1
+                    lines.append(f"  - ✗ #{b}: NOT found at all (investigate)")
 
     lines.append('')
+    verdict = (
+        "All bundled fixes are present in the rendered report."
+        if not grand_total_filtered and not grand_total_missing
+        else "**Action required before publishing.**"
+    )
     lines.append(
         f"---\n\n"
         f"**Summary:** {grand_total_containers} container(s) checked, "
-        f"{grand_total_bundled} bundled PR reference(s) parsed, "
-        f"{grand_total_present} accounted for in the rendered report.\n"
+        f"{grand_total_bundled} bundled PR reference(s) parsed: "
+        f"{grand_total_present} rendered, "
+        f"{grand_total_filtered} filtered out, "
+        f"{grand_total_missing} not found. {verdict}\n"
     )
     content = '\n'.join(lines)
     write_markdown_atomic(content, output_path)
@@ -1438,6 +1463,34 @@ def generate_summary(
 DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
 
 
+def classify_for_report(
+    pr_list: list[dict[str, Any]],
+    include_uncategorized: bool = False,
+    include_release_machinery: bool = False,
+) -> dict[tuple[str, int], str | None]:
+    """Map each PR to the reason it is kept out of the report, or None if it renders.
+
+    The single source of truth for report membership. Both the reconciliation
+    counts and the point-release audit read it, so the two cannot drift. They
+    previously did: the audit consulted the collected JSON while the renderer
+    applied filters the audit knew nothing about, so a filtered-out PR was
+    reported as present.
+    """
+    classified: dict[tuple[str, int], str | None] = {}
+    for pr in pr_list:
+        key = (pr.get('repo', ''), pr.get('number', 0))
+        excluded_flags = sorted(EXCLUDED_FLAGS.intersection(pr.get('flags', []) or []))
+        if excluded_flags:
+            classified[key] = excluded_flags[0]
+        elif not include_release_machinery and pr.get('release_machinery'):
+            classified[key] = 'release_machinery'
+        elif not include_uncategorized and pr.get('sig_category', 'uncategorized') == 'uncategorized':
+            classified[key] = 'uncategorized'
+        else:
+            classified[key] = None
+    return classified
+
+
 def summarize_render_coverage(
     pr_list: list[dict[str, Any]],
     include_uncategorized: bool = False,
@@ -1453,21 +1506,13 @@ def summarize_render_coverage(
     26.05.0 went unnoticed precisely because nothing reported this.
     """
     counts: dict[str, int] = {'total': len(pr_list), 'rendered': 0}
-
-    for pr in pr_list:
-        excluded_flags = sorted(EXCLUDED_FLAGS.intersection(pr.get('flags', []) or []))
-        if excluded_flags:
-            key = f'excluded_{excluded_flags[0]}'
-            counts[key] = counts.get(key, 0) + 1
-            continue
-        if not include_release_machinery and pr.get('release_machinery'):
-            counts['excluded_release_machinery'] = counts.get('excluded_release_machinery', 0) + 1
-            continue
-        if not include_uncategorized and pr.get('sig_category', 'uncategorized') == 'uncategorized':
-            counts['excluded_uncategorized'] = counts.get('excluded_uncategorized', 0) + 1
-            continue
-        counts['rendered'] += 1
-
+    for reason in classify_for_report(
+        pr_list, include_uncategorized, include_release_machinery,
+    ).values():
+        if reason is None:
+            counts['rendered'] += 1
+        else:
+            counts[f'excluded_{reason}'] = counts.get(f'excluded_{reason}', 0) + 1
     return counts
 
 
@@ -2003,10 +2048,25 @@ def _maybe_write_pointrelease_audit(
         if not containers:
             continue
         any_container = True
-        present_numbers = {pr.get('number') for pr in merged if pr.get('repo') == repo_slug}
+        # Classify against what the report will actually render, using the
+        # render flags when this ran as `generate` and render defaults otherwise.
+        classification = classify_for_report(
+            merged,
+            include_uncategorized=getattr(args, 'include_uncategorized', False),
+            include_release_machinery=getattr(args, 'include_release_machinery', False),
+        )
+        present_numbers = {
+            number for (repo, number), reason in classification.items()
+            if repo == repo_slug and reason is None
+        }
+        filtered_numbers = {
+            number: reason for (repo, number), reason in classification.items()
+            if repo == repo_slug and reason is not None
+        }
         audit_per_repo[repo_slug] = {
             'containers': containers,
             'present_pr_numbers': present_numbers,
+            'filtered_pr_numbers': filtered_numbers,
             'predecessor_tag': major_tag,
         }
 
