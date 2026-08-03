@@ -23,12 +23,13 @@ the same window recovers 55 PRs (188 rendered -> 243).
 ### Added
 - **Render reconciliation accounting.** `summarize_render_coverage()` partitions every input PR into `rendered` plus mutually exclusive `excluded_*` buckets; `log_render_coverage()` prints the totals and warns whenever anything is dropped. The 26.05.0 regression went unnoticed precisely because nothing reported this.
 - **Raw HTML escaping.** Markdown renderers used to publish O3DE notes pass raw HTML through, so `<img src=x onerror=...>` in an untrusted PR title would become live HTML on a published page. Tag-like `<` is now escaped in titles, body-derived descriptions, and LLM narrative output; ordinary arrows (`64->32`) stay readable.
+- **`--exclude-json`:** drops PRs already reported in a prior release from the window, before any GitHub call, and again after the incremental merge. Required for a correct major-release window: a tag on the `main` line shares only an ancient merge-base with `development` (2025-07-29 for `2605.0`, before the 26.05 cycle began), so `2605.0..origin/development` spans two cycles. 188 of 369 `o3de/o3de` PRs and 30 of 50 `o3de/o3de-extras` PRs in the 26.10.0 window had already shipped in 26.05.0. The duplicates are development-side merges of fixes that reached the prior release by cherry-pick into its stabilization branch, so they are unreachable from the tag; neither a different ref (`origin/main` gives an identical 369/188) nor a date cutoff separates them, because the two sets interleave in time. Sources and per-repo counts are recorded in `metadata.excluded_prior_releases`. Pointing the flag at the run's own `--output-json` is refused.
 - **Per-repo git refs:** `--repo-from-ref` / `--repo-to-ref` accept `owner/repo=REF`. Release lines are not tagged uniformly (`o3de/o3de` carries `2605.0`, `o3de/o3de-extras` does not), and a single global ref aborts the whole multi-repo run on the untagged repo.
 - **Ref preflight.** `verify_refs_exist()` resolves every `(repo, ref)` pair with `git rev-parse --verify` before any git log or API work and reports each failure with its remedy.
 - **`metadata.tool_version`** records the generating version, and `metadata.repo_refs` records per-repo ranges when they differ from the global ones.
 - `generate_sbom.py --check` and `make sbom-check`: exit non-zero when the committed SBOM is stale. Wired into CI.
 - `RELEASE_RUNBOOK.md`: step-by-step procedure for running a release cycle.
-- 69 new tests (224 -> 293).
+- 81 new tests (224 -> 305).
 
 ### Changed
 - **Schema version bumped 3 -> 4.** Adds `metadata.tool_version`; `flags` no longer carries `stabilization-sync` and descriptions are no longer truncated mid-sentence, so data written by <=0.5.0-beta is structurally readable but semantically stale. Schema 3 files still load; re-fetch for accuracy.

@@ -3,7 +3,7 @@
 Step-by-step procedure for producing O3DE release notes with this tool. Written
 for the 26.10.0 cycle; the shape is the same for any release.
 
-## 0. Know your refs
+## 0. Know your refs, and why the tag alone is not enough
 
 | Repo | 26.10.0 `--from-ref` | Notes |
 |------|----------------------|-------|
@@ -12,6 +12,28 @@ for the 26.10.0 cycle; the shape is the same for any release.
 
 `--to-ref` is `origin/development` until the stabilization branch is cut, then
 `origin/stabilization/26100`.
+
+**You must also pass `--exclude-json` pointing at the previous release's
+report.** `2605.0` tags a commit on `origin/main`, which O3DE builds from
+periodic "merge stabilization to main" commits, so its merge-base with
+`development` is `57680ee42` (2025-07-29), before the 26.05 cycle began. The raw
+window therefore spans two cycles:
+
+| Window | PRs | Already in 26.05.0 | New |
+|---|---|---|---|
+| `o3de/o3de` `2605.0..development` | 369 | 188 | 181 |
+| `o3de/o3de-extras` `2510.2..development` | 50 | 30 | 20 |
+
+The duplicates are development-side merges of fixes that reached 26.05.0 by
+cherry-pick into `stabilization/26050`: distinct commits, unreachable from the
+tag. No other `--from-ref` fixes this (`origin/main` gives an identical 369/188),
+and a date cutoff cannot either, because the two sets interleave. Changing
+`--to-ref` to `origin/stabilization/26100` will not help; the overlap comes from
+the `--from-ref` anchor.
+
+Reports are named per release (`reports/26050_release_data.json`,
+`reports/26100_release_data.json`), so each cycle's output never overwrites the
+exclusion source it depends on. Keep the previous cycle's report checked in.
 
 Spring releases (`xx.05.0`) are gaming-themed; fall releases (`xx.10.0`) are
 robotics-themed. That shapes the narrative summary, not the tooling.
@@ -40,6 +62,7 @@ python release_notes.py fetch \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
   --repo-from-ref o3de/o3de-extras=2510.2 \
+  --exclude-json reports/26050_release_data.json \
   --output-json /tmp/unused.json \
   --dry-run
 ```
@@ -51,6 +74,10 @@ Check:
   merge commits for a meaningful share of PRs; a zero there is suspicious.
 - No ref-resolution errors. If a ref does not resolve, either fetch tags or give
   that repo its own ref with `--repo-from-ref` / `--repo-to-ref`.
+- **The "already reported in a prior release, excluded" count is non-trivial.**
+  For 26.10.0 it should be roughly 188 for `o3de` and 30 for `o3de-extras`. A
+  count of zero means `--exclude-json` is missing or pointing at the wrong file,
+  and the report will re-publish the previous release's content.
 
 ## 3. Generate
 
@@ -62,7 +89,8 @@ python release_notes.py generate \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
   --repo-from-ref o3de/o3de-extras=2510.2 \
-  --output-json reports/release_data.json \
+  --exclude-json reports/26050_release_data.json \
+  --output-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
   --release-version 26.10.0 \
   --log-file reports/generate.log
@@ -93,13 +121,13 @@ Inspect what was excluded:
 
 ```bash
 python release_notes.py render \
-  --input-json reports/release_data.json \
+  --input-json reports/26100_release_data.json \
   --output-md /tmp/triage.md \
   --release-version 26.10.0 \
   --include-uncategorized --include-release-machinery
 ```
 
-Fix categorization in `reports/release_data.json` by setting, per PR:
+Fix categorization in `reports/26100_release_data.json` by setting, per PR:
 
 - `manual_override_sig` to reassign the SIG
 - `manual_override_description` to rewrite the bullet
@@ -112,7 +140,7 @@ carries a `manual_override_*` field, and the drop is logged as a WARNING.
 
 ```bash
 python release_notes.py render \
-  --input-json reports/release_data.json \
+  --input-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
   --release-version 26.10.0 \
   --generate-summary \
@@ -139,6 +167,8 @@ Investigate every ✗ before publishing. Suppress the sidecar with
 
 - [ ] Clones fetched with `--tags` immediately before the run
 - [ ] Dry-run PR counts plausible for both repos
+- [ ] `--exclude-json` supplied, and its exclusion count is non-zero
+- [ ] Spot-check that no PR in the report also appears in the previous cycle's report
 - [ ] Reconciliation line read; every exclusion bucket understood
 - [ ] `uncategorized` triaged to zero, or consciously accepted
 - [ ] Point-release audit has no unexplained ✗ entries
@@ -148,7 +178,7 @@ Investigate every ✗ before publishing. Suppress the sidecar with
 
 ## Re-running mid-cycle
 
-Re-run the same command. The full range is re-fetched from GitHub each time
+Re-run the same command, including `--exclude-json`. The full range is re-fetched from GitHub each time
 (there is no per-PR cache), and `manual_override_*` fields are re-applied. Weekly
 runs are comfortably inside GitHub's rate limits.
 

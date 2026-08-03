@@ -53,6 +53,7 @@ The main script. Three subcommands (`fetch`, `render`, `generate`) exposed via `
 - `SIG_CANONICAL_ORDER` - List defining the fixed section ordering in rendered markdown.
 - `CHERRY_PICK_PATTERNS` - Regex list that flags PR titles as cherry-pick containers (filtered from rendered output via the per-PR `flags` field). **Title evidence only.** Labels are deliberately not consulted: no O3DE label distinguishes a sync container from an ordinary PR (`sync/to-stabilization` sat on 30 ordinary PRs and 2 containers in the 26.05.0 corpus), and a substring match on it previously deleted 57 real changes from the report.
 - `EXCLUDED_FLAGS` - The single source of truth for which `flags` values remove a PR from the report and the summary prompt. The legacy `stabilization-sync` value is absent, so JSON written by older versions renders correctly without a re-fetch.
+- `load_prior_release_pr_keys()` / `_apply_prior_release_exclusion()` - Read `(repo, number)` pairs from prior release reports and filter the window. Deliberately lenient about schema version, since only `repo` and `number` are read.
 - `MERGE_COMMIT_PR_PATTERN` - Matches `Merge pull request #NNNN`, the only place a merge-commit PR's number appears. Required alongside `PR_NUMBER_PATTERN`; see "Stage 1: Extract".
 - `POINTRELEASE_CONTAINER_PATTERNS` - Regex list (subset of cherry-pick patterns specialised for *containers*: commits whose bodies enumerate bundled PRs via the `(#NNNN)` convention). Used by `extract_pointrelease_containers()` when writing the audit sidecar.
 - `POINT_RELEASE_TAG_PATTERN` - Compiled regex matching `X.Y` style tags (e.g. `2510.2`) so the tool can detect point-release refs and emit the awareness log line / audit sidecar.
@@ -95,6 +96,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 3. For each repo, runs `git log --format=%s <from>..<to>` via `subprocess.run()` with list arguments against that repo's local clone. **Merge commits are included on purpose.**
 4. Parses PR numbers from commit subjects with two patterns: `\(#(\d+)\)` for squash merges and `^Merge pull request #(\d+)` for merge commits. O3DE uses both strategies on `development`; a merge-commit PR's constituent commits carry no PR reference, so excluding merges lost those PRs entirely (19 of them in the 26.05.0 → 26.10.0 window). The number found via merge commits is logged.
 5. Deduplicates and sorts per repo.
+6. Drops PR numbers listed in any `--exclude-json` source. A release tag on the `main` line shares only an ancient merge-base with `development` (2025-07-29 for `2605.0`), so the raw window spans two release cycles; 188 of 369 PRs in the 26.10.0 window had already shipped in 26.05.0. The duplicates are development-side merges of fixes that reached the prior release by cherry-pick, so they are unreachable from the tag and cannot be separated by ancestry or by date. Exclusion happens before any GitHub call, and again after the incremental merge so a stale entry in an existing output JSON cannot reintroduce one.
 
 **Output:** Sorted list of PR numbers per repo.
 

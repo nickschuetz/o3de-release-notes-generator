@@ -4,7 +4,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-03T16:27:50.114892+00:00",
+    "timestamp": "2026-08-03T16:28:03.245099+00:00",
     "tools": {
       "components": [
         {
@@ -327,7 +327,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "e751cf49617981830cc9c7901fa97d834b0bbd4ea99c5ae24e6bf1970a93a795"
+          "content": "2c75905bd21eaec7cfc4b653ae076fb5c3adf648a457bcc444d6582eec33f77a"
         }
       ]
     },
@@ -349,7 +349,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "f0cd9e8ed5edfe4e4cbbc1528d2cf86fa90c889a39c9d55c05516f49aa8ace7b"
+          "content": "c1a3a92d810511034f667639bc4e3113e11bbf359e324d261db242c8a08ef5f0"
         }
       ]
     }
@@ -382,5 +382,5 @@
       ]
     }
   ],
-  "serialNumber": "urn:uuid:b8bafa61-5271-40d4-8639-603098c68cc9"
+  "serialNumber": "urn:uuid:dd7a0ffb-a701-4367-b7e9-6c45a09163aa"
 }
