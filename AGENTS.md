@@ -60,6 +60,7 @@ python release_notes.py render \
 - Atomic writes go through `write_text_atomic()`, which fsyncs and preserves the destination's mode
 - Every filter that removes a PR from the report must be reflected in `summarize_render_coverage()`; silent drops are the failure mode this project cares most about
 - Tests use `pytest` with `unittest.mock`; no network calls in tests
+- `TestDocumentationAccuracy` tests the docs against the code (flags documented, README JSON example coherent, links resolve, diagrams aligned, examples carry `--exclude-json`). If you add a CLI flag, document it or CI fails
 - Summary command parsed via `shlex.split()` (not `.split()`) so quoted args are supported
 - Summary command runtime bounded by `--summary-timeout` (default 300s, range 10–3600s)
 - LLM output cleaned by `_clean_summary()` (strips preamble and dividers)

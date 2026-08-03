@@ -37,6 +37,14 @@ These are not preferences; they are project invariants. PRs that violate them wi
 - **Atomic writes.** Use `write_text_atomic()`, which fsyncs before the rename and preserves the destination file's permission bits. Do not hand-roll `mkstemp` + `os.replace()`: on its own that silently downgrades outputs to 0600.
 - **Escape exactly once.** Strip decorations first, then escape. Re-escaping an escaped string turns `\[` into `\\[`, which renders as a literal backslash and an *unescaped* bracket.
 - **Account for every dropped PR.** Any new filter must be represented in `summarize_render_coverage()` so the reconciliation line stays exhaustive.
+- **The docs are tested.** `TestDocumentationAccuracy` asserts that every CLI
+  flag is documented, that the README's JSON example parses and adds up, that
+  relative links resolve, that diagram boxes are aligned, and that every
+  `fetch`/`generate` example carries `--exclude-json`. The checks are written to
+  fail only on genuine breakage: the test-count claim is a floor (`300+`), never
+  an equality, and nothing parses prose. If an example genuinely should not carry
+  `--exclude-json` (a first-ever release, say), put
+  `# doc-check: exclusion-not-applicable` in the fenced block.
 - **Regenerate the SBOM.** If you touch `release_notes.py`, `generate_sbom.py`, or the tests, run `make sbom` and commit the result; `make sbom-check` gates CI.
 - **Deterministic output.** When tiebreaking between SIGs (labels or title keywords), use `SIG_CANONICAL_ORDER`. Do not introduce ordering that depends on dict iteration or API response order.
 - **Comments explain why, not what.** Good identifier names already describe what the code does, comment only when the why is non-obvious (a hidden constraint, a subtle invariant, a workaround for a specific bug).
