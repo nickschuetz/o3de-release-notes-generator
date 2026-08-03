@@ -2253,3 +2253,126 @@ class TestTokenRedactionCoverage:
     def test_ordinary_text_untouched(self):
         assert release_notes._safe_stderr('fatal: bad revision 2605.0') == \
             'fatal: bad revision 2605.0'
+
+
+class TestDocumentationAccuracy:
+    """Guard the claims the docs make about the code.
+
+    Scoped deliberately to checks that only fail when something is genuinely
+    wrong. Anything that would break on an ordinary, correct edit belongs in a
+    human review, not here: an exact test count is asserted as a floor rather
+    than an equality, and no check parses English prose. CHANGELOG.md is
+    excluded throughout because it is an append-only record of past states and
+    is *supposed* to contain claims that are no longer true.
+    """
+
+    ROOT = pathlib.Path(__file__).parent.parent
+    DOC_NAMES = ('README.md', 'ARCHITECTURE.md', 'AGENTS.md',
+                 'CONTRIBUTING.md', 'SECURITY.md', 'RELEASE_RUNBOOK.md')
+    # Put this marker in a fenced block to exempt it from the --exclude-json
+    # rule (e.g. an example for a first-ever release, with no prior report).
+    NO_EXCLUDE_MARKER = 'doc-check: exclusion-not-applicable'
+
+    @classmethod
+    def _docs(cls):
+        return {n: (cls.ROOT / n).read_text(encoding='utf-8')
+                for n in cls.DOC_NAMES if (cls.ROOT / n).exists()}
+
+    @staticmethod
+    def _fenced(text, lang=''):
+        return re.findall(r'```' + lang + r'\n(.*?)```', text, re.S)
+
+    def test_all_expected_docs_exist(self):
+        # If a doc is renamed or dropped, every other check here would silently
+        # stop covering it.
+        missing = [n for n in self.DOC_NAMES if not (self.ROOT / n).exists()]
+        assert missing == []
+
+    def test_every_cli_flag_is_documented(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        release_notes.add_parser_args(parser)
+        subparsers = [a for a in parser._actions
+                      if isinstance(a, argparse._SubParsersAction)][0]
+        flags = {opt
+                 for sp in subparsers.choices.values()
+                 for action in sp._actions
+                 for opt in action.option_strings
+                 if opt.startswith('--') and opt != '--help'}
+        alltext = '\n'.join(self._docs().values())
+        assert sorted(f for f in flags if f not in alltext) == []
+
+    def test_readme_records_the_current_version(self):
+        assert release_notes.__version__ in self._docs()['README.md']
+
+    def test_readme_json_example_matches_schema_version(self):
+        example = self._readme_json_example()
+        assert example['metadata']['schema_version'] == release_notes.SCHEMA_VERSION
+
+    def test_readme_json_example_is_valid_json(self):
+        assert 'pull_requests' in self._readme_json_example()
+
+    def test_readme_json_example_is_internally_consistent(self):
+        # The documented categorization_summary must add up to the documented
+        # pr_count. A reader who cannot trust the arithmetic cannot trust the
+        # shape either; this is the exact defect that shipped in 0.6.0-beta.
+        meta = self._readme_json_example()['metadata']
+        assert sum(meta['categorization_summary'].values()) == meta['pr_count']
+
+    def _readme_json_example(self):
+        blocks = self._fenced(self._docs()['README.md'], 'json')
+        assert blocks, 'README lost its JSON schema example'
+        return json.loads(blocks[0])
+
+    def test_claimed_test_count_is_a_floor_that_holds(self):
+        # Asserted as >=, never ==, so adding tests cannot break the docs.
+        readme = self._docs()['README.md']
+        claimed = re.search(r'(\d+)\+ unit tests', readme)
+        assert claimed, 'README should claim a test floor like "300+ unit tests"'
+        collected = sum(1 for cls_name, cls_obj in globals().items()
+                        if cls_name.startswith('Test') and isinstance(cls_obj, type)
+                        for m in dir(cls_obj) if m.startswith('test_'))
+        assert collected >= int(claimed.group(1))
+
+    def test_relative_links_resolve(self):
+        broken = []
+        for name, text in self._docs().items():
+            for link in set(re.findall(r'\]\((?!https?:|#)([^)]+)\)', text)):
+                if not (self.ROOT / link.split('#')[0]).exists():
+                    broken.append(f'{name} -> {link}')
+        assert sorted(broken) == []
+
+    def test_shell_examples_exclude_the_previous_release(self):
+        # A fetch/generate example without --exclude-json is wrong by default
+        # for a major release: the window reaches back past the prior release.
+        # Opt out with NO_EXCLUDE_MARKER when an example genuinely needs it.
+        offenders = []
+        for name, text in self._docs().items():
+            for block in self._fenced(text, 'bash'):
+                if not re.search(r'release_notes\.py\s+(generate|fetch)', block):
+                    continue
+                if self.NO_EXCLUDE_MARKER in block or '--exclude-json' in block:
+                    continue
+                offenders.append(name)
+        assert sorted(set(offenders)) == []
+
+    def test_diagram_boxes_are_aligned(self):
+        # Compares only contiguous runs of box-drawing lines, so one fenced
+        # block may legitimately hold several diagrams of different widths.
+        misaligned = []
+        for name, text in self._docs().items():
+            for block in self._fenced(text):
+                run = []
+                for line in block.splitlines() + ['']:
+                    if line.startswith('│') and line.endswith('│'):
+                        run.append(line)
+                        continue
+                    if len(run) > 1 and len({len(x) for x in run}) > 1:
+                        misaligned.append(f'{name}: widths {sorted({len(x) for x in run})}')
+                    run = []
+        assert sorted(set(misaligned)) == []
+
+    def test_no_doc_claims_a_superseded_schema_version(self):
+        stale = f'schema_version": {release_notes.SCHEMA_VERSION - 1}'
+        offenders = [n for n, t in self._docs().items() if stale in t]
+        assert offenders == []
