@@ -1094,6 +1094,7 @@ class TestDryRun:
             repo_path=None,
             repo_from_ref=None,
             repo_to_ref=None,
+            exclude_json=None,
             default_repo_path=str(repo_dir),
             output_json=str(out_json),
             dry_run=True,
@@ -2099,3 +2100,137 @@ class TestRepeatableMappingFlags:
         )
         assert str(mapping['o3de/o3de']) == '/a'
         assert str(mapping['o3de/o3de-extras']) == '/b'
+
+
+class TestPriorReleaseExclusion:
+    @staticmethod
+    def _write_report(path, pairs, schema=4):
+        path.write_text(json.dumps({
+            'metadata': {'schema_version': schema},
+            'pull_requests': [{'repo': r, 'number': n, 'title': f'PR {n}'} for r, n in pairs],
+        }))
+        return path
+
+    def test_collects_repo_number_pairs(self, tmp_path):
+        src = self._write_report(tmp_path / 'prior.json',
+                                 [('o3de/o3de', 1), ('o3de/o3de-extras', 2)])
+        keys, loaded = release_notes.load_prior_release_pr_keys([str(src)])
+        assert keys == {('o3de/o3de', 1), ('o3de/o3de-extras', 2)}
+        assert len(loaded) == 1
+
+    def test_multiple_sources_union(self, tmp_path):
+        a = self._write_report(tmp_path / 'a.json', [('o3de/o3de', 1)])
+        b = self._write_report(tmp_path / 'b.json', [('o3de/o3de', 2)])
+        keys, loaded = release_notes.load_prior_release_pr_keys([str(a), str(b)])
+        assert keys == {('o3de/o3de', 1), ('o3de/o3de', 2)}
+        assert len(loaded) == 2
+
+    def test_old_schema_still_usable(self, tmp_path):
+        # Only repo+number are read, so an older report is a valid source.
+        src = self._write_report(tmp_path / 'old.json', [('o3de/o3de', 1)], schema=2)
+        keys, loaded = release_notes.load_prior_release_pr_keys([str(src)])
+        assert keys == {('o3de/o3de', 1)}
+        assert len(loaded) == 1
+
+    def test_missing_file_is_reported_not_silent(self, tmp_path, caplog):
+        import logging
+        with caplog.at_level(logging.ERROR, logger='o3de.release_notes'):
+            keys, loaded = release_notes.load_prior_release_pr_keys([str(tmp_path / 'nope.json')])
+        assert keys == set()
+        assert loaded == []
+        assert any('not found' in r.message for r in caplog.records)
+
+    def test_malformed_json_is_reported(self, tmp_path, caplog):
+        import logging
+        bad = tmp_path / 'bad.json'
+        bad.write_text('{not json')
+        with caplog.at_level(logging.ERROR, logger='o3de.release_notes'):
+            keys, loaded = release_notes.load_prior_release_pr_keys([str(bad)])
+        assert loaded == []
+        assert any('Could not read' in r.message for r in caplog.records)
+
+    def test_exclusion_is_repo_scoped(self):
+        # PR #5 in o3de/o3de must not exclude PR #5 in o3de/o3de-extras.
+        prior = {('o3de/o3de', 5)}
+        kept, dropped = release_notes._apply_prior_release_exclusion(
+            [5, 6], 'o3de/o3de-extras', prior)
+        assert kept == [5, 6]
+        assert dropped == 0
+
+    def test_exclusion_drops_matching_numbers(self):
+        prior = {('o3de/o3de', 5), ('o3de/o3de', 7)}
+        kept, dropped = release_notes._apply_prior_release_exclusion(
+            [5, 6, 7, 8], 'o3de/o3de', prior)
+        assert kept == [6, 8]
+        assert dropped == 2
+
+    def test_no_exclusion_set_is_a_passthrough(self):
+        kept, dropped = release_notes._apply_prior_release_exclusion([1, 2], 'o3de/o3de', set())
+        assert kept == [1, 2]
+        assert dropped == 0
+
+    def test_self_exclusion_is_refused(self, tmp_path):
+        # Pointing --exclude-json at this run's own output would empty the
+        # report on the next run.
+        repo_dir = tmp_path / 'repo'
+        repo_dir.mkdir()
+        (repo_dir / '.git').mkdir()
+        out_json = tmp_path / 'out.json'
+        self._write_report(out_json, [('o3de/o3de', 1)])
+        args = mock.Mock(
+            from_ref='a', to_ref='b', repos=['o3de/o3de'],
+            repo_path=None, repo_from_ref=None, repo_to_ref=None,
+            exclude_json=[str(out_json)],
+            default_repo_path=str(repo_dir), output_json=str(out_json), dry_run=True,
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout='', stderr='')
+            assert release_notes._run_fetch(args) == 1
+
+    def test_unusable_source_aborts_rather_than_silently_including(self, tmp_path):
+        repo_dir = tmp_path / 'repo'
+        repo_dir.mkdir()
+        (repo_dir / '.git').mkdir()
+        args = mock.Mock(
+            from_ref='a', to_ref='b', repos=['o3de/o3de'],
+            repo_path=None, repo_from_ref=None, repo_to_ref=None,
+            exclude_json=[str(tmp_path / 'missing.json')],
+            default_repo_path=str(repo_dir), output_json=str(tmp_path / 'o.json'),
+            dry_run=True,
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=0, stdout='', stderr='')
+            assert release_notes._run_fetch(args) == 1
+
+    def test_dry_run_preview_reflects_exclusion(self, tmp_path, caplog):
+        import logging
+        repo_dir = tmp_path / 'repo'
+        repo_dir.mkdir()
+        (repo_dir / '.git').mkdir()
+        prior = self._write_report(tmp_path / 'prior.json', [('o3de/o3de', 42)])
+        args = mock.Mock(
+            from_ref='a', to_ref='b', repos=['o3de/o3de'],
+            repo_path=None, repo_from_ref=None, repo_to_ref=None,
+            exclude_json=[str(prior)],
+            default_repo_path=str(repo_dir), output_json=str(tmp_path / 'o.json'),
+            dry_run=True,
+        )
+        with mock.patch('release_notes.subprocess.run') as mock_run, \
+             caplog.at_level(logging.INFO, logger='o3de.release_notes'):
+            mock_run.return_value = mock.Mock(
+                returncode=0, stdout='Fix bug (#42)\nOther fix (#43)\n', stderr='')
+            assert release_notes._run_fetch(args) == 0
+        messages = [r.getMessage() for r in caplog.records]
+        assert any('1 PRs would be fetched' in m for m in messages)
+        assert any('#43' in m for m in messages)
+        assert not any('#42' in m and 'PR numbers' in m for m in messages)
+
+    def test_repeated_exclude_json_flags_accumulate(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        release_notes.add_parser_args(parser)
+        args = parser.parse_args([
+            'fetch', '--from-ref', 'a', '--to-ref', 'b', '--output-json', 'o.json',
+            '--exclude-json', 'one.json', '--exclude-json', 'two.json',
+        ])
+        assert args.exclude_json == ['one.json', 'two.json']

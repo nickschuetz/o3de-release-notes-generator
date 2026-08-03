@@ -26,7 +26,9 @@ python release_notes.py generate \
   --release-version 26.10.0
 ```
 
-Switch `--to-ref` to `origin/stabilization/26100` once that branch is cut. If point releases ship on the `2605` line, use the latest of them (`2605.1`, `2605.2`, …) as `--from-ref`.
+Switch `--to-ref` to `origin/stabilization/26100` once that branch is cut. For a
+real run you also need `--exclude-json` pointed at the previous release's report;
+see [Excluding the Previous Release](#excluding-the-previous-release). If point releases ship on the `2605` line, use the latest of them (`2605.1`, `2605.2`, …) as `--from-ref`.
 
 ## Project Structure
 
@@ -46,7 +48,8 @@ o3de-release-notes-generator/
 ├── Makefile                        # test / sbom / lint / typecheck targets
 ├── tests/
 │   └── test_release_notes.py       # Unit tests
-├── reports/                        # Sample rendered release notes (committed)
+├── reports/                        # Per-release reports (committed)
+│   ├── 26050_release_data.json     # 26.05.0 report; exclusion source for 26.10.0
 │   └── hints/                      # Reusable --summary-hint files
 ├── .github/
 │   └── workflows/
@@ -74,6 +77,7 @@ python release_notes.py fetch \
   [--repo-path owner/repo=/path ...] \
   [--repo-from-ref owner/repo=REF ...] \
   [--repo-to-ref owner/repo=REF ...] \
+  [--exclude-json prior_release.json ...] \
   [--dry-run] \
   [--no-pointrelease-audit] \
   [--log-file PATH] \
@@ -88,6 +92,7 @@ python release_notes.py fetch \
 | `--repo-path` | No | - | Per-repo clone paths as `owner/repo=/path/to/clone` (repeatable) |
 | `--repo-from-ref` | No | - | Per-repo override for `--from-ref` as `owner/repo=REF` (repeatable). Needed when a release tag exists in some repos but not others |
 | `--repo-to-ref` | No | - | Per-repo override for `--to-ref` as `owner/repo=REF` (repeatable) |
+| `--exclude-json` | No | - | Prior release report JSON(s). PRs already reported there are dropped from the window and never fetched (repeatable). **Required for a correct major-release window;** see below |
 | `--output-json` | Yes | - | Output JSON file path |
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
@@ -172,6 +177,7 @@ python release_notes.py generate \
   --default-repo-path ~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
   --repo-from-ref o3de/o3de-extras=2510.2 \
+  --exclude-json reports/26050_release_data.json \
   --output-json release_data.json \
   --output-md notes.md \
   --release-version 26.10.0
@@ -283,7 +289,7 @@ python release_notes.py generate \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
   --repo-from-ref o3de/o3de-extras=2510.2 \
-  --output-json reports/release_data.json \
+  --output-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
   --release-version 26.10.0
 ```
@@ -326,6 +332,41 @@ and new features across the engine.
 ```
 
 The `<!-- TODO -->` placeholder is replaced with a real narrative when `--generate-summary` is used. A complete sample run is checked in under [`reports/`](reports/) (one full release; refresh manually as desired).
+
+## Excluding the Previous Release
+
+**A release tag is not a usable window boundary on its own.** O3DE's `main` line
+is built from periodic "merge stabilization to main" commits, so a tag like
+`2605.0` shares only an ancient merge-base with `development`:
+
+```
+merge-base(2605.0, origin/development) = 57680ee42  (2025-07-29)
+```
+
+That is before the 26.05 cycle began, so `2605.0..origin/development` spans *two*
+release cycles. Measured against real clones:
+
+| Window | PRs found | Already in the 26.05.0 notes | Genuinely new |
+|---|---|---|---|
+| `o3de/o3de` `2605.0..development` | 369 | 188 | 181 |
+| `o3de/o3de-extras` `2510.2..development` | 50 | 30 | 20 |
+
+The duplicates are the development-side merges of fixes that reached the
+previous release by cherry-pick into its stabilization branch. They are distinct
+commits with distinct SHAs, unreachable from the tag, so **neither a different
+ref nor a date cutoff can separate them** (the two sets interleave in time: the
+new PRs start 2025-09-05 while the already-shipped ones run to 2026-04-12).
+
+Pass the previous release's report as an exclusion source:
+
+```bash
+--exclude-json reports/26050_release_data.json
+```
+
+PRs already reported there are dropped before any GitHub call, which also cuts
+the fetch cost. The sources used, and the per-repo counts excluded, are recorded
+in `metadata.excluded_prior_releases`. Pointing `--exclude-json` at this run's
+own `--output-json` is refused, since it would empty the report on the next run.
 
 ## Reconciliation Output
 
@@ -383,6 +424,11 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "start": "2025-07-29T11:12:47-07:00",
       "end": "2026-08-03T10:00:00+00:00"
     },
+    "excluded_prior_releases": {
+      "sources": ["/home/user/.../reports/26050_release_data.json"],
+      "per_repo": {"o3de/o3de": 188, "o3de/o3de-extras": 30},
+      "total": 218
+    },
     "repo_refs": {
       "o3de/o3de": {"from_ref": "2605.0", "to_ref": "origin/development"},
       "o3de/o3de-extras": {"from_ref": "2510.2", "to_ref": "origin/development"}
@@ -424,6 +470,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `metadata.effective_window` | `{start, end}` window the diff covers. `start` is the earliest merge-base committer-date across repos; `end` is `generated_at`. |
 | `metadata.release_machinery_count` | Number of PRs flagged `release_machinery: true` in this run. |
 | `metadata.tool_version` | Version of `release_notes.py` that produced the file. Present from schema 4. |
+| `metadata.excluded_prior_releases` | Which prior reports were used as exclusion sources and how many PRs each repo dropped because of them. |
 | `metadata.repo_refs` | Per-repo `{from_ref, to_ref}`. Emitted only when `--repo-from-ref` / `--repo-to-ref` made a repo's range differ from the global one. |
 
 ## PR Discovery
@@ -523,7 +570,7 @@ CI from committing a timestamp-only SBOM change on every push.
 python -m pytest tests/ -v
 ```
 
-293 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
+305 unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
 resolution, render reconciliation accounting, markdown/HTML escaping (including
 the double-escape and raw-HTML regressions), subprocess timeout handling, atomic
 write permissions and durability, SBOM determinism and dependency-graph

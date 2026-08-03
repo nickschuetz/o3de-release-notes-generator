@@ -1620,6 +1620,69 @@ def load_existing_json(path: pathlib.Path) -> dict[str, Any] | None:
         return None
 
 
+def _apply_prior_release_exclusion(
+    pr_numbers: list[int],
+    repo_slug: str,
+    prior_keys: set[tuple[str, int]],
+) -> tuple[list[int], int]:
+    if not prior_keys:
+        return pr_numbers, 0
+    kept = [n for n in pr_numbers if (repo_slug, n) not in prior_keys]
+    return kept, len(pr_numbers) - len(kept)
+
+
+def load_prior_release_pr_keys(paths: list[str]) -> tuple[set[tuple[str, int]], list[str]]:
+    """Collect (repo, pr_number) pairs already reported in prior release JSONs.
+
+    Deliberately lenient about schema: only `repo` and `number` are read, and
+    those exist in every schema version, so an old report is still usable as an
+    exclusion source. Returns the keys plus the sources that actually loaded.
+
+    Why this exists: O3DE's `main` line is built from periodic "merge
+    stabilization to main" commits, so a release tag like `2605.0` shares only
+    an ancient merge-base with `development` (2025-07-29 for 2605.0). A window
+    of `2605.0..development` therefore spans two release cycles. The duplicates
+    are the development-side merges of fixes that reached the previous release
+    by cherry-pick into its stabilization branch: distinct commits, distinct
+    SHAs, unreachable from the tag. Neither ancestry nor a date cutoff can
+    separate them (the two sets interleave in time), so the only reliable
+    signal is whether the PR was already reported.
+    """
+    keys: set[tuple[str, int]] = set()
+    loaded: list[str] = []
+
+    for raw_path in paths:
+        path = pathlib.Path(raw_path).resolve()
+        if not path.is_file():
+            logger.error('--exclude-json not found: %s', path)
+            continue
+        try:
+            with open(path, encoding='utf-8') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.error('Could not read --exclude-json %s: %s', path, e)
+            continue
+        if not isinstance(data, dict) or not isinstance(data.get('pull_requests'), list):
+            logger.error('--exclude-json %s has no pull_requests list, ignoring', path)
+            continue
+
+        before = len(keys)
+        for pr in data['pull_requests']:
+            if not isinstance(pr, dict):
+                continue
+            repo = pr.get('repo', '')
+            number = pr.get('number')
+            if repo and isinstance(number, int):
+                keys.add((repo, number))
+        loaded.append(str(path))
+        logger.info(
+            'Exclusion source %s: %d PR(s) already reported (%d new to the set)',
+            path, len(data['pull_requests']), len(keys) - before,
+        )
+
+    return keys, loaded
+
+
 def _run_fetch(args: argparse.Namespace) -> int:
     dry_run = getattr(args, 'dry_run', False)
 
@@ -1658,6 +1721,22 @@ def _run_fetch(args: argparse.Namespace) -> int:
             logger.error('%s', problem)
         return 1
 
+    exclude_paths = list(getattr(args, 'exclude_json', None) or [])
+    # Pointing --exclude-json at this run's own output would exclude everything
+    # on the second run and quietly empty the report.
+    output_json_resolved = pathlib.Path(args.output_json).resolve()
+    for raw in exclude_paths:
+        if pathlib.Path(raw).resolve() == output_json_resolved:
+            logger.error(
+                '--exclude-json %s is this run\'s --output-json. That would exclude every '
+                'PR on the next run. Point it at a PRIOR release report instead.', raw,
+            )
+            return 1
+    prior_keys, exclude_sources = load_prior_release_pr_keys(exclude_paths)
+    if exclude_paths and not exclude_sources:
+        logger.error('No usable --exclude-json source loaded; refusing to continue.')
+        return 1
+
     # Feature #3: point-release awareness. If --from-ref looks like a point
     # release (X.Y.N with N>0), surface the sibling tags and the implicit
     # equivalence with the major tag, computed against the first repo. The same
@@ -1682,6 +1761,13 @@ def _run_fetch(args: argparse.Namespace) -> int:
             except (RuntimeError, ValueError) as e:
                 logger.error('%s', e)
                 return 1
+            pr_numbers, dropped = _apply_prior_release_exclusion(
+                pr_numbers, repo_slug, prior_keys)
+            if dropped:
+                logger.info(
+                    '[dry-run] %s: %d PR(s) already reported in a prior release, excluded',
+                    repo_slug, dropped,
+                )
             logger.info(
                 '[dry-run] %s: %d PRs would be fetched between %s..%s (%s)',
                 repo_slug, len(pr_numbers), repo_from_ref, repo_to_ref, local_path,
@@ -1696,6 +1782,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
     output_json = validate_output_path(pathlib.Path(args.output_json))
 
     all_prs = []
+    excluded_per_repo: dict[str, int] = {}
     for repo_slug in args.repos:
         try:
             validate_repo_slug(repo_slug)
@@ -1715,6 +1802,14 @@ def _run_fetch(args: argparse.Namespace) -> int:
             return 1
 
         logger.info('Found %d PRs in %s', len(pr_numbers), repo_slug)
+
+        pr_numbers, dropped = _apply_prior_release_exclusion(pr_numbers, repo_slug, prior_keys)
+        if dropped:
+            excluded_per_repo[repo_slug] = dropped
+            logger.info(
+                '%s: excluded %d PR(s) already reported in a prior release; %d remain',
+                repo_slug, dropped, len(pr_numbers),
+            )
 
         if not pr_numbers:
             logger.warning('No PRs found in %s between %s and %s',
@@ -1738,6 +1833,19 @@ def _run_fetch(args: argparse.Namespace) -> int:
 
     existing_path = output_json if output_json.exists() else None
     merged = merge_with_existing(all_prs, existing_path)
+
+    # A previous run's output may still hold PRs that are now excluded. Filter
+    # after the merge too, so the exclusion holds regardless of how a PR got in.
+    if prior_keys:
+        kept = [pr for pr in merged
+                if (pr.get('repo', ''), pr.get('number', 0)) not in prior_keys]
+        carried_over = len(merged) - len(kept)
+        if carried_over:
+            logger.info(
+                'Excluded %d already-reported PR(s) carried over from the existing JSON',
+                carried_over,
+            )
+        merged = kept
 
     cat_counts: dict[str, int] = {}
     machinery_count = 0
@@ -1779,6 +1887,12 @@ def _run_fetch(args: argparse.Namespace) -> int:
         'categorization_summary': cat_counts,
         'release_machinery_count': machinery_count,
     }
+    if exclude_sources:
+        metadata['excluded_prior_releases'] = {
+            'sources': exclude_sources,
+            'per_repo': excluded_per_repo,
+            'total': sum(excluded_per_repo.values()),
+        }
     if any(v != args.from_ref for v in from_ref_map.values()) or \
             any(v != args.to_ref for v in to_ref_map.values()):
         metadata['repo_refs'] = {
@@ -2013,6 +2127,12 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--dry-run', action='store_true',
                         help='Show which PRs would be fetched (from git log) and exit '
                              'without calling the GitHub API or writing any files')
+    parser.add_argument('--exclude-json', nargs='*', action='extend', default=None,
+                        help='Path(s) to prior release report JSON(s). PRs already reported '
+                             'there are dropped from this window and never fetched. Needed '
+                             'because a release tag on the main line shares only an ancient '
+                             'merge-base with development, so the raw window spans two '
+                             'cycles. (repeatable)')
     parser.add_argument('--no-pointrelease-audit', action='store_true',
                         help='Skip the point-release audit sidecar even when --from-ref '
                              'looks like a point-release tag')
