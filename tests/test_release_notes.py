@@ -7,6 +7,7 @@
 #
 
 import json
+import logging
 import pathlib
 import re
 import stat
@@ -1208,14 +1209,13 @@ class TestNormalizePrDataTruncation:
 
 
 class TestSchemaVersion:
-    def test_schema_version_is_5(self):
-        # 4 -> 5 when per-PR `files_truncated` and metadata.file_list_truncated
-        # were added. Schema 4 files still load (load_existing_json accepts
-        # SCHEMA_VERSION and SCHEMA_VERSION - 1) and are backfilled on merge.
-        assert release_notes.SCHEMA_VERSION == 5
+    def test_schema_version_is_6(self):
+        # 5 -> 6 when metadata.reused_from_cache was added. Schema 5 files still
+        # load (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
+        assert release_notes.SCHEMA_VERSION == 6
 
     def test_metadata_records_tool_version(self):
-        assert release_notes.__version__ == '0.6.4-beta'
+        assert release_notes.__version__ == '0.7.0-beta'
 
 
 class TestParsePointReleaseTag:
@@ -1979,7 +1979,7 @@ class TestSbomIntegrity:
 
 class TestSchemaVersionProvenance:
     def test_schema_version_is_current(self):
-        assert release_notes.SCHEMA_VERSION == 5
+        assert release_notes.SCHEMA_VERSION == 6
 
     def test_previous_schema_still_loads(self, tmp_path):
         path = tmp_path / 'old.json'
@@ -2603,3 +2603,107 @@ class TestBatchRetryAndClassification:
                             'Could not resolve to a PullRequest with the number of 1')), \
              mock.patch('release_notes.time.sleep'):
             assert release_notes.fetch_pr_metadata_batch('o3de/o3de', [1]) == []
+
+
+class TestLogFileValidation:
+    @staticmethod
+    def _reset():
+        for h in list(release_notes.logger.handlers):
+            release_notes.logger.removeHandler(h)
+
+    def test_valid_path_attaches_a_handler(self, tmp_path):
+        self._reset()
+        target = tmp_path / 'run.log'
+        release_notes._configure_logging(False, str(target))
+        release_notes.logger.info('hello')
+        assert any(isinstance(h, logging.FileHandler)
+                   for h in release_notes.logger.handlers)
+        assert 'hello' in target.read_text()
+        self._reset()
+
+    def test_missing_parent_is_reported_not_raised(self, tmp_path, caplog):
+        self._reset()
+        bad = tmp_path / 'no_such_dir' / 'run.log'
+        with caplog.at_level(logging.ERROR, logger='o3de.release_notes'):
+            release_notes._configure_logging(False, str(bad))
+        assert any('Invalid --log-file path' in r.getMessage() for r in caplog.records)
+        assert not any(isinstance(h, logging.FileHandler)
+                       for h in release_notes.logger.handlers)
+        self._reset()
+
+    def test_a_bad_log_path_never_aborts_the_run(self, tmp_path):
+        # Logging is a convenience; losing it must not cost the release notes.
+        self._reset()
+        release_notes._configure_logging(False, str(tmp_path / 'nope' / 'x.log'))
+        release_notes.logger.info('still working')
+        self._reset()
+
+    def test_no_log_file_is_a_noop(self):
+        self._reset()
+        release_notes._configure_logging(False, None)
+        assert not any(isinstance(h, logging.FileHandler)
+                       for h in release_notes.logger.handlers)
+
+
+class TestReuseExisting:
+    """Caching must never freeze a wrong SIG for the rest of a cycle."""
+
+    @staticmethod
+    def _pr(number, source, sig='sig/build', **extra):
+        pr = {'repo': 'o3de/o3de', 'number': number, 'title': f'PR {number}',
+              'body': '', 'labels': [], 'files': [], 'sig_category': sig,
+              'categorization_source': source}
+        pr.update(extra)
+        return pr
+
+    def test_only_label_sourced_prs_are_cacheable(self):
+        existing = {'pull_requests': [
+            self._pr(1, 'label'),
+            self._pr(2, 'heuristic_title'),
+            self._pr(3, 'heuristic_files'),
+            self._pr(4, 'uncategorized', sig='uncategorized'),
+        ]}
+        cacheable = release_notes.select_cacheable_prs(existing)
+        assert set(cacheable) == {('o3de/o3de', 1)}
+
+    def test_uncategorized_pr_is_never_cached(self):
+        # The whole point: its sig/ label may have been applied since.
+        existing = {'pull_requests': [self._pr(9, 'uncategorized', sig='uncategorized')]}
+        assert release_notes.select_cacheable_prs(existing) == {}
+
+    def test_no_existing_report_means_no_cache(self):
+        assert release_notes.select_cacheable_prs(None) == {}
+        assert release_notes.select_cacheable_prs({'pull_requests': []}) == {}
+
+    def test_derived_fields_are_recomputed_not_trusted(self):
+        # A cached PR carrying conclusions from an older version of the tool
+        # must be re-derived, or today's heuristic fixes would never reach it.
+        stale = {
+            'repo': 'o3de/o3de', 'number': 19178,
+            'title': 'Fix Clang20 compile errors',
+            'body': '', 'labels': ['sig/build', 'sync/to-stabilization'],
+            'files': [],
+            'sig_category': 'sig/graphics-audio',        # wrong, from an old run
+            'categorization_source': 'label',
+            'flags': ['stabilization-sync'],             # the retired flag
+            'release_machinery': True,                   # wrong
+            'description': 'stale text',
+        }
+        fresh = release_notes.rederive_pr_fields(dict(stale))
+        assert fresh['sig_category'] == 'sig/build'
+        assert fresh['flags'] == []
+        assert fresh['release_machinery'] is False
+        assert fresh['description'] == 'Fix Clang20 compile errors.'
+
+    def test_rederive_preserves_raw_github_fields(self):
+        pr = self._pr(5, 'label', title='Keep me', body='body text',
+                      labels=['sig/build'], files=['a.cpp'])
+        out = release_notes.rederive_pr_fields(dict(pr))
+        assert out['title'] == 'Keep me'
+        assert out['body'] == 'body text'
+        assert out['labels'] == ['sig/build']
+        assert out['files'] == ['a.cpp']
+
+    def test_rederive_sets_files_truncated(self):
+        pr = self._pr(6, 'label', files=[f'f{i}.cpp' for i in range(200)])
+        assert release_notes.rederive_pr_fields(dict(pr))['files_truncated'] is True
