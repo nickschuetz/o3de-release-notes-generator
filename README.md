@@ -125,6 +125,7 @@ python release_notes.py render \
   --release-version <version-string> \
   [--include-uncategorized] \
   [--include-release-machinery] \
+  [--include-duplicates] \
   [--generate-summary] \
   [--summary-cmd <command>] \
   [--summary-hint <text>] \
@@ -139,6 +140,7 @@ python release_notes.py render \
 | `--release-version` | Yes | - | Release version string (e.g., `26.05.0`) |
 | `--include-uncategorized` | No | off | Show PRs that couldn't be categorized |
 | `--include-release-machinery` | No | off | Include release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) in the rendered output. Off by default for major releases; turn on for point-release notes where machinery IS the content |
+| `--include-duplicates` | No | off | Keep every PR sharing a title within a repo. Off by default: when two PRs in the same repo have the same title **and** the same changed-file list, one bullet is rendered and the collapsed PR numbers are logged at WARNING |
 | `--generate-summary` | No | off | Generate a narrative summary using an LLM |
 | `--summary-cmd` | No | `ollama run --nowordwrap qwen2.5:14b` | Command to generate the summary |
 | `--summary-hint` | No | - | Narrative guidance: inline text or `@filepath` to read from a file |
@@ -432,6 +434,36 @@ dropped silently. **Read this line on every run.** A sudden jump in any excluded
 category means a heuristic has started over-matching; that is exactly how 57 real
 PRs went missing from the 26.05.0 notes undetected.
 
+## Duplicate Collapsing
+
+The same change can merge twice under two PR numbers, usually a resubmission or
+the same fix proposed against two branches. Both then land in the window and the
+notes print the change twice. The 26.10.0 draft had four such pairs.
+
+A pair is collapsed only with positive evidence that it is one change: same
+repo, same title (whitespace- and case-insensitive), **and** the same set of
+changed files. Title alone is too weak over a couple hundred PRs, where a
+subject like "Fix build error" recurs on unrelated work, and deleting a real
+change is far worse than printing a bullet twice. A PR with no recorded file
+list is never collapsed, since absent evidence is not evidence of sameness.
+
+Every collapse is named, not merely counted, so the call can be checked:
+
+```
+[WARNING] o3de.release_notes: Duplicate title in o3de/o3de: kept #19949,
+          collapsed #19957 ('fix(maestro): Fix operator precedence in
+          CCompoundSplineTrack::RemoveKey'). Re-run render with
+          --include-duplicates to keep all of them.
+```
+
+The survivor is the PR with a real SIG where the pair straddles categorized and
+uncategorized, and otherwise the lower number. Collapsed PRs appear in the
+reconciliation line as `duplicate=N`. Pass `--include-duplicates` to keep every
+copy.
+
+The point-release audit deliberately counts a collapsed duplicate as present:
+the fix did reach the reader, through its twin's bullet.
+
 ## JSON Schema
 
 The intermediate JSON is the primary data format. It can be edited by humans or consumed by AI agents.
@@ -448,7 +480,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.7.1-beta",
+    "tool_version": "0.8.0-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,

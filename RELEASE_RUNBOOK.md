@@ -122,6 +122,11 @@ Excluded 17 PR(s) from the report: cherry-pick=12, release_machinery=1, uncatego
   is what removed 57 real PRs from the 26.05.0 notes.
 - `uncategorized` should be small. Re-run `render` with `--include-uncategorized`
   to see them and assign each one via `manual_override_sig`.
+- `duplicate` means two PRs carried the same title and the same changed files, so
+  only one bullet was rendered. Each collapsed group is logged by number. Skim
+  those lines: the rule is deliberately strict, but a curator is the last check
+  on whether the two really were one change. `--include-duplicates` renders all
+  of them if you disagree.
 
 ## 5. Triage
 
