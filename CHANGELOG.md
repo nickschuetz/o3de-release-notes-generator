@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1-beta] - 2026-08-04
+
+### Changed
+- **`.github/FUNDING.yml` is classified as non-product rather than left uncategorized.** Repository governance is owned by the TSC, not by a SIG, and the notes are organised entirely by SIG, so no heading is correct for it; filing it under `sig/release` or `sig/docs-community` would credit a SIG with work it did not do. Excluding it deliberately also keeps it out of the uncategorized triage list, where it would otherwise reappear every cycle with the same answer and train curators to skim the one list they most need to read. Matched as the exact file, never as `.github/`: workflows, issue templates and CODEOWNERS there are real SIG work, and tests pin that.
+- 5 new tests (388 -> 393).
+
+### Fixed
+- 26.10.0 draft: the Maestro cinematics fix (#19949, with its duplicate #19957) is assigned to sig/graphics-audio via `manual_override_sig`. It has no `sig/*` label, no matching title keyword, no entry in the tool's path map, and no CODEOWNERS entry in `o3de/o3de`, so no automatic source could resolve it. With that set, the pair collapses to one bullet and the draft's uncategorized count reaches zero.
+
 ## [0.8.0-beta] - 2026-08-03
 
 ### Fixed

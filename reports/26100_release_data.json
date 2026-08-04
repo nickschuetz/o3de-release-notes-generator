@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-08-04T03:23:13.129934+00:00",
+    "generated_at": "2026-08-04T03:37:39.056643+00:00",
     "from_ref": "2605.0",
     "to_ref": "origin/development",
     "repos": [
@@ -12,15 +12,16 @@
       "o3de/o3de": "/home/nschuetz/PROJECTS/o3de"
     },
     "schema_version": 6,
-    "tool_version": "0.8.0-beta",
+    "tool_version": "0.8.1-beta",
     "pr_count": 200,
     "categorization_summary": {
       "label": 120,
       "heuristic_files": 29,
       "heuristic_title": 48,
-      "uncategorized": 3
+      "uncategorized": 1,
+      "manual_override": 2
     },
-    "release_machinery_count": 1,
+    "release_machinery_count": 2,
     "file_list_truncated": {
       "page_size": 100,
       "count": 9,
@@ -77,7 +78,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-08-04T03:23:13.129934+00:00"
+      "end": "2026-08-04T03:37:39.056643+00:00"
     }
   },
   "pull_requests": [
@@ -4217,7 +4218,7 @@
       "categorization_source": "uncategorized",
       "description": "Add FUNDING.yml file to add a Sponsor button on Github: This adds a button that opens the donate page of O3DE.",
       "flags": [],
-      "release_machinery": false,
+      "release_machinery": true,
       "manual_override_sig": null,
       "manual_override_description": null
     },
@@ -5961,12 +5962,12 @@
       "files": [
         "Gems/Maestro/Code/Source/Cinematics/CompoundSplineTrack.cpp"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "manual_override",
       "description": "Separates \\`FindKey\\` result assignment from the comparison check in \\`CCompoundSplineTrack::RemoveKey\\`.",
       "flags": [],
       "release_machinery": false,
-      "manual_override_sig": null,
+      "manual_override_sig": "sig/graphics-audio",
       "manual_override_description": null
     },
     {
@@ -6268,12 +6269,12 @@
       "files": [
         "Gems/Maestro/Code/Source/Cinematics/CompoundSplineTrack.cpp"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "manual_override",
       "description": "Fixes an operator precedence error in \\`CCompoundSplineTrack::RemoveKey\\` where \\`const int subKeyIdx = m_subTracks\\[i\\]->FindKey(time) >= 0\\` evaluated \\`>=\\` before \\`=\\`, assigning boolean \\`0\\`/\\`1\\` to \\`subKeyIdx\\` instead of the key index return value.",
       "flags": [],
       "release_machinery": false,
-      "manual_override_sig": null,
+      "manual_override_sig": "sig/graphics-audio",
       "manual_override_description": null
     },
     {

@@ -480,7 +480,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.8.0-beta",
+    "tool_version": "0.8.1-beta",
     "pr_count": 201,
     "categorization_summary": {
       "label": 131,
@@ -554,7 +554,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `sig_category` | Assigned SIG. Set automatically, or via `manual_override_sig`. |
 | `categorization_source` | How the SIG was assigned: `label`, `heuristic_title`, `heuristic_files`, `uncategorized`, `manual_override` |
 | `flags` | Auto-detected flags. Currently only `cherry-pick` (title evidence), which excludes the PR from rendered markdown. A legacy `stabilization-sync` value may appear in JSON written by ≤0.5.0-beta; it is ignored on render. |
-| `release_machinery` | Auto-detected boolean for release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`-only diffs). Excluded from rendered markdown and summary prompts by default; opt back in with `--include-release-machinery`. |
+| `release_machinery` | Auto-detected boolean for release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`/`.github/FUNDING.yml`-only diffs). Excluded from rendered markdown and summary prompts by default; opt back in with `--include-release-machinery`. |
 | `manual_override_sig` | Set this to reassign a PR to a different SIG. Preserved on re-runs. |
 | `manual_override_description` | Set this to override the auto-generated description. Preserved on re-runs. |
 | `metadata.merge_bases` | Per-repo `{sha, committer_date}` for the merge-base of `from_ref` and `to_ref`. Anchors the actual fork point. |

@@ -168,6 +168,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - This stops the imgui console from receiving inputs when the entire imgui layer is hidden, preventing unintentional garbage text from piling up in the console text entry field while its closed. It does this by queuing up the text events and only flushing them when the imgui mode is visible. [o3de#19882](https://github.com/o3de/o3de/pull/19882)
 - This PR upgrades meshoptimizer 3p to v1.2 Also removed "sparse" and "lock border" LOD generation options as they are intended for meshlets simplification. [o3de#19891](https://github.com/o3de/o3de/pull/19891)
 - Modify the way import os, and remove useless return. [o3de#19927](https://github.com/o3de/o3de/pull/19927)
+- Separates \`FindKey\` result assignment from the comparison check in \`CCompoundSplineTrack::RemoveKey\`. [o3de#19949](https://github.com/o3de/o3de/pull/19949)
 
 ## SIG-Network
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)
