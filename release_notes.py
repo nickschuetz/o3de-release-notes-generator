@@ -26,7 +26,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.7.1-beta'
+__version__ = '0.8.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -220,6 +220,14 @@ SIG_FILE_PATH_PATTERNS = {
         'scripts/signer/',
         '.github/workflows/',
         'python/',
+        # Catch-alls for the two build-owned trees. Safe because matching is
+        # longest-wins: 'cmake/LYTestWrappers.cmake' and 'scripts/ctest/' still
+        # resolve to sig/testing, and 'scripts/o3de/' still resolves to
+        # sig/core. Without these, files sitting directly in cmake/ or scripts/
+        # (o3deConfigVersion.cmake, LYPython.cmake, 3rdPartyPackages.cmake,
+        # o3de.sh) matched nothing and fell through to uncategorized.
+        'cmake/',
+        'scripts/',
     ],
     'sig/network': [
         'Code/Framework/AzFramework/AzFramework/Network/',
@@ -1379,10 +1387,18 @@ def _build_summary_prompt(
     include_release_machinery: bool = False,
 ) -> str:
     by_sig: dict[str, list[str]] = {}
-    for pr in pr_list:
-        if is_excluded_by_flags(pr):
-            continue
-        if not include_release_machinery and pr.get('release_machinery'):
+    # Third consumer of classify_for_report, for the same reason as the other
+    # two: this was a private copy of the filter chain and drifted from it.
+    # Duplicates matter here beyond tidiness. The same title listed twice reads
+    # to the model as two independent changes and inflates that area's apparent
+    # weight in the narrative.
+    reasons = classify_reasons(
+        pr_list,
+        include_uncategorized=False,
+        include_release_machinery=include_release_machinery,
+    )
+    for pr, reason in zip(pr_list, reasons, strict=True):
+        if reason is not None:
             continue
         sig = pr.get('sig_category', 'uncategorized')
         if sig == 'uncategorized':
@@ -1573,38 +1589,164 @@ def generate_summary(
 DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
 
 
+def _normalize_title_for_dedupe(title: str) -> str:
+    """Fold a title to a comparison key: whitespace-collapsed and case-insensitive."""
+    return ' '.join((title or '').split()).casefold()
+
+
+def _duplicate_index_groups(pr_list: list[dict[str, Any]]) -> list[list[int]]:
+    """Positions of PRs that are the same change, in groups of 2 or more.
+
+    Evidence required: same repo, same normalized title, and the same set of
+    changed files. Title alone is too weak over a 200-PR window, where generic
+    subjects like "Fix build error" recur on unrelated work; deleting a real
+    change is a far worse outcome than printing a bullet twice.
+
+    A PR with no recorded file list is never grouped. Absent evidence is not
+    evidence of sameness, and the collapse is only justified by the positive
+    kind. All four duplicate groups in the 26.10.0 window satisfy the stricter
+    rule, each also sharing an author.
+
+    Indices rather than PR dicts because membership decisions are positional.
+    Keying them by (repo, number) would collapse any two entries sharing a key,
+    and the caller cannot assume they never do.
+    """
+    groups: dict[tuple[str, str, frozenset[str]], list[int]] = {}
+    for index, pr in enumerate(pr_list):
+        title = _normalize_title_for_dedupe(pr.get('title', ''))
+        files = frozenset(pr.get('files') or [])
+        if not title or not files:
+            continue
+        groups.setdefault((pr.get('repo', ''), title, files), []).append(index)
+    return [
+        sorted(indices, key=lambda i: pr_list[i].get('number', 0))
+        for _, indices in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1]))
+        if len(indices) > 1
+    ]
+
+
+def find_duplicate_pr_groups(
+    pr_list: list[dict[str, Any]],
+) -> list[list[dict[str, Any]]]:
+    """Group PRs that describe the same change: same repo, same normalized title.
+
+    O3DE's workflow produces genuine duplicates. A fix authored once can land as
+    two merged PRs (a resubmission, or the same change proposed against two
+    branches), and both then appear in the window with distinct numbers. In the
+    26.10.0 draft that is four groups covering eight PRs, two of which rendered
+    as adjacent identical bullets.
+
+    Deliberately scoped to a single repo: `o3de` and `o3de-extras` can carry
+    genuinely different changes under the same generic title, and collapsing
+    across repos would delete real content. Groups are returned sorted, each
+    ordered by PR number, so callers get a deterministic survivor.
+    """
+    return [[pr_list[i] for i in indices] for indices in _duplicate_index_groups(pr_list)]
+
+
+def classify_reasons(
+    pr_list: list[dict[str, Any]],
+    include_uncategorized: bool = False,
+    include_release_machinery: bool = False,
+    include_duplicates: bool = False,
+) -> list[str | None]:
+    """Per-PR reason for exclusion, aligned position-for-position with `pr_list`.
+
+    The single source of truth for report membership. `render_markdown`, the
+    summary prompt, the reconciliation counts, and the point-release audit all
+    read it, so they cannot drift. They previously did: the audit consulted the
+    collected JSON while the renderer applied filters the audit knew nothing
+    about, so a filtered-out PR was reported as present.
+
+    Positional, not keyed by (repo, number), so that two entries sharing a key
+    each get their own decision instead of one silently inheriting the other's.
+    """
+    reasons: list[str | None] = []
+    for pr in pr_list:
+        excluded_flags = sorted(EXCLUDED_FLAGS.intersection(pr.get('flags', []) or []))
+        if excluded_flags:
+            reasons.append(excluded_flags[0])
+        elif not include_release_machinery and pr.get('release_machinery'):
+            reasons.append('release_machinery')
+        elif not include_uncategorized and pr.get('sig_category', 'uncategorized') == 'uncategorized':
+            reasons.append('uncategorized')
+        else:
+            reasons.append(None)
+
+    if not include_duplicates:
+        # Applied last, and only among PRs that would otherwise render. A
+        # duplicate of an already-excluded PR must keep the more specific
+        # reason: reporting a cherry-pick as a duplicate would tell a curator
+        # to look for an original that is itself not in the report.
+        for indices in _duplicate_index_groups(pr_list):
+            survivors = [i for i in indices if reasons[i] is None]
+            # Prefer a PR that carries a real SIG over one that does not, then
+            # the lower number. When a duplicate pair straddles the two, keeping
+            # the categorized member preserves a bullet in the right section;
+            # keeping the other would file the change under Uncategorized or
+            # drop it, losing content the report already had.
+            survivors.sort(key=lambda i: (
+                pr_list[i].get('sig_category', 'uncategorized') == 'uncategorized',
+                pr_list[i].get('number', 0),
+            ))
+            for i in survivors[1:]:
+                reasons[i] = 'duplicate'
+
+    return reasons
+
+
 def classify_for_report(
     pr_list: list[dict[str, Any]],
     include_uncategorized: bool = False,
     include_release_machinery: bool = False,
+    include_duplicates: bool = False,
 ) -> dict[tuple[str, int], str | None]:
-    """Map each PR to the reason it is kept out of the report, or None if it renders.
+    """`classify_reasons` keyed by (repo, number), for the point-release audit.
 
-    The single source of truth for report membership. Both the reconciliation
-    counts and the point-release audit read it, so the two cannot drift. They
-    previously did: the audit consulted the collected JSON while the renderer
-    applied filters the audit knew nothing about, so a filtered-out PR was
-    reported as present.
+    The audit looks PRs up by number, so it needs the mapping. Callers that
+    iterate a PR list should use `classify_reasons` instead and stay positional.
     """
-    classified: dict[tuple[str, int], str | None] = {}
-    for pr in pr_list:
-        key = (pr.get('repo', ''), pr.get('number', 0))
-        excluded_flags = sorted(EXCLUDED_FLAGS.intersection(pr.get('flags', []) or []))
-        if excluded_flags:
-            classified[key] = excluded_flags[0]
-        elif not include_release_machinery and pr.get('release_machinery'):
-            classified[key] = 'release_machinery'
-        elif not include_uncategorized and pr.get('sig_category', 'uncategorized') == 'uncategorized':
-            classified[key] = 'uncategorized'
-        else:
-            classified[key] = None
-    return classified
+    reasons = classify_reasons(
+        pr_list, include_uncategorized, include_release_machinery, include_duplicates,
+    )
+    return {
+        (pr.get('repo', ''), pr.get('number', 0)): reason
+        for pr, reason in zip(pr_list, reasons, strict=True)
+    }
+
+
+def log_duplicate_groups(
+    pr_list: list[dict[str, Any]],
+    include_uncategorized: bool = False,
+    include_release_machinery: bool = False,
+) -> None:
+    """Name every collapsed duplicate, rather than only counting them.
+
+    A count tells a curator that something was dropped; it does not let them
+    check whether the tool was right. Two PRs sharing a title are strong
+    evidence of the same change, not proof, so the pairs are printed.
+    """
+    reasons = classify_reasons(pr_list, include_uncategorized, include_release_machinery)
+    for indices in _duplicate_index_groups(pr_list):
+        collapsed = [i for i in indices if reasons[i] == 'duplicate']
+        kept = [i for i in indices if reasons[i] is None]
+        if not collapsed or not kept:
+            continue
+        survivor = pr_list[kept[0]]
+        logger.warning(
+            'Duplicate title in %s: kept #%d, collapsed %s (%r). '
+            'Re-run render with --include-duplicates to keep all of them.',
+            survivor.get('repo', ''), survivor.get('number', 0),
+            ', '.join(f"#{pr_list[i].get('number', 0)}" for i in collapsed),
+            (survivor.get('title', '') or '')[:70],
+        )
 
 
 def summarize_render_coverage(
     pr_list: list[dict[str, Any]],
     include_uncategorized: bool = False,
     include_release_machinery: bool = False,
+    include_duplicates: bool = False,
 ) -> dict[str, int]:
     """Account for every PR in the input: how many reach the report, and why the
     rest do not.
@@ -1616,9 +1758,9 @@ def summarize_render_coverage(
     26.05.0 went unnoticed precisely because nothing reported this.
     """
     counts: dict[str, int] = {'total': len(pr_list), 'rendered': 0}
-    for reason in classify_for_report(
-        pr_list, include_uncategorized, include_release_machinery,
-    ).values():
+    for reason in classify_reasons(
+        pr_list, include_uncategorized, include_release_machinery, include_duplicates,
+    ):
         if reason is None:
             counts['rendered'] += 1
         else:
@@ -1653,14 +1795,26 @@ def render_markdown(
     include_uncategorized: bool = False,
     summary: str | None = None,
     include_release_machinery: bool = False,
+    include_duplicates: bool = False,
 ) -> str:
     by_sig: dict[str, list[dict[str, Any]]] = {}
     uncategorized = []
 
-    for pr in pr_list:
-        if is_excluded_by_flags(pr):
-            continue
-        if not include_release_machinery and pr.get('release_machinery'):
+    # Membership comes from classify_for_report rather than a second copy of the
+    # filter chain. This function used to re-implement it, which is how the
+    # point-release audit and the renderer disagreed about what was in the
+    # report; a filter added to one was invisible to the other. The flags are
+    # passed through unchanged so this call and the one behind the
+    # reconciliation counts classify identically.
+    reasons = classify_reasons(
+        pr_list,
+        include_uncategorized=include_uncategorized,
+        include_release_machinery=include_release_machinery,
+        include_duplicates=include_duplicates,
+    )
+
+    for pr, reason in zip(pr_list, reasons, strict=True):
+        if reason is not None:
             continue
 
         sig = pr.get('sig_category', 'uncategorized')
@@ -2261,6 +2415,11 @@ def _maybe_write_pointrelease_audit(
             merged,
             include_uncategorized=getattr(args, 'include_uncategorized', False),
             include_release_machinery=getattr(args, 'include_release_machinery', False),
+            # A bundled fix collapsed as a duplicate still reaches the reader,
+            # via the bullet for its twin. Counting it as absent would raise
+            # "action required" for content that is present, and a checklist
+            # that cries wolf stops being read.
+            include_duplicates=True,
         )
         present_numbers = {
             number for (repo, number), reason in classification.items()
@@ -2331,18 +2490,29 @@ def _run_render(args: argparse.Namespace) -> int:
         else:
             logger.warning('Summary generation failed, using placeholder')
 
+    include_duplicates = getattr(args, 'include_duplicates', False)
+
     content = render_markdown(
         data['pull_requests'],
         args.release_version,
         include_uncategorized=args.include_uncategorized,
         summary=summary,
         include_release_machinery=include_release_machinery,
+        include_duplicates=include_duplicates,
     )
+
+    if not include_duplicates:
+        log_duplicate_groups(
+            data['pull_requests'],
+            include_uncategorized=args.include_uncategorized,
+            include_release_machinery=include_release_machinery,
+        )
 
     log_render_coverage(summarize_render_coverage(
         data['pull_requests'],
         include_uncategorized=args.include_uncategorized,
         include_release_machinery=include_release_machinery,
+        include_duplicates=include_duplicates,
     ))
 
     write_markdown_atomic(content, output_md)
@@ -2444,6 +2614,10 @@ def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool =
                              'point-release branch admin, etc.) in the rendered output. '
                              'Default: off for major releases; turn on for point-release notes '
                              'where this IS the content.')
+    parser.add_argument('--include-duplicates', action='store_true',
+                        help='Keep every PR sharing a title within a repo. Default: off, which '
+                             'renders one bullet per distinct title and logs each collapsed '
+                             'group so the choice can be checked.')
 
 
 def add_parser_args(parser: argparse.ArgumentParser) -> None:

@@ -34,10 +34,13 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Fixes the autogen cmake script to not trigger a full cmake regenerate…. [o3de#19849](https://github.com/o3de/o3de/pull/19849)
 - Updates the Android NDK used across the engines build tooling and CI from r25 (\`25.1.8937393\`, Clang 14) to r27d (\`27.3.13750724\`, Clang 18). [o3de#19857](https://github.com/o3de/o3de/pull/19857)
 - Fixes a CMake configuration error when using Qt6. [o3de#19867](https://github.com/o3de/o3de/pull/19867)
-- Update 3P version and SHA256 hash for pyside6-6.10.2. [o3de#19902](https://github.com/o3de/o3de/pull/19902)
+- Trust the user when they specify an engine. [o3de#19903](https://github.com/o3de/o3de/pull/19903)
 - (Addresses missing promotion for expat for mac). [o3de#19914](https://github.com/o3de/o3de/pull/19914)
+- LYPython: keep editable pip install for out-of-source packages on installed engines: For issue: https://github.com/o3de/o3de/issues/19909 Full writeup of the problem on the GHI. [o3de#19915](https://github.com/o3de/o3de/pull/19915)
 - Fix builds under C++23 and C++26, in addition to the current default. A few small changes were needed to get clean builds:. [o3de#19924](https://github.com/o3de/o3de/pull/19924)
 - When build space is something that does not match hardcoded regex, it cause AssetProcessor to scan buildspace. It makes AP to work slow and produces lots of errors. [o3de#19940](https://github.com/o3de/o3de/pull/19940)
+- Fix build: fetch content misses extension. [o3de#19941](https://github.com/o3de/o3de/pull/19941)
+- fix(build): Preserve argument quoting and tilde expansion in o3de.sh: Replaces unquoted \`$*\` with \`"$@"\` when forwarding command-line arguments to \`o3de.py\` in \`scripts/o3de.sh\`. [o3de#19950](https://github.com/o3de/o3de/pull/19950)
 - Removes the scheduled cron job for nightly runs, which prevent it from running in forks. We will be executing the scheduled nightly runs through a separate process not tied this workflow. [o3de#19953](https://github.com/o3de/o3de/pull/19953)
 - Adds more ENV Var space for mac, to avoid AR failure. [o3de#19959](https://github.com/o3de/o3de/pull/19959)
 - Update 3P version and SHA256 hash for DirectXShaderCompilerDxc-1.8.2505.1. [o3de#19967](https://github.com/o3de/o3de/pull/19967)
@@ -134,7 +137,6 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - One of the identified qt6 regressions in #19855 is that the inspector doesn't refresh when it should. [o3de#19929](https://github.com/o3de/o3de/pull/19929)
 - SmoothCriticallyDamped Makes \`SmoothCriticallyDamped(...)\` available to use in Lua and Script Canvas. Specifically, reflect methods for floats/numbers, Vector2, Vector3, and Quaternion. [o3de#19934](https://github.com/o3de/o3de/pull/19934)
 - Renames \`Gems/AtomLyIntegration/CommonFeatures/Assets/Objects/Groudplane\` to \`Groundplane\` to fix the misspelling in the asset picker. [o3de#19952](https://github.com/o3de/o3de/pull/19952)
-- Renames \`Gems/AtomLyIntegration/CommonFeatures/Assets/Objects/Groudplane\` to \`Groundplane\` to fix the misspelling in the asset picker. [o3de#19955](https://github.com/o3de/o3de/pull/19955)
 
 ## SIG-Graphics-Audio
 - feature: improve assertions for RHI Vulkan result: \`AssertSuccess\` wraps an assertion for a given line but the asserted code is in a nested call. this just moves the assertion to a macro so the inlined call will be correctly reflected in the logs. [o3de#17169](https://github.com/o3de/o3de/pull/17169)

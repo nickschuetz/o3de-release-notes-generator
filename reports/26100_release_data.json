@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-08-03T18:28:11.722882+00:00",
+    "generated_at": "2026-08-04T00:38:14.195348+00:00",
     "from_ref": "2605.0",
     "to_ref": "origin/development",
     "repos": [
@@ -8,17 +8,17 @@
       "o3de/o3de-extras"
     ],
     "repo_paths": {
-      "o3de/o3de": "/home/nschuetz/PROJECTS/o3de",
-      "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras"
+      "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras",
+      "o3de/o3de": "/home/nschuetz/PROJECTS/o3de"
     },
     "schema_version": 6,
-    "tool_version": "0.7.0-beta",
+    "tool_version": "0.7.1-beta",
     "pr_count": 200,
     "categorization_summary": {
       "label": 120,
-      "heuristic_files": 24,
+      "heuristic_files": 29,
       "heuristic_title": 48,
-      "uncategorized": 8
+      "uncategorized": 3
     },
     "release_machinery_count": 1,
     "file_list_truncated": {
@@ -66,18 +66,18 @@
       }
     },
     "merge_bases": {
-      "o3de/o3de": {
-        "sha": "57680ee42f18d5952e4d4fa5ab52750edefb878e",
-        "committer_date": "2025-07-29T11:12:47-07:00"
-      },
       "o3de/o3de-extras": {
         "sha": "3038e4ac7b566b8b0ab7360acc67d6280eb68eba",
         "committer_date": "2025-09-08T14:48:13+02:00"
+      },
+      "o3de/o3de": {
+        "sha": "57680ee42f18d5952e4d4fa5ab52750edefb878e",
+        "committer_date": "2025-07-29T11:12:47-07:00"
       }
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-08-03T18:28:11.722882+00:00"
+      "end": "2026-08-04T00:38:14.195348+00:00"
     }
   },
   "pull_requests": [
@@ -5173,8 +5173,8 @@
       "files": [
         "cmake/o3deConfigVersion.cmake"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "Trust the user when they specify an engine.",
       "flags": [],
       "release_machinery": false,
@@ -5405,8 +5405,8 @@
       "files": [
         "cmake/LYPython.cmake"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "LYPython: keep editable pip install for out-of-source packages on installed engines: For issue: https://github.com/o3de/o3de/issues/19909 Full writeup of the problem on the GHI.",
       "flags": [],
       "release_machinery": false,
@@ -5898,8 +5898,8 @@
       "files": [
         "cmake/3rdPartyPackages.cmake"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "Fix build: fetch content misses extension.",
       "flags": [],
       "release_machinery": false,
@@ -5982,8 +5982,8 @@
       "files": [
         "scripts/o3de.sh"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "fix(build): Preserve argument quoting and tilde expansion in o3de.sh: Replaces unquoted \\`$*\\` with \\`\"$@\"\\` when forwarding command-line arguments to \\`o3de.py\\` in \\`scripts/o3de.sh\\`.",
       "flags": [],
       "release_machinery": false,
@@ -6247,8 +6247,8 @@
       "files": [
         "scripts/o3de.sh"
       ],
-      "sig_category": "uncategorized",
-      "categorization_source": "uncategorized",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "fix(build): Preserve argument quoting and tilde expansion in o3de.sh: Replaces unquoted \\`$*\\` with \\`\"$@\"\\` when forwarding command-line arguments to \\`o3de.py\\` in \\`scripts/o3de.sh\\`.",
       "flags": [],
       "release_machinery": false,

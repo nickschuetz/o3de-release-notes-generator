@@ -2758,3 +2758,143 @@ class TestReuseExisting:
     def test_rederive_sets_files_truncated(self):
         pr = self._pr(6, 'label', files=[f'f{i}.cpp' for i in range(200)])
         assert release_notes.rederive_pr_fields(dict(pr))['files_truncated'] is True
+
+
+class TestDuplicateCollapsing:
+    """A change that merged twice must appear once, and only on real evidence."""
+
+    @staticmethod
+    def _pr(number, title='Fix the thing', sig='sig/build', repo='o3de/o3de',
+            files=('a.cpp',), flags=None, machinery=False):
+        return {
+            'number': number, 'repo': repo, 'title': title,
+            'sig_category': sig, 'categorization_source': 'label',
+            'description': title, 'files': list(files),
+            'flags': list(flags or []), 'release_machinery': machinery,
+        }
+
+    def test_identical_change_collapses_to_one(self):
+        prs = [self._pr(10), self._pr(20)]
+        assert release_notes.classify_reasons(prs) == [None, 'duplicate']
+
+    def test_lower_number_survives(self):
+        prs = [self._pr(20), self._pr(10)]
+        reasons = release_notes.classify_reasons(prs)
+        assert reasons[1] is None and reasons[0] == 'duplicate'
+
+    def test_same_title_different_files_is_not_a_duplicate(self):
+        # "Fix build error" recurs on unrelated work across a release window.
+        prs = [self._pr(10, files=['a.cpp']), self._pr(20, files=['b.cpp'])]
+        assert release_notes.classify_reasons(prs) == [None, None]
+
+    def test_same_title_different_repo_is_not_a_duplicate(self):
+        prs = [self._pr(10), self._pr(20, repo='o3de/o3de-extras')]
+        assert release_notes.classify_reasons(prs) == [None, None]
+
+    def test_missing_file_list_is_never_collapsed(self):
+        # Absent evidence is not evidence of sameness.
+        prs = [self._pr(10, files=[]), self._pr(20, files=[])]
+        assert release_notes.classify_reasons(prs) == [None, None]
+
+    def test_title_comparison_ignores_case_and_whitespace(self):
+        prs = [self._pr(10, title='Fix  the Thing'), self._pr(20, title='fix the thing')]
+        assert release_notes.classify_reasons(prs) == [None, 'duplicate']
+
+    def test_categorized_survives_over_uncategorized(self):
+        # Keeping the uncategorized member would file the change under
+        # Uncategorized or drop it, losing a bullet the report already had.
+        prs = [self._pr(10, sig='uncategorized'), self._pr(20, sig='sig/build')]
+        reasons = release_notes.classify_reasons(prs, include_uncategorized=True)
+        assert reasons[1] is None and reasons[0] == 'duplicate'
+
+    def test_duplicate_of_an_excluded_pr_keeps_the_specific_reason(self):
+        # Reporting a cherry-pick as a duplicate would send a curator looking
+        # for an original that is itself not in the report.
+        prs = [self._pr(10), self._pr(20, flags=['cherry-pick'])]
+        assert release_notes.classify_reasons(prs) == [None, 'cherry-pick']
+
+    def test_include_duplicates_keeps_every_copy(self):
+        prs = [self._pr(10), self._pr(20)]
+        assert release_notes.classify_reasons(prs, include_duplicates=True) == [None, None]
+
+    def test_three_way_duplicate_keeps_exactly_one(self):
+        prs = [self._pr(10), self._pr(20), self._pr(30)]
+        assert release_notes.classify_reasons(prs).count(None) == 1
+
+    def test_reconciliation_accounts_for_collapsed_prs(self):
+        counts = release_notes.summarize_render_coverage([self._pr(10), self._pr(20)])
+        assert counts['total'] == 2
+        assert counts['rendered'] == 1
+        assert counts['excluded_duplicate'] == 1
+
+    def test_buckets_still_sum_to_total(self):
+        prs = [self._pr(10), self._pr(20), self._pr(30, files=['z.cpp']),
+               self._pr(40, flags=['cherry-pick'], files=['q.cpp'])]
+        counts = release_notes.summarize_render_coverage(prs)
+        excluded = sum(v for k, v in counts.items() if k.startswith('excluded_'))
+        assert counts['rendered'] + excluded == counts['total']
+
+    def test_rendered_markdown_contains_one_bullet(self):
+        out = release_notes.render_markdown([self._pr(10), self._pr(20)], '1.0')
+        assert out.count('Fix the thing') == 1
+
+    def test_render_and_reconciliation_cannot_disagree(self):
+        # The defect class 0.6.2-beta fixed: the audit said a PR was present
+        # while the renderer had filtered it. Any filter must be visible to both.
+        prs = [self._pr(10), self._pr(20), self._pr(30, files=['z.cpp'])]
+        out = release_notes.render_markdown(prs, '1.0')
+        counts = release_notes.summarize_render_coverage(prs)
+        assert out.count('](https://github.com/o3de/o3de/pull/') == counts['rendered']
+
+    def test_summary_prompt_lists_the_change_once(self):
+        prompt = release_notes._build_summary_prompt([self._pr(10), self._pr(20)], '1.0')
+        assert prompt.count('Fix the thing') == 1
+
+    def test_collapsed_pairs_are_named_not_just_counted(self, caplog):
+        prs = [self._pr(10), self._pr(20)]
+        with caplog.at_level(logging.WARNING, logger='o3de.release_notes'):
+            release_notes.log_duplicate_groups(prs)
+        assert 'kept #10' in caplog.text
+        assert '#20' in caplog.text
+
+    def test_no_warning_when_there_are_no_duplicates(self, caplog):
+        with caplog.at_level(logging.WARNING, logger='o3de.release_notes'):
+            release_notes.log_duplicate_groups([self._pr(10), self._pr(20, files=['z.cpp'])])
+        assert 'Duplicate title' not in caplog.text
+
+    def test_audit_counts_a_collapsed_duplicate_as_present(self):
+        # The fix reached the reader via its twin's bullet. A checklist that
+        # flags present content as missing stops being read.
+        prs = [self._pr(10), self._pr(20)]
+        classified = release_notes.classify_for_report(prs, include_duplicates=True)
+        assert classified[('o3de/o3de', 20)] is None
+
+
+class TestBuildPathHeuristicCoverage:
+    """cmake/ and scripts/ fall to sig/build without shadowing narrower owners."""
+
+    @staticmethod
+    def _sig(files):
+        pr = {'number': 1, 'repo': 'o3de/o3de', 'title': 'Untitled change',
+              'body': '', 'labels': [], 'files': files}
+        return release_notes.categorize_pr(pr)
+
+    @pytest.mark.parametrize('path', [
+        'cmake/o3deConfigVersion.cmake',
+        'cmake/LYPython.cmake',
+        'cmake/3rdPartyPackages.cmake',
+        'scripts/o3de.sh',
+    ])
+    def test_loose_build_files_resolve_to_build(self, path):
+        # Each of these was uncategorized in the 26.10.0 draft.
+        assert self._sig([path])[0] == 'sig/build'
+
+    @pytest.mark.parametrize('path,expected', [
+        ('cmake/LYTestWrappers.cmake', 'sig/testing'),
+        ('scripts/ctest/run.py', 'sig/testing'),
+        ('scripts/o3de/o3de.py', 'sig/core'),
+        ('cmake/Platform/Linux/x.cmake', 'sig/build'),
+    ])
+    def test_specific_owners_still_win(self, path, expected):
+        # Longest-match-wins is what makes the catch-alls safe to add.
+        assert self._sig([path])[0] == expected

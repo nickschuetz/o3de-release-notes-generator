@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-beta] - 2026-08-03
+
+### Fixed
+- **The same change was rendered twice.** Four PR pairs in the 26.10.0 window are one change merged under two numbers; two of them rendered as duplicate bullets, including an adjacent identical pair. PRs sharing a repo, a normalized title, **and** an identical changed-file set now render once. All three signals are required: over a 200-PR window a subject like "Fix build error" recurs on unrelated work, and deleting a real change is far worse than printing a bullet twice. A PR with no recorded file list is never collapsed, because absent evidence is not evidence of sameness. Every collapse is logged by number so a curator can check the call, and `--include-duplicates` keeps all copies.
+- **Files sitting directly in `cmake/` and `scripts/` matched no SIG.** `SIG_FILE_PATH_PATTERNS` listed only subdirectories (`cmake/Platform/`, `scripts/build/`), so `o3deConfigVersion.cmake`, `LYPython.cmake`, `3rdPartyPackages.cmake` and `o3de.sh` fell through to uncategorized. Catch-alls for both trees are safe because matching is longest-wins: `cmake/LYTestWrappers.cmake` and `scripts/ctest/` still resolve to sig/testing, `scripts/o3de/` still to sig/core. Uncategorized in the live draft drops 8 -> 3.
+
+### Changed
+- **`classify_reasons()` replaces three private copies of the filter chain.** `render_markdown()`, `_build_summary_prompt()`, and `summarize_render_coverage()` each re-implemented it; that divergence is how the renderer and the point-release audit came to disagree in 0.6.2-beta. It is **positional** (a list aligned to `pr_list`) rather than keyed by `(repo, number)`, because two entries sharing a key would otherwise silently inherit one decision. `classify_for_report()` remains as the keyed view the audit needs.
+- Duplicates are excluded from the summary prompt too. The same title listed twice reads to the model as two independent changes and inflates that area's weight in the narrative.
+- The point-release audit counts a collapsed duplicate as present: the fix reached the reader through its twin's bullet, and a checklist that flags present content as missing stops being read.
+- 26 new tests (362 -> 388). No schema change; collapsing is a render-time decision.
+
 ## [0.7.1-beta] - 2026-08-03
 
 ### Fixed
