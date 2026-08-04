@@ -1522,6 +1522,34 @@ class TestIsReleaseMachinery:
         }
         assert release_notes.is_release_machinery(pr) is False
 
+    def test_funding_yml_only_is_machinery(self):
+        # TSC-owned repository governance. The notes are organised by SIG, so
+        # there is no correct heading for it, and it is not an engine change.
+        pr = {
+            'title': 'Add FUNDING.yml file to add a Sponsor button on Github',
+            'files': ['.github/FUNDING.yml'],
+        }
+        assert release_notes.is_release_machinery(pr) is True
+
+    def test_funding_yml_alongside_code_is_not_machinery(self):
+        # The file rule requires EVERY file to match, so a PR that also touches
+        # engine code stays a product change.
+        pr = {
+            'title': 'Add sponsor button and fix a crash',
+            'files': ['.github/FUNDING.yml', 'Code/Framework/AzCore/Thing.cpp'],
+        }
+        assert release_notes.is_release_machinery(pr) is False
+
+    @pytest.mark.parametrize('path', [
+        '.github/ISSUE_TEMPLATE/bug.md',
+        '.github/PULL_REQUEST_TEMPLATE.md',
+        '.github/CODEOWNERS',
+    ])
+    def test_other_dotgithub_files_are_not_machinery(self, path):
+        # The pattern is the exact file, not the directory: other .github
+        # content is real work by real SIGs.
+        assert release_notes.is_release_machinery({'title': 'Update', 'files': [path]}) is False
+
     def test_engine_json_only_is_machinery(self):
         # engine.json-only PRs are version bumps / template updates by definition.
         pr = {

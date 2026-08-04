@@ -26,7 +26,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.8.0-beta'
+__version__ = '0.8.1-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -312,6 +312,20 @@ RELEASE_MACHINERY_FILE_PATTERNS = [
     re.compile(r'(^|/)engine\.json$'),
     re.compile(r'^sbom\.cdx\.json$'),
     re.compile(r'/version\.txt$'),
+    # Repository governance, owned by the TSC rather than by any SIG. The
+    # release notes are organised entirely by SIG, so there is no correct
+    # heading for this: filing it under sig/release or sig/docs-community would
+    # credit a SIG with work it did not do. It is not an engine change, so it
+    # does not belong in the notes at all.
+    #
+    # Classified here rather than left uncategorized so the exclusion is a
+    # decision instead of a failure. "Uncategorized" is a triage signal, and a
+    # PR that recurs there every cycle with the same answer trains curators to
+    # skim the one list they most need to read.
+    #
+    # Deliberately the exact file, not `.github/`: workflows and issue
+    # templates under that directory are real work by real SIGs.
+    re.compile(r'^\.github/FUNDING\.yml$'),
 ]
 
 
