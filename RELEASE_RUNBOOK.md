@@ -253,30 +253,59 @@ than anything owed to 26.10.0.
 
 Suppress the sidecar with `--no-pointrelease-audit`.
 
-## 7a. Watch `need-sync/to-development`
+## 7a. Track the sync labels
 
-PRs merged **directly into the stabilization branch** carry the
-[`need-sync/to-development`](https://github.com/o3de/o3de/issues?q=state%3Aopen%20label%3Aneed-sync%2Fto-development)
-label so they get ported back to `development`. They matter here for a specific
+Two labels bracket the release branch, and they answer different questions.
+
+### `need-sync/to-stabilization` — what is still owed to the release
+
+[Open PRs with this label](https://github.com/o3de/o3de/issues?q=state%3Aopen%20label%3Aneed-sync%2Fto-stabilization)
+are destined for this release but are not in it yet. This is the forward-looking
+queue: the draft grows as each one is merged and cherry-picked.
+
+```bash
+# still owed to the release
+gh api --paginate 'repos/o3de/o3de/issues?labels=need-sync/to-stabilization&state=all&per_page=100' \
+  --jq '.[] | select(.pull_request != null) | "\(.number)\t\(.state)\t\(.title)"'
+```
+
+The dangerous state is **merged but not yet cherry-picked**. Such a PR is in
+`development`, flagged as release content, and absent from the notes. As of
+2026-08-20 that is `#20013` (merged 2026-08-18). Compare the two windows by PR
+number, not by commit SHA: a cherry-pick has a different SHA, so a SHA-based
+diff reports fixes as pending that are already on the branch (`#19998` looks
+pending that way and is not).
+
+```bash
+prs() { git log --format=%s "$1" | grep -oE '\(#[0-9]+\)$|^Merge pull request #[0-9]+' \
+        | grep -oE '[0-9]+' | sort -un; }
+comm -23 <(prs 2605.0..upstream/development) <(prs 2605.0..origin/stabilization/26100)
+```
+
+That currently yields 5: `#20003 #20004 #20005 #20008 #20013`. Only `#20013`
+carries the label, so the rest are not (yet) claimed for this release.
+
+**Run this against `upstream/development`, not `origin/development`.** The fork
+lags, and it was 2 commits behind on 2026-08-20 — enough to hide `#20013`
+entirely.
+
+### `need-sync/to-development` — what came in through the back door
+
+PRs merged **directly into the stabilization branch** carry this label so they
+get ported back to `development`. They matter to the notes for a different
 reason: they never pass through `development`, so a report generated with
-`--to-ref origin/development` **cannot see them at all**. Generating from the
-stabilization branch is what makes them visible.
+`--to-ref origin/development` cannot see them at all.
 
 That class was missed before. `#19777` merged to `stabilization/26050`, shipped
 in 26.05.0 (its merge commit is an ancestor of the `2605.0` tag), and appears in
-no report. `#20009` is the 26.10.0 equivalent and is in the current draft under
+no report. `#20009` is the 26.10.0 equivalent and is in the draft under
 SIG-Release, because this cycle generates from stabilization.
 
-```bash
-gh api --paginate 'repos/o3de/o3de/issues?state=open&labels=need-sync/to-development&per_page=100' \
-  --jq '.[] | select(.pull_request != null) | "\(.number)\t\(.title)"'
-```
+### Neither label is an exclusion signal
 
-Open ones are pending release content: they land in the notes once merged.
-**Never treat this label as an exclusion signal.** It marks real product
-changes. A substring match on the similarly-named `sync/to-stabilization` label
-once deleted 57 real changes from a shipped report, which is why categorization
-uses title evidence rather than labels for cherry-pick detection.
+Both mark real product changes. A substring match on the similarly-named
+`sync/to-stabilization` once deleted 57 real changes from a shipped report,
+which is why cherry-pick detection uses title evidence and never labels.
 
 ## 8. Pre-publication checklist
 
@@ -289,6 +318,10 @@ uses title evidence rather than labels for cherry-pick detection.
 - [ ] Reconciliation line read; every exclusion bucket understood
 - [ ] `uncategorized` triaged to zero, or consciously accepted
 - [ ] Point-release audit has no unexplained ✗ entries
+- [ ] No **merged** PR still carries `need-sync/to-stabilization`. One that does
+      was intended for this release and never cherry-picked, so it is missing
+      from the notes and from the build
+- [ ] Pending-cherry-pick list compared by PR number against `upstream/development`
 - [ ] Narrative summary read end to end
 - [ ] Spot-check a few bullets against their PRs on GitHub
 - [ ] `metadata.tool_version` in the JSON matches the version you intended to run
