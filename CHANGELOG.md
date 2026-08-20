@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Audit wording is parameterised by kind, so the stabilization sidecar describes the merge-vs-squash risk it actually checks instead of point-release phrasing. The point-release output is unchanged by default.
+- Documented both sync labels. **`need-sync/to-stabilization`** is the forward-looking queue: PRs owed to this release but not yet in it. The dangerous state is merged-but-not-yet-cherry-picked (as of 2026-08-20, `#20013`), because such a PR is flagged as release content and absent from the notes. The runbook records that the pending list must be compared by PR **number** rather than commit SHA, since a cherry-pick changes the SHA and makes already-picked fixes look pending (`#19998` does exactly that), and against `upstream/development` rather than the fork, which was 2 commits behind and hid `#20013` entirely. A pre-publication checklist item now covers it.
 - Documented `need-sync/to-development`: PRs merged directly into the stabilization branch carry it and never pass through `development`, so a report generated with `--to-ref origin/development` cannot see them at all. That is how #19777 went unreported; #20009 is this cycle's equivalent and is in the draft under SIG-Release. The runbook records that the label must never be used as an exclusion signal, the mistake that once deleted 57 real changes.
 
 ## [0.9.0-beta] - 2026-08-20
