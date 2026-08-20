@@ -26,7 +26,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.9.0-beta'
+__version__ = '0.10.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -633,6 +633,18 @@ def extract_merge_base(
 MAX_CONTAINER_BODY_BYTES = 32768
 
 
+# A release branch, e.g. `stabilization/26100` or `origin/stabilization/26100`.
+# Used to decide whether the cherry-pick audit applies: during stabilization,
+# fixes reach the release branch by cherry-pick, and a container that is
+# squash-merged carries only its own PR number. The container is then excluded
+# as a cherry-pick and the fixes it bundles appear nowhere.
+STABILIZATION_BRANCH_PATTERN = re.compile(r'(?:^|/)stabilization/\d+$')
+
+
+def is_stabilization_ref(ref: str) -> bool:
+    return bool(STABILIZATION_BRANCH_PATTERN.search(ref or ''))
+
+
 def extract_pointrelease_containers(
     repo_path: pathlib.Path,
     predecessor_tag: str,
@@ -716,26 +728,50 @@ def write_pointrelease_audit(
       - per_repo: {repo_slug: {containers: [...], present_pr_numbers: set[int]}}
     """
     lines: list[str] = []
-    lines.append(f"# Point-release audit for {audit_data.get('to_ref', '')}\n")
+    kind = audit_data.get('kind', 'pointrelease')
+
+    if kind == 'stabilization':
+        lines.append(f"# Cherry-pick audit for {audit_data.get('to_ref', '')}\n")
+        lines.append(
+            f"From-ref (previous release): `{audit_data.get('from_ref', '')}`  \n"
+            f"To-ref (release branch): `{audit_data.get('to_ref', '')}`\n"
+        )
+        lines.append(
+            "Each entry below is a cherry-pick container PR found on the release\n"
+            "branch for this cycle. A container that is *merged* keeps each\n"
+            "cherry-picked commit's original `(#NNNN)` subject, so the fix enters\n"
+            "the report under its own number and filtering the container out is\n"
+            "harmless. A container that is *squashed* carries only its own number,\n"
+            "and every fix it bundles would then be missing from the report\n"
+            "entirely. Catching that is why this sidecar exists.\n"
+        )
+    else:
+        lines.append(f"# Point-release audit for {audit_data.get('to_ref', '')}\n")
+        lines.append(
+            f"Predecessor major tag: `{audit_data.get('predecessor_tag', '')}`  \n"
+            f"From-ref (point release): `{audit_data.get('from_ref', '')}`  \n"
+            f"To-ref (next major): `{audit_data.get('to_ref', '')}`\n"
+        )
+        lines.append(
+            "Each entry below is a cherry-pick container PR found on the previous\n"
+            "stabilization branch between the predecessor major tag and the\n"
+            "from-ref. A bundled fix shipped in the point release, so a reader of\n"
+            "the next major's notes expects to find it there.\n"
+        )
+
     lines.append(
-        f"Predecessor major tag: `{audit_data.get('predecessor_tag', '')}`  \n"
-        f"From-ref (point release): `{audit_data.get('from_ref', '')}`  \n"
-        f"To-ref (next major): `{audit_data.get('to_ref', '')}`\n"
-    )
-    lines.append(
-        "Each entry below is a cherry-pick container PR found on the previous\n"
-        "stabilization branch between the predecessor major tag and the from-ref.\n"
         "The bundled PRs are extracted from the container's commit body, then\n"
         "checked against what the report actually renders:\n"
         "\n"
-        "- ✓ present in the rendered report, via its development-side merge\n"
+        "- ✓ present in the rendered report\n"
         "- ⚠ collected but filtered OUT of the report (reason shown). These are\n"
-        "  the dangerous ones: the fix shipped in the point release, so a reader\n"
-        "  expects it here. Confirm the filter is right before publishing.\n"
-        "- ✗ not found at all. Investigate.\n"
+        "  the dangerous ones: confirm the filter is right before publishing.\n"
+        "- ○ already reported in a prior release, so correctly absent here\n"
+        "- ✗ neither in this report nor any prior one. Check whether it belongs\n"
+        "  to an earlier cycle before treating it as a loss.\n"
         "\n"
-        "The ⚠ state exists because comparing against the collected JSON rather\n"
-        "than the rendered output reports a green tick for a fix the reader will\n"
+        "Checking against the rendered output rather than the collected JSON is\n"
+        "deliberate: the latter reports a green tick for a fix the reader will\n"
         "never see.\n"
     )
 
@@ -744,11 +780,13 @@ def write_pointrelease_audit(
     grand_total_present = 0
     grand_total_filtered = 0
     grand_total_missing = 0
+    grand_total_prior = 0
 
     for repo_slug, repo_audit in audit_data.get('per_repo', {}).items():
         containers = repo_audit.get('containers', [])
         present = repo_audit.get('present_pr_numbers', set())
         filtered = repo_audit.get('filtered_pr_numbers', {})
+        prior = repo_audit.get('prior_release_pr_numbers', set())
         lines.append(f"\n## {repo_slug}\n")
         if not containers:
             lines.append("_No cherry-pick containers found in this repo._\n")
@@ -773,13 +811,28 @@ def write_pointrelease_audit(
                         f"  - ⚠ #{b}: collected but FILTERED OUT of the report "
                         f"({filtered[b]}); shipped in the point release, so verify"
                     )
+                elif b in prior:
+                    # Shipped and reported in an earlier release, so its absence
+                    # here is correct. Counting these as missing turned a live
+                    # 26.10.0 run into 18 red crosses and an "action required"
+                    # verdict, none of which needed action. A checklist that
+                    # cries wolf is one nobody reads.
+                    grand_total_prior += 1
+                    lines.append(
+                        f"  - ○ #{b}: already reported in a prior release "
+                        f"(correctly absent here)"
+                    )
                 else:
                     grand_total_missing += 1
-                    lines.append(f"  - ✗ #{b}: NOT found at all (investigate)")
+                    lines.append(
+                        f"  - ✗ #{b}: not in this report and not in any prior "
+                        f"report; check whether it belongs to an earlier cycle"
+                    )
 
     lines.append('')
     verdict = (
-        "All bundled fixes are present in the rendered report."
+        "Every bundled fix is either in this report or accounted for by a prior "
+        "release."
         if not grand_total_filtered and not grand_total_missing
         else "**Action required before publishing.**"
     )
@@ -789,7 +842,8 @@ def write_pointrelease_audit(
         f"{grand_total_bundled} bundled PR reference(s) parsed: "
         f"{grand_total_present} rendered, "
         f"{grand_total_filtered} filtered out, "
-        f"{grand_total_missing} not found. {verdict}\n"
+        f"{grand_total_prior} already reported previously, "
+        f"{grand_total_missing} unaccounted for. {verdict}\n"
     )
     content = '\n'.join(lines)
     write_markdown_atomic(content, output_path)
@@ -2459,19 +2513,39 @@ def _maybe_write_pointrelease_audit(
     Writes a sidecar `<output_md_stem>_pointrelease_audit.md` next to the
     markdown output, or next to the JSON if --output-md isn't set yet."""
     parsed = parse_point_release_tag(args.from_ref)
-    if parsed is None or parsed[1] == 0:
+    is_point_release = parsed is not None and parsed[1] != 0
+    # During stabilization, fixes reach the release branch by cherry-pick. The
+    # audit was previously gated on a point-release --from-ref, so it never ran
+    # for the window that carries the most cherry-picks: the one being actively
+    # stabilized. A squash-merged container carries only its own number, is then
+    # filtered out as a cherry-pick, and takes every fix it bundles with it.
+    is_stabilization = is_stabilization_ref(getattr(args, 'to_ref', '') or '')
+    if not is_point_release and not is_stabilization:
         return
+
+    # The exclusion sources are authoritative for "already shipped and already
+    # told to readers", which is a different answer from "missing".
+    prior_keys, _ = load_prior_release_pr_keys(list(getattr(args, 'exclude_json', None) or []))
+
     audit_per_repo: dict[str, dict[str, Any]] = {}
     any_container = False
     for repo_slug, rpath in repo_path_map.items():
-        siblings = find_sibling_point_release_tags(rpath, args.from_ref)
-        major_tag = next(
-            (t for t in siblings if (parse_point_release_tag(t) or (0, 0))[1] == 0),
-            None,
-        )
-        if major_tag is None:
-            continue
-        containers = extract_pointrelease_containers(rpath, major_tag, args.from_ref)
+        if is_point_release:
+            siblings = find_sibling_point_release_tags(rpath, args.from_ref)
+            predecessor = next(
+                (t for t in siblings if (parse_point_release_tag(t) or (0, 0))[1] == 0),
+                None,
+            )
+            if predecessor is None:
+                continue
+            window_end = args.from_ref
+        else:
+            # The audit window is the report window: from the previous release
+            # to the release branch being stabilized.
+            predecessor = args.from_ref
+            window_end = args.to_ref
+        major_tag = predecessor
+        containers = extract_pointrelease_containers(rpath, predecessor, window_end)
         if not containers:
             continue
         any_container = True
@@ -2499,6 +2573,9 @@ def _maybe_write_pointrelease_audit(
             'containers': containers,
             'present_pr_numbers': present_numbers,
             'filtered_pr_numbers': filtered_numbers,
+            'prior_release_pr_numbers': {
+                number for (repo, number) in prior_keys if repo == repo_slug
+            },
             'predecessor_tag': major_tag,
         }
 
@@ -2508,21 +2585,24 @@ def _maybe_write_pointrelease_audit(
     # Sidecar path: derive from --output-md when available; otherwise sit next
     # to the JSON. Same stem as the markdown report so the pair is easy to find.
     output_md = getattr(args, 'output_md', None)
+    suffix = '_pointrelease_audit.md' if is_point_release else '_cherrypick_audit.md'
     if output_md:
         md_path = pathlib.Path(output_md).resolve()
-        audit_path = md_path.with_name(md_path.stem + '_pointrelease_audit.md')
+        audit_path = md_path.with_name(md_path.stem + suffix)
     else:
-        audit_path = output_json.with_name(output_json.stem + '_pointrelease_audit.md')
+        audit_path = output_json.with_name(output_json.stem + suffix)
 
     audit_data = {
         'from_ref': args.from_ref,
         'to_ref': args.to_ref,
         'predecessor_tag': next(iter(audit_per_repo.values()))['predecessor_tag'],
         'per_repo': audit_per_repo,
+        'kind': 'pointrelease' if is_point_release else 'stabilization',
     }
     try:
         write_pointrelease_audit(audit_data, audit_path)
-        logger.info('Wrote point-release audit sidecar to %s', audit_path)
+        logger.info('Wrote %s audit sidecar to %s',
+                    'point-release' if is_point_release else 'cherry-pick', audit_path)
     except OSError as e:
         logger.warning('Could not write audit sidecar: %s', e)
 

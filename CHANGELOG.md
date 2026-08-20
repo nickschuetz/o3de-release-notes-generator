@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0-beta] - 2026-08-20
+
+### Added
+- **The cherry-pick audit now runs for stabilization windows,** not only for point-release `--from-ref`s. It was gated on a condition that excluded the window carrying the most cherry-picks: the one being actively stabilized. `is_stabilization_ref(--to-ref)` triggers it, and it writes `<stem>_cherrypick_audit.md` over `--from-ref..--to-ref`. The risk it covers is specific: a cherry-pick PR that is **merged** keeps each picked commit's original `(#NNNN)` subject, so the fix enters the report under its own number and filtering the container out is harmless (#20006/#19998 on 2026-08-12 behaved exactly this way). A **squashed** container carries only its own number, is then filtered out as a cherry-pick, and takes every fix it bundles with it. Verified that the container patterns match plausible squashed titles and ignore ordinary merge commits.
+- **A fourth audit state: `○ already reported in a prior release`.** Bundled PRs found in an `--exclude-json` source are correctly absent, not missing. Without this the first live run reported 18 ✗ and "Action required before publishing" when 13 had simply shipped in 26.05.0. A checklist that cries wolf is one nobody reads. The remaining 5 are genuine: they belong to the 26.05 and 25.10 cycles, and #19777 among them shipped in 26.05.0 (its merge commit is an ancestor of `2605.0`) yet appears in no report.
+- 14 new tests (401 -> 415).
+
+### Changed
+- Audit wording is parameterised by kind, so the stabilization sidecar describes the merge-vs-squash risk it actually checks instead of point-release phrasing. The point-release output is unchanged by default.
+- Documented `need-sync/to-development`: PRs merged directly into the stabilization branch carry it and never pass through `development`, so a report generated with `--to-ref origin/development` cannot see them at all. That is how #19777 went unreported; #20009 is this cycle's equivalent and is in the draft under SIG-Release. The runbook records that the label must never be used as an exclusion signal, the mistake that once deleted 57 real changes.
+
 ## [0.9.0-beta] - 2026-08-20
 
 ### Added

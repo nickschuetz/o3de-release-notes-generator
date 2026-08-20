@@ -221,14 +221,62 @@ Always read the generated narrative before publishing. It is model output
 derived from untrusted PR titles; tag-like `<` is escaped so it cannot inject
 raw HTML, but nothing validates the claims it makes.
 
-## 7. Point-release audit (when applicable)
+## 7. Cherry-pick audit
 
-If `--from-ref` is a non-zero point-release tag (e.g. `2605.2`), the tool writes
-`reports/26100_release_notes_pointrelease_audit.md`. Every bundled PR from each
-cherry-pick container is marked ✓ (present) or ✗ (missing).
+The tool writes an audit sidecar in two situations:
 
-Investigate every ✗ before publishing. Suppress the sidecar with
-`--no-pointrelease-audit` if it is not relevant.
+| Trigger | Sidecar | Window scanned |
+|---|---|---|
+| `--to-ref` is a `stabilization/NNNNN` branch | `..._cherrypick_audit.md` | `--from-ref`..`--to-ref` |
+| `--from-ref` is a non-zero point-release tag | `..._pointrelease_audit.md` | major tag..`--from-ref` |
+
+**Why the stabilization case matters.** During stabilization, fixes reach the
+release branch by cherry-pick. When a cherry-pick PR is *merged*, each picked
+commit keeps its original `(#NNNN)` subject, so the fix enters the report under
+its own number and filtering the container out is harmless. That is what
+happened with #20006 / #19998 on 2026-08-12. When a container is *squashed*, it
+carries only its own number, is filtered out as a cherry-pick, and takes every
+fix it bundles with it. The sidecar exists to catch that.
+
+Each bundled PR is marked:
+
+- ✓ present in the rendered report
+- ⚠ collected but filtered out (reason shown). Verify the filter.
+- ○ already reported in a prior release, so correctly absent
+- ✗ in neither this report nor any prior one
+
+Check every ⚠ and ✗ before publishing. A ✗ is not automatically a loss: the
+window reaches back to the merge-base, so containers from earlier cycles appear
+too. The 2026-08-20 run showed 5, all from the 26.05 and 25.10 cycles, and
+#19777 among them turned out to be a genuine gap in the 26.05.0 notes rather
+than anything owed to 26.10.0.
+
+Suppress the sidecar with `--no-pointrelease-audit`.
+
+## 7a. Watch `need-sync/to-development`
+
+PRs merged **directly into the stabilization branch** carry the
+[`need-sync/to-development`](https://github.com/o3de/o3de/issues?q=state%3Aopen%20label%3Aneed-sync%2Fto-development)
+label so they get ported back to `development`. They matter here for a specific
+reason: they never pass through `development`, so a report generated with
+`--to-ref origin/development` **cannot see them at all**. Generating from the
+stabilization branch is what makes them visible.
+
+That class was missed before. `#19777` merged to `stabilization/26050`, shipped
+in 26.05.0 (its merge commit is an ancestor of the `2605.0` tag), and appears in
+no report. `#20009` is the 26.10.0 equivalent and is in the current draft under
+SIG-Release, because this cycle generates from stabilization.
+
+```bash
+gh api --paginate 'repos/o3de/o3de/issues?state=open&labels=need-sync/to-development&per_page=100' \
+  --jq '.[] | select(.pull_request != null) | "\(.number)\t\(.title)"'
+```
+
+Open ones are pending release content: they land in the notes once merged.
+**Never treat this label as an exclusion signal.** It marks real product
+changes. A substring match on the similarly-named `sync/to-stabilization` label
+once deleted 57 real changes from a shipped report, which is why categorization
+uses title evidence rather than labels for cherry-pick detection.
 
 ## 8. Pre-publication checklist
 
