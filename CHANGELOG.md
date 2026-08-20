@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1-beta] - 2026-08-20
+
+### Fixed
+- **The stabilization branch cut date was wrong in three docs.** They said 2026-08-13, which is the branch tip's commit date, not when it was cut. `merge-base(development, stabilization/26100)` is `9bc3b9d6` dated 2026-08-11, matching the schedule in [sig-release#372](https://github.com/o3de/sig-release/issues/372).
+
+### Added
+- Runbook section 0a records the 26.10.0 schedule: branches cut Aug 11, Phase I to Sept 15, code freeze on Major and below Sept 16, Phase II to Oct 6, code freeze on Critical and below Oct 7, QA smoke test to Oct 22, stable Oct 23, tagged Oct 28. Each row says what the milestone means for the notes, so re-run cadence follows the freeze dates rather than habit.
+- Noted that release day tags five repos (`o3de`, `o3de-multiplayersample`, `o3de-netsoaktest`, `o3de-extras`, `o3de-atom-sampleviewer`) while the notes cover two, matching 26.05.0. The other three had 1, 0 and 0 merged PRs since 2026-05-27, so the gap is documented and currently harmless rather than silent.
+- Recorded that "(Docs) Release Notes Finalized" is still TBD on the schedule, and that this date, not release day, is the real deadline for this tool's output.
+
 ## [0.10.0-beta] - 2026-08-20
 
 ### Added
@@ -23,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preflight now warns when a clone is shallow.** A shallow clone does not fail: `git log A..B` answers from whatever history it holds. On 2026-08-20 a routine `git fetch --all --tags --prune` on the o3de clone re-fetched the branch refs under shallow rules and cut them to roughly 20 commits each, while the `2605.0` tag kept its full 26,947. The `2605.0..stabilization/26100` window collapsed from ~200 PRs to 18, `git merge-base` began reporting no common ancestor, and nothing in the output distinguished that from a quiet release cycle. `warn_on_shallow_clones()` names the repo and the remedy. It warns rather than aborting, because a shallow clone can still be deep enough to cover the window. 8 new tests.
 
 ### Changed
-- 26.10.0 now generates against `origin/stabilization/26100` (cut 2026-08-13) instead of `origin/development`. 220 PRs collected, 203 rendered, up from 200/184.
+- 26.10.0 now generates against `origin/stabilization/26100` (cut 2026-08-11) instead of `origin/development`. 220 PRs collected, 203 rendered, up from 200/184.
 - **`o3de/o3de-extras` uses `2605.0` as its `--from-ref`,** dropping `--repo-from-ref` entirely. Extras was tagged on the 2605 line on 2026-05-27 (`8e7f0f04`), after the runbook was written. The old `2510.2` boundary reached back past 26.05.0 and leaned on `--exclude-json` for the whole overlap, which also pulls forward any PR that shipped in 26.05.0 but was never reported there: #1021 was exactly that case, and it is now correctly excluded as already-shipped rather than presented as new in 26.10.0.
 - Docs corrected throughout: the runbook's ref table, both window tables, the dry-run expectations (extras excludes ~1 now, not ~30), the README quick start and JSON example, and the ARCHITECTURE/AGENTS claims that extras is untagged. Step 1 of the runbook gains shallow-clone and fork-remote checks, and the pre-publication checklist gains two entries.
 - Documented that in a maintainer's clone `origin` is often a personal fork while `o3de/o3de` is `upstream`, so `--to-ref origin/development` silently reads the fork. The fork was 2 commits behind during this cycle, so prior runs were essentially correct, but by luck rather than design.
