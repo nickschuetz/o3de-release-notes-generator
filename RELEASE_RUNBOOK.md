@@ -8,10 +8,17 @@ for the 26.10.0 cycle; the shape is the same for any release.
 | Repo | 26.10.0 `--from-ref` | Notes |
 |------|----------------------|-------|
 | `o3de/o3de` | `2605.0` | Use the latest `2605.N` point-release tag if any have shipped |
-| `o3de/o3de-extras` | `2510.2` | **Not tagged on the 2605 line.** Pass via `--repo-from-ref` |
+| `o3de/o3de-extras` | `2605.0` | Tagged on the 2605 line as of 2026-05-27 (`8e7f0f04`). No `--repo-from-ref` needed |
 
 `--to-ref` is `origin/development` until the stabilization branch is cut, then
-`origin/stabilization/26100`.
+`origin/stabilization/26100`. Both were cut for 26.10.0 on 2026-08-13.
+
+`o3de-extras` was untagged on the 2605 line for most of the cycle, and this
+runbook told you to pass `--repo-from-ref o3de/o3de-extras=2510.2`. That is no
+longer needed and is now slightly wrong: the wider window reaches back past
+26.05.0 and relies entirely on `--exclude-json` to remove it, which pulls in any
+PR that shipped in 26.05.0 but was never reported there (#1021 was one). Use the
+release tag as the boundary and let exclusion handle only genuine overlap.
 
 **You must also pass `--exclude-json` pointing at the previous release's
 report.** `2605.0` tags a commit on `origin/main`, which O3DE builds from
@@ -21,8 +28,11 @@ window therefore spans two cycles:
 
 | Window | PRs | Already in 26.05.0 | New |
 |---|---|---|---|
-| `o3de/o3de` `2605.0..development` | 369 | 188 | 181 |
-| `o3de/o3de-extras` `2510.2..development` | 50 | 30 | 20 |
+| `o3de/o3de` `2605.0..stabilization/26100` | 388 | 188 | 200 |
+| `o3de/o3de-extras` `2605.0..stabilization/26100` | 22 | 1 | 21 |
+
+(Measured 2026-08-20. The `o3de` figure grows as the cycle continues; the
+188 already-reported count does not.)
 
 The duplicates are development-side merges of fixes that reached 26.05.0 by
 cherry-pick into `stabilization/26050`: distinct commits, unreachable from the
@@ -57,6 +67,45 @@ for r in ~/PROJECTS/o3de ~/PROJECTS/o3de-extras; do
 done
 ```
 
+**Check two things about each clone before trusting any count.**
+
+*Is it shallow?* A shallow clone answers `git log A..B` from whatever history it
+holds, with no error. On 2026-08-20 a routine `fetch --all` on the o3de clone
+re-fetched the branch refs under shallow rules and cut them to ~20 commits each,
+while the tag kept its full 26,947. The window collapsed from ~200 PRs to 18 and
+nothing in the output said why. The tool now warns during preflight, but verify:
+
+```bash
+for r in ~/PROJECTS/o3de ~/PROJECTS/o3de-extras; do
+  echo "$r shallow=$(git -C "$r" rev-parse --is-shallow-repository)"
+done
+```
+
+If shallow, deepen past the previous release before generating. A dated fetch is
+far cheaper than `--unshallow` on a 2.4 GB repo:
+
+```bash
+git -C ~/PROJECTS/o3de fetch --shallow-since=2025-06-01 upstream \
+  development stabilization/26100
+```
+
+Confirm the repair by checking that the merge-base resolves at all. It returns
+nothing on a too-shallow clone:
+
+```bash
+git -C ~/PROJECTS/o3de merge-base 2605.0 origin/stabilization/26100
+# expect 57680ee42f18d5952e4d4fa5ab52750edefb878e for the 26.10.0 window
+```
+
+*Where does `origin` point?* In a maintainer's clone `origin` is often a personal
+fork and `o3de/o3de` is `upstream`. `--to-ref origin/development` then reads the
+fork, which silently lags whenever you have not synced it. Either sync the fork,
+or pass upstream refs explicitly:
+
+```bash
+git -C ~/PROJECTS/o3de remote -v   # confirm which remote is which
+```
+
 ## 2. Dry-run first
 
 No GitHub API calls, no files written. Confirms refs resolve, clone paths are
@@ -65,11 +114,10 @@ right, and the PR count is plausible.
 ```bash
 python release_notes.py fetch \
   --from-ref 2605.0 \
-  --to-ref origin/development \
+  --to-ref origin/stabilization/26100 \
   --repos o3de/o3de o3de/o3de-extras \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
-  --repo-from-ref o3de/o3de-extras=2510.2 \
   --exclude-json reports/26050_release_data.json \
   --output-json /tmp/unused.json \
   --dry-run
@@ -82,21 +130,25 @@ Check:
   merge commits for a meaningful share of PRs; a zero there is suspicious.
 - No ref-resolution errors. If a ref does not resolve, either fetch tags or give
   that repo its own ref with `--repo-from-ref` / `--repo-to-ref`.
-- **The "already reported in a prior release, excluded" count is non-trivial.**
-  For 26.10.0 it should be roughly 188 for `o3de` and 30 for `o3de-extras`. A
-  count of zero means `--exclude-json` is missing or pointing at the wrong file,
-  and the report will re-publish the previous release's content.
+- **The "already reported in a prior release, excluded" count is non-trivial
+  for `o3de`.** For 26.10.0 it should be about 188. A count of zero means
+  `--exclude-json` is missing or pointing at the wrong file, and the report will
+  re-publish the previous release's content. For `o3de-extras` the expected
+  count is now ~1, not 30: with `2605.0` as its `--from-ref` the window no
+  longer reaches back past 26.05.0, so there is almost nothing to exclude. A
+  large exclusion count there means the old `2510.2` boundary crept back in.
+- **The total looks like a release, not a handful.** ~200 for `o3de`. A count in
+  the low tens means a truncated clone (see step 1), not a quiet cycle.
 
 ## 3. Generate
 
 ```bash
 python release_notes.py generate \
   --from-ref 2605.0 \
-  --to-ref origin/development \
+  --to-ref origin/stabilization/26100 \
   --repos o3de/o3de o3de/o3de-extras \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
-  --repo-from-ref o3de/o3de-extras=2510.2 \
   --exclude-json reports/26050_release_data.json \
   --output-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
@@ -105,6 +157,8 @@ python release_notes.py generate \
 ```
 
 Roughly one GraphQL request per 30 PRs, so a ~420-PR cycle is about 14 requests.
+Add `--reuse-existing` on mid-cycle re-runs to serve label-categorised PRs from
+the previous report instead of re-fetching them.
 
 ## 4. Read the reconciliation line
 
@@ -179,6 +233,8 @@ Investigate every ✗ before publishing. Suppress the sidecar with
 ## 8. Pre-publication checklist
 
 - [ ] Clones fetched with `--tags` immediately before the run
+- [ ] Neither clone is shallow, or it is deep enough that `merge-base` resolves
+- [ ] `origin` verified as the intended remote, not an unsynced personal fork
 - [ ] Dry-run PR counts plausible for both repos
 - [ ] `--exclude-json` supplied, and its exclusion count is non-zero
 - [ ] Spot-check that no PR in the report also appears in the previous cycle's report

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0-beta] - 2026-08-20
+
+### Added
+- **Preflight now warns when a clone is shallow.** A shallow clone does not fail: `git log A..B` answers from whatever history it holds. On 2026-08-20 a routine `git fetch --all --tags --prune` on the o3de clone re-fetched the branch refs under shallow rules and cut them to roughly 20 commits each, while the `2605.0` tag kept its full 26,947. The `2605.0..stabilization/26100` window collapsed from ~200 PRs to 18, `git merge-base` began reporting no common ancestor, and nothing in the output distinguished that from a quiet release cycle. `warn_on_shallow_clones()` names the repo and the remedy. It warns rather than aborting, because a shallow clone can still be deep enough to cover the window. 8 new tests.
+
+### Changed
+- 26.10.0 now generates against `origin/stabilization/26100` (cut 2026-08-13) instead of `origin/development`. 220 PRs collected, 203 rendered, up from 200/184.
+- **`o3de/o3de-extras` uses `2605.0` as its `--from-ref`,** dropping `--repo-from-ref` entirely. Extras was tagged on the 2605 line on 2026-05-27 (`8e7f0f04`), after the runbook was written. The old `2510.2` boundary reached back past 26.05.0 and leaned on `--exclude-json` for the whole overlap, which also pulls forward any PR that shipped in 26.05.0 but was never reported there: #1021 was exactly that case, and it is now correctly excluded as already-shipped rather than presented as new in 26.10.0.
+- Docs corrected throughout: the runbook's ref table, both window tables, the dry-run expectations (extras excludes ~1 now, not ~30), the README quick start and JSON example, and the ARCHITECTURE/AGENTS claims that extras is untagged. Step 1 of the runbook gains shallow-clone and fork-remote checks, and the pre-publication checklist gains two entries.
+- Documented that in a maintainer's clone `origin` is often a personal fork while `o3de/o3de` is `upstream`, so `--to-ref origin/development` silently reads the fork. The fork was 2 commits behind during this cycle, so prior runs were essentially correct, but by luck rather than design.
+
 ## [0.8.1-beta] - 2026-08-04
 
 ### Changed

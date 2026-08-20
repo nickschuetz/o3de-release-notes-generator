@@ -44,6 +44,8 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Removes the scheduled cron job for nightly runs, which prevent it from running in forks. We will be executing the scheduled nightly runs through a separate process not tied this workflow. [o3de#19953](https://github.com/o3de/o3de/pull/19953)
 - Adds more ENV Var space for mac, to avoid AR failure. [o3de#19959](https://github.com/o3de/o3de/pull/19959)
 - Update 3P version and SHA256 hash for DirectXShaderCompilerDxc-1.8.2505.1. [o3de#19967](https://github.com/o3de/o3de/pull/19967)
+- This PR converts D3D12MemoryAllocator 3p to FetchContent. [o3de#19992](https://github.com/o3de/o3de/pull/19992)
+- Update 3P version and SHA256 hash for freetype-2.11.1. [o3de#19997](https://github.com/o3de/o3de/pull/19997)
 
 ## SIG-Content
 - Build the Assimp library alongside o3de instead of depending on already-built 3p-package-source. This PR is a rebase of :. [o3de#19365](https://github.com/o3de/o3de/pull/19365)
@@ -101,16 +103,24 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - This fixes 3 low-priority items from https://github.com/o3de/o3de/issues/19855. [o3de#19896](https://github.com/o3de/o3de/pull/19896)
 - Fix LuaIDE crash on exit (double free). [o3de#19900](https://github.com/o3de/o3de/pull/19900)
 - The AssetProcessor config file was attempting to copy "All Pak Files except for level.pak" into the cache. [o3de#19904](https://github.com/o3de/o3de/pull/19904)
+- Solves the Home text input IMGUI conflict issue. Moves the IMGUI toggle button to tilde \[ \` \] an industry standard for console/debug tooling. [o3de#19908](https://github.com/o3de/o3de/pull/19908)
 - Do not populate recent files menu too early. [o3de#19912](https://github.com/o3de/o3de/pull/19912)
 - Fixes several issues related to inspector and undo. [o3de#19925](https://github.com/o3de/o3de/pull/19925)
 - Ctrl state lock in Viewport when saving fix.: Fixing regression in: http://github.com/o3de/o3de/pull/19688. [o3de#19926](https://github.com/o3de/o3de/pull/19926)
 - Additional performance improvements and fixes for Inspector: ### Technical Summary. [o3de#19932](https://github.com/o3de/o3de/pull/19932)
 - Fix missing includes or forward declarations so that when unity build is disabled o3de can still compile. [o3de#19933](https://github.com/o3de/o3de/pull/19933)
+- I was working through how the outliner and the DPE handle focus and unfocus on prefabs (as in, double click the prefab in the outliner) in response to a crash report by @yaakuro. [o3de#19947](https://github.com/o3de/o3de/pull/19947)
 - This rips out the old Sandbox \`IPlugin\` system. \`IPlugin\`, \`CPluginManager\`, and the four editor "plugins" that were loaded as DLLs from the \`EditorPlugins\` folder at startup. [o3de#19951](https://github.com/o3de/o3de/pull/19951)
+- Allows for Template Inheritance in the template system. [o3de#19954](https://github.com/o3de/o3de/pull/19954)
 - Fix LyShine editor crash from zero-size viewport window: Fixes the issue that RenderViewportWidget ever can get 0x0 which prevents a crash. [o3de#19964](https://github.com/o3de/o3de/pull/19964)
+- AudioSystem Gem Editor and Engine fixes: FileCacheManager dangling pointer and invisible Connection Properties. [o3de#19976](https://github.com/o3de/o3de/pull/19976)
+- Fixes three related Qt6 bugs in the GraphCanvas node palette (used by Script Canvas, Material Canvas, and any node editor), documented in #19966:. [o3de#19978](https://github.com/o3de/o3de/pull/19978)
+- Fixes Script Canvas in-place save (Ctrl+S, or File > Save) opening the Save As dialog instead of overwriting the file. [o3de#19979](https://github.com/o3de/o3de/pull/19979)
+- Removes the remaining \`#ifndef\`/\`#define\` include guards and leaves each of those headers with a single \`#pragma once\` directly under the license block. [o3de#19984](https://github.com/o3de/o3de/pull/19984)
+- Pull request https://github.com/o3de/o3de/pull/19952 renamed the file for the ground plane. It had a spelling mistake in it originally, "GROUD" instead of "GROU**N**D". [o3de#19995](https://github.com/o3de/o3de/pull/19995)
+- Replace Git-Based FetchContent Patching with patch-ng. [o3de#19998](https://github.com/o3de/o3de/pull/19998)
 
 ## SIG-Core
-- As part of the upcoming PhysX4 deprecation, this updates all the references to the PhysX4 gem to use PhysX5 instead. [o3de-extras#1021](https://github.com/o3de/o3de-extras/pull/1021)
 - Very similar to https://github.com/o3de/o3de-extras/pull/1062 - but for cmake in project template. [o3de-extras#1064](https://github.com/o3de/o3de-extras/pull/1064)
 - Component Creation Class Wizard Expansion. [o3de#19361](https://github.com/o3de/o3de/pull/19361)
 - Clean up of duplicate, unnecessary Cry Code (Part 1). [o3de#19510](https://github.com/o3de/o3de/pull/19510)
@@ -136,7 +146,10 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Remove \`engines_path\` from registration flow. [o3de#19905](https://github.com/o3de/o3de/pull/19905)
 - One of the identified qt6 regressions in #19855 is that the inspector doesn't refresh when it should. [o3de#19929](https://github.com/o3de/o3de/pull/19929)
 - SmoothCriticallyDamped Makes \`SmoothCriticallyDamped(...)\` available to use in Lua and Script Canvas. Specifically, reflect methods for floats/numbers, Vector2, Vector3, and Quaternion. [o3de#19934](https://github.com/o3de/o3de/pull/19934)
+- Adds a new engine template \`GameplayGem\` under \`Templates/GameplayGem\` to streamline creating C++ gameplay component controllers in Open 3D Engine. [o3de#19943](https://github.com/o3de/o3de/pull/19943)
 - Renames \`Gems/AtomLyIntegration/CommonFeatures/Assets/Objects/Groudplane\` to \`Groundplane\` to fix the misspelling in the asset picker. [o3de#19952](https://github.com/o3de/o3de/pull/19952)
+- Fix LuaIDE IPC, file path case preservation and wrong document invalidation. [o3de#19963](https://github.com/o3de/o3de/pull/19963)
+- Remove dlmalloc and nedmalloc from AzCore.: These libraries are no longer competitive compared with native allocators on modern platforms, and they are not maintained upstream.  Removing them reduces the size of the codebase and the number of dependencies. [o3de#19985](https://github.com/o3de/o3de/pull/19985)
 
 ## SIG-Graphics-Audio
 - feature: improve assertions for RHI Vulkan result: \`AssertSuccess\` wraps an assertion for a given line but the asserted code is in a nested call. this just moves the assertion to a macro so the inlined call will be correctly reflected in the logs. [o3de#17169](https://github.com/o3de/o3de/pull/17169)
@@ -169,6 +182,8 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - This PR upgrades meshoptimizer 3p to v1.2 Also removed "sparse" and "lock border" LOD generation options as they are intended for meshlets simplification. [o3de#19891](https://github.com/o3de/o3de/pull/19891)
 - Modify the way import os, and remove useless return. [o3de#19927](https://github.com/o3de/o3de/pull/19927)
 - Separates \`FindKey\` result assignment from the comparison check in \`CCompoundSplineTrack::RemoveKey\`. [o3de#19949](https://github.com/o3de/o3de/pull/19949)
+- Refactor Unlit shader inputs and color evaluation: This PR: restores correct Tiled UV behavior; uses the standard fallback Draw SRG;. [o3de#19961](https://github.com/o3de/o3de/pull/19961)
+- Fix Cutout SSAO Artifacts and Blended Shadows in the Unlit Shader. [o3de#19994](https://github.com/o3de/o3de/pull/19994)
 
 ## SIG-Network
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)
@@ -180,6 +195,10 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Mac ARM64 integration. [o3de#19571](https://github.com/o3de/o3de/pull/19571)
 - Fix Linux gamepad support when only the libevdev runtime is installed. [o3de#19801](https://github.com/o3de/o3de/pull/19801)
 - Mac fix lrelease rpath: Similar to https://github.com/o3de/o3de/pull/19852, this should allow translation assets to be built by asset processor. [o3de#19870](https://github.com/o3de/o3de/pull/19870)
+- Fixes Mac bundling issues with Qt6. [o3de#19970](https://github.com/o3de/o3de/pull/19970)
+
+## SIG-Release
+- 1.  No longer attempts to copy an non-existent egg-link file 2.  Links assimp statically.  Its not acutally used or exposed outside of the scene API dll, which is always a dll, so its not necessary to ship it. 3.  Fixes the motion blur asset, which was missing integration into stabilization. [o3de#20009](https://github.com/o3de/o3de/pull/20009)
 
 ## SIG-Security
 - Updates locked Python dependencies in \`python/requirements.txt\` to non-vulnerable versions with verified PyPI SHA256 digests. [o3de#19948](https://github.com/o3de/o3de/pull/19948)
@@ -199,6 +218,8 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - ROS 2 TFBroadcaster initialization was changed in ROS 2 Lyrical Luth; the deprecation warnings are treated as errors in O3DE, making the build impossible. This PR fixes the build for ROS 2 Lyrical Luth. [o3de-extras#1061](https://github.com/o3de/o3de-extras/pull/1061)
 - Fix AUTOMOC warnings. [o3de-extras#1062](https://github.com/o3de/o3de-extras/pull/1062)
 - Added GetFrameTransform to the ROS2Frame EBus. [o3de-extras#1065](https://github.com/o3de/o3de-extras/pull/1065)
+- Renaming certain files and functions to correct misleading names, resulting from the gem's expansion and the switch of the parsing module from URDF to SDF. [o3de-extras#1068](https://github.com/o3de/o3de-extras/pull/1068)
+- Fix build after o3de#19951: The O3DE engine update https://github.com/o3de/o3de/pull/19951 ("Remove support for CryEngine IPlugins"), deleted \`Legacy::EditorCommon\` target and moved all the leftover code to \`Legacy::EditorCore\` target. This triggers a problem in _extras_:. [o3de-extras#1069](https://github.com/o3de/o3de-extras/pull/1069)
 - This PR extends the Recast Navigation support in O3DE by adding DetourCrowd - a component that controls agents (NPCs). It supports self collision avoidance and creates smooth looking movement. [o3de#19707](https://github.com/o3de/o3de/pull/19707)
 - Complete the deprecation of PhysX(4) from the O3DE, and support aliasing for backwards compatibility. [o3de#19726](https://github.com/o3de/o3de/pull/19726)
 - Continuation of PhysX4 removal. [o3de#19742](https://github.com/o3de/o3de/pull/19742)
