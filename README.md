@@ -19,7 +19,7 @@ Currently in use for the **O3DE 26.10.0** cycle. See [RELEASE_RUNBOOK.md](RELEAS
 # Generate release notes for 26.10.0 (everything since the 26.05.0 report)
 python release_notes.py generate \
   --from-ref 2605.0 \
-  --to-ref origin/development \
+  --to-ref origin/stabilization/26100 \
   --default-repo-path /path/to/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
@@ -34,9 +34,17 @@ shipped in 26.05.0. The previous report is committed at
 `reports/26050_release_data.json`, so the command above works in a fresh clone.
 See [Excluding the Previous Release](#excluding-the-previous-release).
 
-Switch `--to-ref` to `origin/stabilization/26100` once that branch is cut. If
-point releases ship on the `2605` line, use the latest of them (`2605.1`,
-`2605.2`, …) as `--from-ref`.
+`--to-ref origin/stabilization/26100` is correct as of 2026-08-13, when that
+branch was cut; before that it was `origin/development`. If point releases ship
+on the `2605` line, use the latest of them (`2605.1`, `2605.2`, …) as
+`--from-ref`.
+
+Two things about the clone matter as much as the refs. A **shallow** clone
+answers `git log A..B` from whatever history it holds and silently truncates the
+window (the tool warns during preflight; see
+[RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) step 1). And in a maintainer's clone
+`origin` is often a personal fork, so `origin/development` reads the fork rather
+than `o3de/o3de`.
 
 ## Project Structure
 
@@ -158,7 +166,7 @@ Combines `fetch` and `render`. Accepts all flags from both subcommands.
 ```bash
 python release_notes.py generate \
   --from-ref 2605.0 \
-  --to-ref origin/development \
+  --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
@@ -176,14 +184,14 @@ re-runs.
 
 ```bash
 # Week 1
-python release_notes.py generate --from-ref 2605.0 --to-ref origin/development \
+python release_notes.py generate --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
   --output-md notes.md --release-version 26.10.0
 
 # Week 2 (same command; re-fetches the full range, re-applies your overrides)
-python release_notes.py generate --from-ref 2605.0 --to-ref origin/development \
+python release_notes.py generate --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
@@ -213,11 +221,10 @@ unrecognised failure falls back to per-PR requests.
 
 ```bash
 python release_notes.py generate \
-  --from-ref 2605.0 --to-ref origin/development \
+  --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --repos o3de/o3de o3de/o3de-extras \
   --default-repo-path ~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
-  --repo-from-ref o3de/o3de-extras=2510.2 \
   --exclude-json reports/26050_release_data.json \
   --output-json release_data.json \
   --output-md notes.md \
@@ -232,7 +239,7 @@ Each repo runs `git log` against its own local clone. The `--default-repo-path` 
 
 ```bash
 python release_notes.py generate \
-  --from-ref 2605.0 --to-ref origin/development \
+  --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
@@ -267,7 +274,7 @@ Use `--summary-hint` to guide the LLM toward specific themes or tone:
 
 ```bash
 python release_notes.py generate \
-  --from-ref 2605.0 --to-ref origin/development \
+  --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
@@ -291,7 +298,7 @@ This is useful for longer guidance or when reusing the same narrative direction 
 
 ```bash
 python release_notes.py fetch \
-  --from-ref 2605.0 --to-ref origin/development \
+  --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json
@@ -301,7 +308,7 @@ python release_notes.py fetch \
 
 ```bash
 python release_notes.py generate \
-  --from-ref 2605.0 --to-ref origin/development \
+  --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json 26100_release_data.json \
@@ -314,7 +321,7 @@ python release_notes.py generate \
 
 ```bash
 python release_notes.py fetch \
-  --from-ref 2605.0 --to-ref origin/development \
+  --from-ref 2605.0 --to-ref origin/stabilization/26100 \
   --default-repo-path ~/PROJECTS/o3de \
   --exclude-json reports/26050_release_data.json \
   --output-json /tmp/unused.json \
@@ -335,7 +342,6 @@ python release_notes.py generate \
   --repos o3de/o3de o3de/o3de-extras \
   --repo-path o3de/o3de=~/PROJECTS/o3de \
   --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
-  --repo-from-ref o3de/o3de-extras=2510.2 \
   --exclude-json reports/26050_release_data.json \
   --output-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
@@ -471,37 +477,38 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 ```json
 {
   "metadata": {
-    "generated_at": "2026-08-03T10:00:00+00:00",
+    "generated_at": "2026-08-20T14:33:26+00:00",
     "from_ref": "2605.0",
-    "to_ref": "origin/development",
+    "to_ref": "origin/stabilization/26100",
     "repos": ["o3de/o3de", "o3de/o3de-extras"],
     "repo_paths": {
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.8.1-beta",
-    "pr_count": 201,
+    "tool_version": "0.9.0-beta",
+    "pr_count": 220,
     "categorization_summary": {
       "label": 131,
-      "heuristic_title": 45,
-      "heuristic_files": 22,
-      "uncategorized": 3
+      "heuristic_title": 54,
+      "heuristic_files": 32,
+      "manual_override": 2,
+      "uncategorized": 1
     },
-    "release_machinery_count": 1,
+    "release_machinery_count": 2,
     "merge_bases": {
       "o3de/o3de": {
         "sha": "57680ee42f18d5952e4d4fa5ab52750edefb878e",
         "committer_date": "2025-07-29T11:12:47-07:00"
       },
       "o3de/o3de-extras": {
-        "sha": "3038e4ac7b566b8b0ab7360acc67d6280eb68eba",
-        "committer_date": "2025-09-08T14:48:13+02:00"
+        "sha": "faacbbe0ff4d14517fcbbb70e3b3cd5fe2f0c6e9",
+        "committer_date": "2026-03-18T14:49:38+01:00"
       }
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-08-03T10:00:00+00:00"
+      "end": "2026-08-20T14:33:26+00:00"
     },
     "reused_from_cache": {
       "per_repo": {"o3de/o3de": 120},
@@ -516,12 +523,12 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
     },
     "excluded_prior_releases": {
       "sources": ["/home/user/.../reports/26050_release_data.json"],
-      "per_repo": {"o3de/o3de": 188, "o3de/o3de-extras": 30},
-      "total": 218
+      "per_repo": {"o3de/o3de": 188, "o3de/o3de-extras": 1},
+      "total": 189
     },
     "repo_refs": {
-      "o3de/o3de": {"from_ref": "2605.0", "to_ref": "origin/development"},
-      "o3de/o3de-extras": {"from_ref": "2510.2", "to_ref": "origin/development"}
+      "o3de/o3de": {"from_ref": "2605.0", "to_ref": "origin/stabilization/26100"},
+      "o3de/o3de-extras": {"from_ref": "2605.0", "to_ref": "origin/stabilization/26100"}
     }
   },
   "pull_requests": [

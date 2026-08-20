@@ -2926,3 +2926,58 @@ class TestBuildPathHeuristicCoverage:
     def test_specific_owners_still_win(self, path, expected):
         # Longest-match-wins is what makes the catch-alls safe to add.
         assert self._sig([path])[0] == expected
+
+
+class TestShallowCloneDetection:
+    """A shallow clone truncates the window silently; say so before the count."""
+
+    @staticmethod
+    def _run(stdout='true', returncode=0):
+        return mock.Mock(stdout=stdout, returncode=returncode)
+
+    def test_shallow_repo_is_detected(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                                 return_value=self._run('true\n')):
+            assert release_notes.is_shallow_clone(tmp_path) is True
+
+    def test_full_repo_is_not_flagged(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                                 return_value=self._run('false\n')):
+            assert release_notes.is_shallow_clone(tmp_path) is False
+
+    def test_git_failure_does_not_claim_shallow(self, tmp_path):
+        # Never invent a scary warning from a failed probe.
+        with mock.patch('release_notes.subprocess.run',
+                                 return_value=self._run('', returncode=128)):
+            assert release_notes.is_shallow_clone(tmp_path) is False
+
+    def test_subprocess_error_is_handled_not_raised(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                                 side_effect=OSError('boom')):
+            assert release_notes.is_shallow_clone(tmp_path) is False
+
+    def test_warning_names_the_repo_and_the_remedy(self, tmp_path, caplog):
+        with mock.patch('release_notes.is_shallow_clone', return_value=True), \
+                caplog.at_level(logging.WARNING, logger='o3de.release_notes'):
+            out = release_notes.warn_on_shallow_clones({'o3de/o3de': tmp_path}, ['o3de/o3de'])
+        assert len(out) == 1
+        assert 'SHALLOW' in caplog.text
+        assert 'o3de/o3de' in caplog.text
+        assert '--unshallow' in caplog.text
+
+    def test_full_clone_produces_no_warning(self, tmp_path, caplog):
+        with mock.patch('release_notes.is_shallow_clone', return_value=False), \
+                caplog.at_level(logging.WARNING, logger='o3de.release_notes'):
+            out = release_notes.warn_on_shallow_clones({'o3de/o3de': tmp_path}, ['o3de/o3de'])
+        assert out == []
+        assert 'SHALLOW' not in caplog.text
+
+    def test_repo_without_a_mapped_path_is_skipped(self, tmp_path):
+        with mock.patch('release_notes.is_shallow_clone', return_value=True):
+            assert release_notes.warn_on_shallow_clones({}, ['o3de/o3de']) == []
+
+    def test_it_warns_rather_than_blocking_the_run(self, tmp_path):
+        # A shallow clone can still be deep enough; refusing to run would block
+        # a legitimate setup. The reconciliation line stays the real check.
+        with mock.patch('release_notes.is_shallow_clone', return_value=True):
+            release_notes.warn_on_shallow_clones({'o3de/o3de': tmp_path}, ['o3de/o3de'])

@@ -26,7 +26,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.8.1-beta'
+__version__ = '0.9.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -433,6 +433,57 @@ def ref_exists(repo_path: pathlib.Path, ref: str) -> bool:
         logger.warning('git rev-parse failed for %s in %s: %s', ref, repo_path, e)
         return False
     return result.returncode == 0
+
+
+def is_shallow_clone(repo_path: pathlib.Path) -> bool:
+    """True when the clone has a truncated history.
+
+    A shallow clone answers `git log A..B` from whatever history it happens to
+    hold, with no error and no warning. During the 26.10.0 cycle this silently
+    reduced `2605.0..stabilization/26100` from ~200 PRs to 18, because a routine
+    `git fetch` re-fetched the branch refs under shallow rules and cut them to
+    ~20 commits each while the tag kept its full 26,947. Nothing in the output
+    distinguished that from a genuinely small release.
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--is-shallow-repository'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True, text=True,
+            encoding='utf-8', errors='replace', timeout=15,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('git rev-parse --is-shallow-repository failed in %s: %s', repo_path, e)
+        return False
+    return result.returncode == 0 and result.stdout.strip() == 'true'
+
+
+def warn_on_shallow_clones(
+    repo_path_map: dict[str, pathlib.Path],
+    repos: list[str],
+) -> list[str]:
+    """Warn for every repo whose clone is shallow. Returns the warnings emitted.
+
+    A warning rather than an error: a shallow clone can still be deep enough to
+    cover the window, and refusing to run would block a legitimate setup. The
+    reconciliation line stays the real check, but a curator reading a suspiciously
+    small PR count deserves to be told the most likely cause.
+    """
+    warnings: list[str] = []
+    for repo_slug in repos:
+        repo_path = repo_path_map.get(repo_slug)
+        if repo_path is None or not is_shallow_clone(repo_path):
+            continue
+        message = (
+            f'{repo_slug}: {repo_path} is a SHALLOW clone. `git log` can only see the '
+            f'history it holds, so the PR window may be silently truncated. If the count '
+            f'below looks low, deepen it: '
+            f'`git -C {repo_path} fetch --shallow-since=<date-before-last-release> --all` '
+            f'or `git -C {repo_path} fetch --unshallow`.'
+        )
+        logger.warning(message)
+        warnings.append(message)
+    return warnings
 
 
 def verify_refs_exist(
@@ -2082,6 +2133,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
         logger.error('%s', e)
         return 1
 
+    warn_on_shallow_clones(repo_path_map, args.repos)
     problems = verify_refs_exist(repo_path_map, from_ref_map, to_ref_map, args.repos)
     if problems:
         for problem in problems:
