@@ -11,7 +11,7 @@ for the 26.10.0 cycle; the shape is the same for any release.
 | `o3de/o3de-extras` | `2605.0` | Tagged on the 2605 line as of 2026-05-27 (`8e7f0f04`). No `--repo-from-ref` needed |
 
 `--to-ref` is `origin/development` until the stabilization branch is cut, then
-`origin/stabilization/26100`. Both were cut for 26.10.0 on 2026-08-13.
+`origin/stabilization/26100`. Both were cut for 26.10.0 on 2026-08-11.
 
 `o3de-extras` was untagged on the 2605 line for most of the cycle, and this
 runbook told you to pass `--repo-from-ref o3de/o3de-extras=2510.2`. That is no
@@ -55,6 +55,41 @@ published to docs.o3de.org, which is their canonical home. Hint files under
 
 Spring releases (`xx.05.0`) are gaming-themed; fall releases (`xx.10.0`) are
 robotics-themed. That shapes the narrative summary, not the tooling.
+
+## 0a. The 26.10.0 schedule
+
+Authoritative source: [o3de/sig-release#372](https://github.com/o3de/sig-release/issues/372).
+Release manager: @nickschuetz. Docs PM: @ShaunaGordon.
+
+| Date | Milestone | What it means for the notes |
+|---|---|---|
+| Aug. 11, 2026 | Stabilization branches created | `--to-ref` switches to `origin/stabilization/26100` |
+| Aug. 11 – Sept. 15 | Stabilization Phase I | Features still allowed via exception, so the draft moves a lot. Re-run weekly |
+| Sept. 16, 2026 | Code freeze, Major bugs and below | Feature set is effectively final. Good point to start the narrative summary |
+| Sept. 16 – Oct. 6 | Stabilization Phase II | Bug fixes only, by exception. Draft should be nearly stable |
+| Oct. 7, 2026 | Code freeze, Critical and below | Only Blocker fixes land after this |
+| Oct. 7 – Oct. 22 | QA final smoke test | Notes should be final in all but wording |
+| Oct. 23, 2026 | Release considered stable | Freeze the notes |
+| Oct. 28, 2026 | Release day; repos tagged | Tag `2610.0` becomes the next cycle's `--from-ref` |
+| Oct. 29, 2026 | Marketing announcement | |
+
+The Docs milestone "(Docs) Release Notes Finalized (features + known issues)"
+is still **TBD** on the issue. That date is the real deadline for this tool's
+output, so it is worth pinning early.
+
+**Repo coverage is narrower than the release.** Release day tags `o3de`,
+`o3de-multiplayersample`, `o3de-netsoaktest`, `o3de-extras`, and
+`o3de-atom-sampleviewer`. The notes cover only the first and fourth, matching
+26.05.0. As of 2026-08-20 the other three have almost nothing to report
+(1, 0 and 0 merged PRs since 2026-05-27), so this is a known and currently
+harmless gap rather than a silent one. Adding them is a `--repos` change plus
+a `--repo-path`/`--repo-from-ref` per repo if that ever changes.
+
+**Bug tracking:** fixes land against the
+[Release/2610 milestone](https://github.com/o3de/o3de/milestone/17); stabilization
+bugs carry `branch/stabilization` and sit on
+[project board 89](https://github.com/orgs/o3de/projects/89). Exceptions are
+tracked on [board 90](https://github.com/orgs/o3de/projects/90).
 
 ## 1. Refresh the clones
 

@@ -34,7 +34,7 @@ shipped in 26.05.0. The previous report is committed at
 `reports/26050_release_data.json`, so the command above works in a fresh clone.
 See [Excluding the Previous Release](#excluding-the-previous-release).
 
-`--to-ref origin/stabilization/26100` is correct as of 2026-08-13, when that
+`--to-ref origin/stabilization/26100` is correct as of 2026-08-11, when that
 branch was cut; before that it was `origin/development`. If point releases ship
 on the `2605` line, use the latest of them (`2605.1`, `2605.2`, …) as
 `--from-ref`.
@@ -487,7 +487,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.10.0-beta",
+    "tool_version": "0.10.1-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
