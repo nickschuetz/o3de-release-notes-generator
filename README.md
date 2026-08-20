@@ -68,6 +68,7 @@ o3de-release-notes-generator/
 │   ├── 26050_release_data.json     # 26.05.0 report; exclusion source for 26.10.0
 │   ├── 26100_release_data.json     # 26.10.0 working draft
 │   ├── 26100_release_notes.md      # 26.10.0 rendered draft
+│   ├── 26100_release_notes_cherrypick_audit.md
 │   └── hints/                      # Reusable --summary-hint files
 ├── .github/
 │   └── workflows/
@@ -486,7 +487,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.9.0-beta",
+    "tool_version": "0.10.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,

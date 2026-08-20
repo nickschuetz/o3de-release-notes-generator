@@ -2501,13 +2501,13 @@ class TestAuditChecksRenderedSet:
         content = out.read_text()
         assert '1 rendered' in content
         assert '1 filtered out' in content
-        assert '0 not found' in content
+        assert '0 unaccounted for' in content
         assert 'Action required before publishing' in content
 
     def test_clean_audit_says_so(self, tmp_path):
         out = tmp_path / 'audit.md'
         release_notes.write_pointrelease_audit(self._audit_data({19418, 19450}, {}), out)
-        assert 'All bundled fixes are present' in out.read_text()
+        assert 'accounted for by a prior release' in out.read_text()
 
     def test_classifier_is_the_shared_source_of_truth(self):
         prs = [
@@ -2981,3 +2981,87 @@ class TestShallowCloneDetection:
         # a legitimate setup. The reconciliation line stays the real check.
         with mock.patch('release_notes.is_shallow_clone', return_value=True):
             release_notes.warn_on_shallow_clones({'o3de/o3de': tmp_path}, ['o3de/o3de'])
+
+
+class TestStabilizationCherryPickAudit:
+    """The audit must run for the window that carries the most cherry-picks."""
+
+    @pytest.mark.parametrize('ref,expected', [
+        ('origin/stabilization/26100', True),
+        ('stabilization/26100', True),
+        ('upstream/stabilization/2605', True),
+        ('origin/development', False),
+        ('2605.0', False),
+        ('main', False),
+        ('stabilization/abc', False),
+        ('', False),
+    ])
+    def test_stabilization_ref_recognition(self, ref, expected):
+        assert release_notes.is_stabilization_ref(ref) is expected
+
+    @staticmethod
+    def _data(kind, present=(), filtered=None, prior=()):
+        return {
+            'from_ref': '2605.0', 'to_ref': 'origin/stabilization/26100',
+            'predecessor_tag': '2605.0', 'kind': kind,
+            'per_repo': {'o3de/o3de': {
+                'containers': [{'container_pr': 20006, 'container_sha': 'abc',
+                                'title': '(cherrypick) fix something',
+                                'bundled_prs': [19998, 19777]}],
+                'present_pr_numbers': set(present),
+                'filtered_pr_numbers': dict(filtered or {}),
+                'prior_release_pr_numbers': set(prior),
+                'predecessor_tag': '2605.0',
+            }},
+        }
+
+    def test_stabilization_wording_replaces_pointrelease_wording(self, tmp_path):
+        out = tmp_path / 'a.md'
+        release_notes.write_pointrelease_audit(self._data('stabilization'), out)
+        content = out.read_text()
+        assert 'Cherry-pick audit' in content
+        assert 'Point-release audit' not in content
+        assert 'squashed' in content
+
+    def test_pointrelease_wording_is_unchanged_by_default(self, tmp_path):
+        out = tmp_path / 'b.md'
+        data = self._data('stabilization')
+        del data['kind']
+        release_notes.write_pointrelease_audit(data, out)
+        assert 'Point-release audit' in out.read_text()
+
+    def test_previously_reported_pr_is_not_called_missing(self, tmp_path):
+        # The live 26.10.0 run produced 18 crosses and "action required", and
+        # 13 of them had simply shipped in 26.05.0.
+        out = tmp_path / 'c.md'
+        release_notes.write_pointrelease_audit(
+            self._data('stabilization', present=[19998], prior=[19777]), out)
+        content = out.read_text()
+        assert '○ #19777' in content
+        assert '✗ #19777' not in content
+        assert '✓ #19998' in content
+
+    def test_all_accounted_for_is_not_action_required(self, tmp_path):
+        out = tmp_path / 'd.md'
+        release_notes.write_pointrelease_audit(
+            self._data('stabilization', present=[19998], prior=[19777]), out)
+        assert 'Action required' not in out.read_text()
+
+    def test_a_genuinely_unaccounted_pr_still_raises_action(self, tmp_path):
+        out = tmp_path / 'e.md'
+        release_notes.write_pointrelease_audit(
+            self._data('stabilization', present=[19998]), out)
+        content = out.read_text()
+        assert '✗ #19777' in content
+        assert 'Action required' in content
+
+    def test_filtered_pr_still_warns_even_when_previously_reported(self, tmp_path):
+        # Precedence matters: a fix filtered OUT of THIS report is a live
+        # question, regardless of what an older report said.
+        out = tmp_path / 'f.md'
+        release_notes.write_pointrelease_audit(
+            self._data('stabilization', present=[19998],
+                       filtered={19777: 'cherry-pick'}, prior=[19777]), out)
+        content = out.read_text()
+        assert '⚠ #19777' in content
+        assert '○ #19777' not in content
