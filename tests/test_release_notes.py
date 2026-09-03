@@ -1341,11 +1341,115 @@ class TestExtractMergeBase:
 
 class TestExtractPointreleaseContainers:
     def _make_git_log_output(self, *commits):
+        # Mirrors `--format=%H%n%P%n%s%n%b`. A fourth tuple element sets the
+        # parent line; the default is a single parent, i.e. a squash.
         sep = '@@CONTAINER_BOUNDARY@@\n'
         out = ''
-        for sha, subject, body in commits:
-            out += f'{sha}\n{subject}\n{body}\n{sep}'
+        for commit in commits:
+            sha, subject, body = commit[:3]
+            parents = commit[3] if len(commit) > 3 else 'parent0'
+            out += f'{sha}\n{parents}\n{subject}\n{body}\n{sep}'
         return out
+
+    def _extract(self, tmp_path, stdout, merged_subjects=None, merged_rc=0):
+        """Run extraction with a fake git. `merged_subjects` answers the
+        second call a merge-commit container makes (first..second parent)."""
+        def fake_run(cmd, **kwargs):
+            if 'p1sha..p2sha' in cmd:
+                return mock.MagicMock(
+                    returncode=merged_rc, stdout=merged_subjects or '', stderr='',
+                )
+            return mock.MagicMock(returncode=0, stdout=stdout, stderr='')
+        with mock.patch('release_notes.subprocess.run', side_effect=fake_run) as run:
+            containers = release_notes.extract_pointrelease_containers(
+                tmp_path, '2605.0', 'origin/stabilization/26100',
+            )
+        return containers, run
+
+    def test_squashed_container_named_by_destination_is_found(self, tmp_path):
+        # o3de/o3de#20091 says where the picks go, not where they came from,
+        # and matched none of the container patterns. GitHub's squash keeps
+        # the picked subjects in the body, and that is evidence enough.
+        body = '\n'.join([
+            '* Fixes an assert and UB in AudioControlsWriter (#19975)',
+            '* Fix gamepad hot-plug detection in Editor (#20021)',
+            '* Add null checking for ConsoleViewPane (#20052)',
+        ])
+        out = self._make_git_log_output(
+            ('abc', 'Cherrypick fixes to 26100 (first pass) (#20091)', body),
+        )
+        containers, _ = self._extract(tmp_path, out)
+        assert len(containers) == 1
+        assert containers[0]['container_pr'] == 20091
+        assert containers[0]['bundled_prs'] == [19975, 20021, 20052]
+        assert containers[0]['merge_commit'] is False
+
+    def test_container_number_is_the_last_in_the_title(self, tmp_path):
+        # GitHub appends the squash number after any the title already had,
+        # so the original number is bundled content, not the container.
+        out = self._make_git_log_output(
+            ('abc', '(cherrypick) Replace Git-Based FetchContent Patching '
+                    'with patch-ng (#19998) (#20006)', ''),
+        )
+        containers, _ = self._extract(tmp_path, out)
+        assert len(containers) == 1
+        assert containers[0]['container_pr'] == 20006
+        assert containers[0]['bundled_prs'] == [19998]
+
+    def test_cherry_pick_with_nothing_to_cross_check_is_not_listed(self, tmp_path):
+        out = self._make_git_log_output(
+            ('abc', '[stabilization] Fix Qt moc issue (#19655)', 'Details only.\n'),
+        )
+        containers, _ = self._extract(tmp_path, out)
+        assert containers == []
+
+    def test_numbers_in_body_alone_do_not_make_a_container(self, tmp_path):
+        # Title evidence is still required; a follow-up mentioning another PR
+        # is an ordinary change.
+        out = self._make_git_log_output(
+            ('abc', 'Fix terrain seams (#20049)', 'Follow-up to (#19900).\n'),
+        )
+        containers, _ = self._extract(tmp_path, out)
+        assert containers == []
+
+    def test_merge_commit_container_lists_the_commits_it_merged(self, tmp_path):
+        out = self._make_git_log_output(
+            ('mmm', 'Merge pull request #20091 from nick-l-o3de/cherrypick_fixes_to_26100_1',
+             'Cherrypick fixes to 26100 (first pass)', 'p1sha p2sha'),
+        )
+        merged = (
+            'Fixes an assert and UB in AudioControlsWriter (#19975)\n'
+            'Fix gamepad hot-plug detection in Editor (#20021)\n'
+        )
+        containers, run = self._extract(tmp_path, out, merged_subjects=merged)
+        assert len(containers) == 1
+        c = containers[0]
+        assert c['container_pr'] == 20091
+        assert c['merge_commit'] is True
+        assert c['title'] == 'Cherrypick fixes to 26100 (first pass)'
+        assert c['bundled_prs'] == [19975, 20021]
+        assert run.call_count == 2
+
+    def test_merge_commit_of_an_ordinary_pr_is_ignored(self, tmp_path):
+        out = self._make_git_log_output(
+            ('mmm', 'Merge pull request #19882 from o3de/imgui-console-input-bug',
+             'Fix imgui console input handling', 'p1sha p2sha'),
+        )
+        containers, run = self._extract(tmp_path, out)
+        assert containers == []
+        # No second git call is spent on a merge that is not a container.
+        assert run.call_count == 1
+
+    def test_merge_commit_container_survives_a_failed_parent_walk(self, tmp_path):
+        # A failed `git log p1..p2` must not hide the container itself.
+        out = self._make_git_log_output(
+            ('mmm', 'Merge pull request #20091 from nick-l-o3de/cherrypick_fixes_to_26100_1',
+             'Cherrypick fixes to 26100 (first pass)', 'p1sha p2sha'),
+        )
+        containers, _ = self._extract(tmp_path, out, merged_rc=128)
+        assert len(containers) == 1
+        assert containers[0]['container_pr'] == 20091
+        assert containers[0]['bundled_prs'] == []
 
     def test_finds_container_with_bundled_prs(self, tmp_path):
         out = self._make_git_log_output(
@@ -3054,6 +3158,29 @@ class TestStabilizationCherryPickAudit:
         content = out.read_text()
         assert '✗ #19777' in content
         assert 'Action required' in content
+
+    def test_merge_commit_container_is_labelled_and_confirmed(self, tmp_path):
+        out = tmp_path / 'm.md'
+        data = self._data('stabilization', present=[19998, 19777])
+        data['per_repo']['o3de/o3de']['containers'][0]['merge_commit'] = True
+        release_notes.write_pointrelease_audit(data, out)
+        content = out.read_text()
+        assert 'merge commit' in content
+        assert '✓ #19998' in content
+        assert '✓ #19777' in content
+        assert 'Action required' not in content
+
+    def test_stabilization_tick_does_not_claim_a_dev_side_merge(self, tmp_path):
+        # On the release branch the fix is present through its own
+        # cherry-picked commit; the point-release wording stays as it was.
+        out_s = tmp_path / 's.md'
+        release_notes.write_pointrelease_audit(
+            self._data('stabilization', present=[19998]), out_s)
+        assert 'dev-side' not in out_s.read_text()
+        out_p = tmp_path / 'p.md'
+        release_notes.write_pointrelease_audit(
+            self._data('pointrelease', present=[19998]), out_p)
+        assert 'via dev-side merge' in out_p.read_text()
 
     def test_filtered_pr_still_warns_even_when_previously_reported(self, tmp_path):
         # Precedence matters: a fix filtered OUT of THIS report is a live

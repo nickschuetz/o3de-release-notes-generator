@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0-beta] - 2026-09-03
+
+### Fixed
+- **A squashed cherry-pick container is now recognised by the PR numbers it carries, not by how its title is worded.** [o3de/o3de#20091](https://github.com/o3de/o3de/pull/20091) (11 fixes, open against `stabilization/26100`) is titled `Cherrypick fixes to 26100 (first pass)`: it names its destination rather than its source and matched none of the container patterns. Had it been squash-merged, the tool would have excluded it as a cherry-pick and the audit would have stayed silent while 11 fixes vanished from the notes. GitHub's squash keeps the picked commits' subjects in the body, so that evidence now suffices. On the live window this also surfaces four sync containers the patterns missed (`#19672`, `#19609`, `#19277`, `#19229`); their bundled fixes are all prior-cycle content.
+- **The container's own number is the last `(#NNNN)` in the title.** GitHub appends the squash number after any the title already carried, so `(cherrypick) Fix X (#19998) (#20006)` is container 20006 bundling 19998, not the other way round.
+
+### Added
+- **Merge-commit containers are listed and confirmed.** A `Merge pull request #N` whose PR title matches a cherry-pick pattern is reported with a note and its bundled fixes read from the commits it merged in, so the safe outcome shows as ✓ rather than being inferred from silence. `#20006` / `#19998` now reads that way on the 26.10.0 window, and `#20091` will once it lands.
+- 9 new tests (415 -> 424).
+
+### Changed
+- The stabilization audit's ✓ line says "present in the rendered report"; "via dev-side merge" was point-release wording and stays there.
+- Runbook §7 spells out that the merge button decides everything for a cherry-pick PR against the release branch, and §7a records that `need-sync/to-stabilization` is swapped for `sync/to-stabilization` once the cherry-pick lands (44 closed PRs carry the latter, none carry both).
+
 ## [0.10.1-beta] - 2026-08-20
 
 ### Fixed
