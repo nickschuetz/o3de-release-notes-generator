@@ -355,7 +355,7 @@ major token encodes year and month.
 The tool auto-detects the point-release pattern and:
 
 1. Emits a one-line `INFO` log noting that the merge-base of `2605.0` and `2605.2` against `--to-ref` is identical (point-release cherry-picks are correctly excluded; their bundled fixes are counted via the development-side merges instead).
-2. Writes a **point-release audit sidecar** at `reports/26100_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing; investigate). Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
+2. Writes a **point-release audit sidecar** at `reports/26100_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing; investigate). Containers are recognised by the PR numbers they carry, not only by how their title is worded, and a cherry-pick PR merged with a merge commit is listed with its bundled fixes confirmed. Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
 3. Flags release-machinery PRs (version bumps, SBOM auto-updates, cherry-pick wrappers, "merging pointrelease into main" merges, etc.) with `release_machinery: true` in the JSON and excludes them from the rendered output. Opt back in with `--include-release-machinery`; useful for *point-release* notes where the machinery PRs are the headline content.
 
 ## Sample Output
@@ -487,7 +487,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.10.1-beta",
+    "tool_version": "0.11.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,

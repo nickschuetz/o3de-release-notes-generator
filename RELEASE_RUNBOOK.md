@@ -273,6 +273,15 @@ happened with #20006 / #19998 on 2026-08-12. When a container is *squashed*, it
 carries only its own number, is filtered out as a cherry-pick, and takes every
 fix it bundles with it. The sidecar exists to catch that.
 
+Both outcomes are audited. A squashed container is recognised by the PR
+numbers in its body (GitHub keeps the picked subjects there), so the title
+wording does not matter; a merge-commit container is listed with a note and
+its bundled fixes shown ✓. The merge button is still the thing to watch on a
+cherry-pick PR against the release branch: **Create a merge commit** keeps
+every fix under its own number, **Squash and merge** loses them all and the
+sidecar turns red. `#20006` was merged the right way; `#20091` (11 fixes,
+open as of 2026-09-03) should be too.
+
 Each bundled PR is marked:
 
 - ✓ present in the rendered report
@@ -282,9 +291,10 @@ Each bundled PR is marked:
 
 Check every ⚠ and ✗ before publishing. A ✗ is not automatically a loss: the
 window reaches back to the merge-base, so containers from earlier cycles appear
-too. The 2026-08-20 run showed 5, all from the 26.05 and 25.10 cycles, and
+too. The 2026-09-03 run showed 9, all from the 26.05 and 25.10 cycles, and
 #19777 among them turned out to be a genuine gap in the 26.05.0 notes rather
-than anything owed to 26.10.0.
+than anything owed to 26.10.0. A container that predates the branch cut
+belongs to an earlier cycle by construction.
 
 Suppress the sidecar with `--no-pointrelease-audit`.
 
@@ -306,7 +316,11 @@ gh api --paginate 'repos/o3de/o3de/issues?labels=need-sync/to-stabilization&stat
 
 The dangerous state is **merged but not yet cherry-picked**. Such a PR is in
 `development`, flagged as release content, and absent from the notes. As of
-2026-08-20 that is `#20013` (merged 2026-08-18). Compare the two windows by PR
+2026-09-03 that is 11 PRs (`#19975` through `#20052`), all bundled in the
+open cherry-pick `#20091`. When a cherry-pick lands, the label is swapped for
+`sync/to-stabilization`: 44 closed PRs carry that one, none carry both, so a
+merged PR still wearing `need-sync/to-stabilization` after its cherry-pick
+merged is a labelling miss, not a missing fix. Compare the two windows by PR
 number, not by commit SHA: a cherry-pick has a different SHA, so a SHA-based
 diff reports fixes as pending that are already on the branch (`#19998` looks
 pending that way and is not).

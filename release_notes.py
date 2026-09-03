@@ -26,7 +26,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.10.1-beta'
+__version__ = '0.11.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -645,23 +645,63 @@ def is_stabilization_ref(ref: str) -> bool:
     return bool(STABILIZATION_BRANCH_PATTERN.search(ref or ''))
 
 
+def _bundled_prs_from_merge(
+    repo_path: pathlib.Path,
+    first_parent: str,
+    second_parent: str,
+) -> list[int]:
+    """PR numbers carried by the commits a merge commit brought in: everything
+    reachable from the second parent but not the first. Used for cherry-pick
+    containers that were merged rather than squashed, where each picked commit
+    keeps its original `(#NNNN)` subject."""
+    try:
+        return extract_pr_numbers_from_git_log(repo_path, first_parent, second_parent)
+    except (RuntimeError, ValueError) as e:
+        logger.warning(
+            'Could not list the commits merged by %s..%s in %s: %s',
+            first_parent[:8], second_parent[:8], repo_path, e,
+        )
+        return []
+
+
 def extract_pointrelease_containers(
     repo_path: pathlib.Path,
     predecessor_tag: str,
     from_ref: str,
 ) -> list[dict[str, Any]]:
     """Walk commits between predecessor_tag and from_ref looking for cherry-pick
-    containers (PRs whose title matches POINTRELEASE_CONTAINER_PATTERNS) and
-    extract the bundled PR numbers from each commit's body.
+    containers and extract the PR numbers each one bundles.
 
-    Returns a list of {container_pr, title, bundled_prs: [int, ...]} dicts.
+    A commit is a container when any of these hold:
+
+    - its title matches POINTRELEASE_CONTAINER_PATTERNS. Listed even when no
+      bundled numbers can be parsed, so the reader sees it was found.
+    - its title matches CHERRY_PICK_PATTERNS and the title or body references
+      at least one other PR number. This is how a squashed container reveals
+      itself: GitHub's squash keeps the picked commits' subjects in the body,
+      so the evidence is there however the container was named. The title
+      `Cherrypick fixes to 26100 (first pass)` (o3de/o3de#20091) names its
+      destination rather than its source and matched none of the container
+      patterns, which would have left a squash of it unaudited.
+    - it is a merge commit for a PR (`Merge pull request #N`) whose subject or
+      body matches CHERRY_PICK_PATTERNS. The bundled PRs are the commits the
+      merge brought in (first parent..second parent). Nothing is lost in this
+      case, since each picked commit keeps its own `(#NNNN)`; listing it lets
+      the audit confirm that positively instead of by silence.
+
+    The container's own number is the LAST `(#NNNN)` in the title, because
+    GitHub appends the squash number after any the title already carried:
+    `(cherrypick) Fix X (#19998) (#20006)` is container 20006 bundling 19998.
+
+    Returns a list of {container_pr, container_sha, title, bundled_prs,
+    merge_commit} dicts.
     """
     predecessor_tag = validate_git_ref(predecessor_tag)
     from_ref = validate_git_ref(from_ref)
     sep = '@@CONTAINER_BOUNDARY@@'
     try:
         result = subprocess.run(
-            ['git', 'log', f'--format=%H%n%s%n%b%n{sep}',
+            ['git', 'log', f'--format=%H%n%P%n%s%n%b%n{sep}',
              f'{predecessor_tag}..{from_ref}'],
             cwd=str(repo_path.resolve()),
             capture_output=True,
@@ -686,32 +726,56 @@ def extract_pointrelease_containers(
         chunk = chunk.strip()
         if not chunk:
             continue
-        lines = chunk.split('\n', 2)
-        if len(lines) < 2:
+        lines = chunk.split('\n', 3)
+        if len(lines) < 3:
             continue
         sha = lines[0].strip()
-        title = lines[1].strip()
-        body = lines[2] if len(lines) > 2 else ''
+        parents = lines[1].split()
+        title = lines[2].strip()
+        body = lines[3] if len(lines) > 3 else ''
         if len(body) > MAX_CONTAINER_BODY_BYTES:
             body = body[:MAX_CONTAINER_BODY_BYTES]
 
-        if not any(p.search(title) for p in POINTRELEASE_CONTAINER_PATTERNS):
+        merge_match = MERGE_COMMIT_PR_PATTERN.match(title)
+        if merge_match and len(parents) >= 2:
+            # GitHub's default merge-commit body is the PR title, and the branch
+            # name in the subject usually says "cherrypick" too.
+            if not any(p.search(title) or p.search(body) for p in CHERRY_PICK_PATTERNS):
+                continue
+            container_pr: int | None = int(merge_match.group(1))
+            bundled = {
+                n for n in _bundled_prs_from_merge(repo_path, parents[0], parents[1])
+                if n != container_pr
+            }
+            pr_title = body.strip().split('\n', 1)[0].strip() or title
+            containers.append({
+                'container_pr': container_pr,
+                'container_sha': sha,
+                'title': pr_title,
+                'bundled_prs': sorted(bundled),
+                'merge_commit': True,
+            })
             continue
 
-        # PR number in the title itself is the container PR (e.g. "(#19506)").
-        # Bundled PRs come from the body.
-        title_match = PR_NUMBER_PATTERN.search(title)
-        container_pr = int(title_match.group(1)) if title_match else None
-        bundled = set()
-        for m in PR_NUMBER_PATTERN.finditer(body):
-            n = int(m.group(1))
-            if n != container_pr:
-                bundled.add(n)
+        named_container = any(p.search(title) for p in POINTRELEASE_CONTAINER_PATTERNS)
+        if not named_container and not any(p.search(title) for p in CHERRY_PICK_PATTERNS):
+            continue
+
+        title_numbers = [int(m.group(1)) for m in PR_NUMBER_PATTERN.finditer(title)]
+        container_pr = title_numbers[-1] if title_numbers else None
+        bundled = set(title_numbers)
+        bundled.update(int(m.group(1)) for m in PR_NUMBER_PATTERN.finditer(body))
+        if container_pr is not None:
+            bundled.discard(container_pr)
+        if not named_container and not bundled:
+            # A plain cherry-pick with nothing to cross-check.
+            continue
         containers.append({
             'container_pr': container_pr,
             'container_sha': sha,
             'title': title,
             'bundled_prs': sorted(bundled),
+            'merge_commit': False,
         })
     return containers
 
@@ -760,8 +824,9 @@ def write_pointrelease_audit(
         )
 
     lines.append(
-        "The bundled PRs are extracted from the container's commit body, then\n"
-        "checked against what the report actually renders:\n"
+        "The bundled PRs are extracted from the container's commit body (or,\n"
+        "for a container merged with a merge commit, from the commits it\n"
+        "merged in), then checked against what the report actually renders:\n"
         "\n"
         "- ✓ present in the rendered report\n"
         "- ⚠ collected but filtered OUT of the report (reason shown). These are\n"
@@ -773,6 +838,13 @@ def write_pointrelease_audit(
         "Checking against the rendered output rather than the collected JSON is\n"
         "deliberate: the latter reports a green tick for a fix the reader will\n"
         "never see.\n"
+    )
+
+    # On a stabilization branch a bundled fix is present through its own
+    # cherry-picked commit, not through a merge from development.
+    present_wording = (
+        'present in the rendered report' if kind == 'stabilization'
+        else 'present in report via dev-side merge'
     )
 
     grand_total_containers = 0
@@ -797,14 +869,18 @@ def write_pointrelease_audit(
             bundled = entry.get('bundled_prs', [])
             grand_total_containers += 1
             grand_total_bundled += len(bundled)
-            lines.append(f"- **{cpr_label}**: {entry.get('title', '')}")
+            merge_note = (
+                " _(merge commit: each picked commit keeps its own PR number)_"
+                if entry.get('merge_commit') else ""
+            )
+            lines.append(f"- **{cpr_label}**: {entry.get('title', '')}{merge_note}")
             if not bundled:
                 lines.append("  - _(no bundled PRs parsed from body)_")
                 continue
             for b in bundled:
                 if b in present:
                     grand_total_present += 1
-                    lines.append(f"  - ✓ #{b}: present in report via dev-side merge")
+                    lines.append(f"  - ✓ #{b}: {present_wording}")
                 elif b in filtered:
                     grand_total_filtered += 1
                     lines.append(
