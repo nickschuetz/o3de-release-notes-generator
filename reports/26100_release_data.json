@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "generated_at": "2026-08-20T15:30:07.708952+00:00",
+    "generated_at": "2026-09-06T23:55:26.159293+00:00",
     "from_ref": "2605.0",
-    "to_ref": "origin/stabilization/26100",
+    "to_ref": "upstream/stabilization/26100",
     "repos": [
       "o3de/o3de",
       "o3de/o3de-extras"
@@ -12,12 +12,12 @@
       "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras"
     },
     "schema_version": 6,
-    "tool_version": "0.10.0-beta",
-    "pr_count": 220,
+    "tool_version": "0.11.0-beta",
+    "pr_count": 233,
     "categorization_summary": {
-      "label": 131,
-      "heuristic_files": 32,
-      "heuristic_title": 54,
+      "label": 142,
+      "heuristic_files": 33,
+      "heuristic_title": 55,
       "uncategorized": 1,
       "manual_override": 2
     },
@@ -71,7 +71,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-08-20T15:30:07.708952+00:00"
+      "end": "2026-09-06T23:55:26.159293+00:00"
     }
   },
   "pull_requests": [
@@ -6593,6 +6593,30 @@
     },
     {
       "files_truncated": false,
+      "number": 19975,
+      "repo": "o3de/o3de",
+      "title": "Fixes an assert and UB in AudioControlsWriter",
+      "body": "## What does this PR do?\r\n\r\nThe AudioControlsWriter class was creating an AZStd::set of file names, and then modifying the members of it in place, in memory, rather than creating a new set or reinserting.  This means that the elements may initially be in order when first inserted, but will be out of order by the time it uses a stl algorithm like set_difference.\r\n\r\nMSVC debug actually triggers an assert in debug since it checks to see if the elements are out of order in a set (this should never be the case, as it sorts/rebalances on insertion and deletion).  The rest of the libraries (clang, etc) do not check, and just emit UB.\r\n\r\n## How was this PR tested?\r\n\r\nTested in a pseudo test case I set up.  Also, verified by Discord user \"system_v\" who encountered this assert directly and used the patched code to check.",
+      "url": "https://github.com/o3de/o3de/pull/19975",
+      "author": "nick-l-o3de",
+      "merged_at": "2026-08-21T19:22:12Z",
+      "labels": [
+        "sig/graphics-audio",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/AudioSystem/Code/Source/Editor/AudioControlsWriter.cpp"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "label",
+      "description": "Fixes an assert and UB in AudioControlsWriter.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
       "number": 19976,
       "repo": "o3de/o3de",
       "title": "AudioSystem Gem Editor and Engine fixes: FileCacheManager dangling pointer and invisible Connection Properties.",
@@ -6658,6 +6682,33 @@
       "sig_category": "sig/content",
       "categorization_source": "label",
       "description": "Fixes Script Canvas in-place save (Ctrl+S, or File > Save) opening the Save As dialog instead of overwriting the file.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 19981,
+      "repo": "o3de/o3de",
+      "title": "Fixes a debug assert that occurs in LyShine when picking assets",
+      "body": "## What does this PR do?\r\n\r\nFixes a popup debug runtime assert that the debug Qt catches, when you actually use a property\r\nasset control (like the \"which font to use?\" control in a text element)\r\n\r\nWhen an asset picker populates, it uses a autocompleter.\r\n\r\nHowever, the autocompleter emits a modelReset signal when it is destroyed.  The PropertyAssetCtrl was not disconnecting from this signal on destruction,\r\nwhich causes the signal to emit later when the child object is destroyed, at which time the PropertyAssetCtrl is already mostly destroyed.\r\n\r\n## How was this PR tested?\r\n\r\nIts a 100% repro if you create a text element in lyshine, and click on its \"font\" asset, modifying that in any way causes it to spawn an autocompleter.  Once you refresh the property view by picking any other lyshine entity in the scene, it crashes.\r\n\r\n(Only in Qt debug mode)\r\n\r\nafter this fix, no more crash.\r\n\r\n",
+      "url": "https://github.com/o3de/o3de/pull/19981",
+      "author": "nick-l-o3de",
+      "merged_at": "2026-08-21T19:20:17Z",
+      "labels": [
+        "kind/bug",
+        "sig/content",
+        "sync/to-stabilization",
+        "kind/crash"
+      ],
+      "files": [
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/PropertyAssetCtrl.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/PropertyAssetCtrl.hxx"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "label",
+      "description": "Fixes a popup debug runtime assert that the debug Qt catches, when you actually use a property asset control (like the \"which font to use?\" control in a text element).",
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
@@ -6839,6 +6890,60 @@
     },
     {
       "files_truncated": false,
+      "number": 19993,
+      "repo": "o3de/o3de",
+      "title": "Fixes crash when detaching prefab, and imgui crash",
+      "body": "## What does this PR do?\r\n\r\n### Fix for detaching prefabs causing a crash\r\nFixes https://github.com/o3de/o3de/issues/19988\r\n\r\nThis is caused by the Detach function allowing the container entity to activate while not completely\r\nready to do so.\r\n\r\nBasically, all entities need to be owned by some instance (For example, owned by the level instance, or owned by a prefab instance that the level has instantiated).\r\n\r\nWhen detaching a prefab, the container entity is removed from the prefab instance, then deactivated, its \"I am a prefab container\" component is removed, then it is reactivated before it is added to the level instance.\r\n\r\nThis means that its active while not owned by anyone, causing asserts and crashes.\r\n\r\nThe code change in question makes it so that it is added to the level instance before it is reactivated.\r\n\r\nIt also makes the detached container reselect, if it still exists, for a smoother user experience.\r\n\r\n### Fixes cases where a deleted entity or component could be selected still after deletion\r\n\r\nThis change also revealed cases where the instance update executor was deleting an entity or replacing one that was currently selected.  For example, \r\n* a component is destroyed and reserialized from json due to undo/redo/detach/instance override.\r\n* After the update executor despawns and respawns the entity, it tries to restore selection, by calling SetSelectedEntities.\r\n* SetSelectedEntities calls \"Before Entity Selected\" which causes the entity property editor and outliner to try to save the state of their GUIs (including current component expansion state) before the new selection comes in.  But its too late.  Those components are already dead.\r\n\r\nI fixed this in 2 ways\r\n* I no longer attempt to save state when a Clear() /  BeforeSelectionChange occurs.  There is no need.  The state saves whenever the state is changed.  The only thing the component state contains is whether or not it was selected or not.  This is automatically saved whenever selection changes already.\r\n* I make it so that the update executor saves the alias paths (which is a stable reference to an entity, without its id, and without its pointer, a reference that is a path like `LevelRoot/Prefab10/entity5` rather than a memory address, and looks it up as it changes.  It updates the selection if any of the entities previously selected have a new Id.\r\n\r\n### ImGUI simple crash\r\nThis also fixes a crash in ImGui.  When specifying a combo box in ImGUI, you specify a null-seperated list of items, and the last item must have two nulls after it.  The code was not adding any nulls, causing ImGUI to read beyond the end of the buffer.\r\n\r\n## How was this PR tested?\r\nA lot of basic testing (detaching prefabs, undoing and redoing detach, editing entity properties, etc).\r\n\r\nNote that additional tests were added, supplied by @EnterTheArcane.\r\n",
+      "url": "https://github.com/o3de/o3de/pull/19993",
+      "author": "nick-l-o3de",
+      "merged_at": "2026-08-31T15:39:18Z",
+      "labels": [
+        "sig/core",
+        "sync/to-stabilization",
+        "kind/crash"
+      ],
+      "files": [
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Application/ToolsApplication.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Commands/SelectionCommand.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Commands/SelectionCommand.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Entity/PrefabEditorEntityOwnershipService.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Entity/ReadOnly/ReadOnlyEntityBus.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Entity/ReadOnly/ReadOnlyEntitySystemComponent.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/Instance/InstanceUpdateExecutor.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/Instance/InstanceUpdateExecutor.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/Instance/InstanceUpdateExecutorInterface.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/PrefabPublicHandler.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/PrefabSystemComponent.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/ToolsComponents/TransformComponent.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/Prefab/Procedural/ProceduralPrefabReadOnlyHandler.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/EntityPropertyEditor.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/PropertyColorCtrl.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UnitTest/AzToolsFrameworkTestHelpers.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UnitTest/AzToolsFrameworkTestHelpers.h",
+        "Code/Framework/AzToolsFramework/Tests/ComponentModeSwitcherTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/ComponentModeTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/EditorTransformComponentSelectionTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Entity/ReadOnly/ReadOnlyEntityFixture.cpp",
+        "Code/Framework/AzToolsFramework/Tests/FocusMode/EditorFocusModeTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabDeleteTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabDetachPrefabAndRemoveContainerTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabDetachPrefabTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabTestFixture.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabTestFixture.h",
+        "Code/Framework/AzToolsFramework/Tests/ToolsComponents/EditorTransformComponentTests.cpp",
+        "Gems/ImGui/Code/Source/LYCommonMenu/ImGuiLYEntityOutliner.cpp",
+        "Gems/WhiteBox/Code/Tests/WhiteBoxComponentTest.cpp"
+      ],
+      "sig_category": "sig/core",
+      "categorization_source": "label",
+      "description": "Fix for detaching prefabs causing a crash Fixes https://github.com/o3de/o3de/issues/19988.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
       "number": 19994,
       "repo": "o3de/o3de",
       "title": "Fix Cutout SSAO Artifacts and Blended Shadows in the Unlit Shader",
@@ -7012,6 +7117,299 @@
       "categorization_source": "label",
       "description": "1.  No longer attempts to copy an non-existent egg-link file 2.  Links assimp statically.  Its not acutally used or exposed outside of the scene API dll, which is always a dll, so its not necessary to ship it. 3.  Fixes the motion blur asset, which was missing integration into stabilization.",
       "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20013,
+      "repo": "o3de/o3de",
+      "title": "UiCanvasComponent: Do not block certain input events when `m_isConsumingAllInputEvents` is false while hoving over interactables",
+      "body": "## What does this PR do?\r\n\r\nOnly block input events that are defined in `UiNavigationHelper::Command(...)` on active or hovered interactables when `m_isConsumingAllInputEvents` is true.\r\n\r\nThis fixes #19930.\r\n\r\n## How was this PR tested?\r\n\r\nThe same test was performed that's found in #19930, pressing escape is no longer blocked when the mouse pointer is hovering over an interactable.",
+      "url": "https://github.com/o3de/o3de/pull/20013",
+      "author": "gralco",
+      "merged_at": "2026-08-18T17:25:11Z",
+      "labels": [
+        "sig/content",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/LyShine/Code/Source/UiCanvasComponent.cpp"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "label",
+      "description": "Only block input events that are defined in \\`UiNavigationHelper::Command(...)\\` on active or hovered interactables when \\`m_isConsumingAllInputEvents\\` is true.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20021,
+      "repo": "o3de/o3de",
+      "title": "Fix gamepad hot-plug detection in Editor",
+      "body": "## What does this PR do?\r\n\r\nFixes gamepad hot-plug detection in the Windows Editor while outside Game Mode.\r\n\r\nThe Windows gamepad implementation performs an initial XInput connection\r\ncheck and then relies on WM_DEVICECHANGE notifications to retry disconnected\r\ngamepads.\r\n\r\nPreviously, the Editor only forwarded WM_DEVICECHANGE notifications to the\r\nAzFramework input system while already in Game Mode. As a result, connecting\r\na gamepad while working in Edit Mode did not cause the input system to detect\r\nthe newly connected device.\r\n\r\nThis PR forwards device change notifications regardless of Game Mode, allowing\r\nthe input system to detect gamepads immediately when they are connected in the\r\nEditor.\r\n\r\nThe existing Game Mode event filtering behavior is preserved.\r\n\r\n<img width=\"556\" height=\"142\" alt=\"image\" src=\"https://github.com/user-attachments/assets/2d3c9cf9-4b34-42bd-a4fb-00d041aff22a\" />\r\n\r\n\r\n## How was this PR tested?\r\n\r\nTested on Windows with an XInput gamepad.\r\n\r\n- Started the Editor with the gamepad disconnected.\r\n- Connected the gamepad while still in Edit Mode.\r\n- Verified that disconnecting and reconnecting the gamepad works without restarting the Editor.\r\n- Verified that connection and disconnection events appear in the Editor console.\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20021",
+      "author": "Atmosaero",
+      "merged_at": "2026-09-03T16:35:13Z",
+      "labels": [
+        "sig/content",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Editor/Platform/Windows/Editor/Core/QtEditorApplication_windows.cpp",
+        "Code/Editor/Platform/Windows/Editor/Core/QtEditorApplication_windows.h"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "label",
+      "description": "Fixes gamepad hot-plug detection in the Windows Editor while outside Game Mode.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20022,
+      "repo": "o3de/o3de",
+      "title": "Fix Preview Action Log background",
+      "body": "## What does this PR do?\r\n\r\nFixes the Preview Action Log readability in LyShine.\r\n\r\n<img width=\"784\" height=\"197\" alt=\"image\" src=\"https://github.com/user-attachments/assets/1fd7bcd8-0b23-4a68-b9f1-c7e078d90af8\" />\r\n\r\n\r\nPreviously, the Preview Action Log could use a light background, which made some log text difficult to read depending on the current UI styling.\r\n\r\nThis PR gives the Preview Action Log a dark background so the text remains clearly visible and consistent with the rest of the editor UI.\r\n\r\n<img width=\"851\" height=\"145\" alt=\"image\" src=\"https://github.com/user-attachments/assets/3bbe1e36-a52e-4b2f-a041-f74dedd205f4\" />\r\n\r\n\r\n## How was this PR tested?\r\n\r\nTested in the O3DE Editor with the LyShine Preview Action Log open.\r\n\r\nVerified that:\r\n- The log uses the new dark background.\r\n- Existing log messages remain readable.\r\n- The widget continues to behave normally when docked and resized.",
+      "url": "https://github.com/o3de/o3de/pull/20022",
+      "author": "Atmosaero",
+      "merged_at": "2026-08-22T17:37:34Z",
+      "labels": [
+        "sig/content",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/LyShine/Code/Editor/Widgets/PreviewActionWidget/PreviewActionLog.cpp"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "label",
+      "description": "Fixes the Preview Action Log readability in LyShine.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20027,
+      "repo": "o3de/o3de",
+      "title": "Fix InputDeviceId construction in Lua",
+      "body": "What does this PR do?\r\nLua scripts currently cannot reliably obtain a specific input device by name and index.\r\nAlthough InputDeviceId exposes reflected constructors, Lua always selects its default constructor because the type is default-constructible. As a result:\r\n```lua\r\nInputDeviceId(\"gamepad\", 1)\r\n```\r\nincorrectly creates an ID with an empty name and index 0.\r\n```text\r\nname = , index = 0\r\n``` \r\nThis prevents Lua from distinguishing multiple devices of the same type and from querying or addressing a specific device through an EBus.\r\n\r\nThis PR adds a Lua constructor override that correctly handles the supported constructor forms:\r\n```lua\r\nInputDeviceId()\r\nInputDeviceId(\"gamepad\")\r\nInputDeviceId(\"gamepad\", 1)\r\n```\r\nThe fix is generic and can be used with any input device name, not only gamepads. It does not change device creation, connection handling, input events, or C++ constructor behavior.\r\nHow was this PR tested?\r\n- Successfully built the Editor profile.\r\n- Tested with multiple gamepads connected simultaneously.\r\n- Created a separate InputDeviceId for each gamepad index from Lua.\r\n- Verified that each constructed ID retained the expected device name and index.\r\n- Used the constructed IDs with InputDeviceRequestBus to query the corresponding devices.\r\n- Confirmed that the connected gamepads could be found and distinguished independently by their constructed IDs.",
+      "url": "https://github.com/o3de/o3de/pull/20027",
+      "author": "Atmosaero",
+      "merged_at": "2026-08-29T15:51:05Z",
+      "labels": [
+        "feature/scripting",
+        "sig/core",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Framework/AzFramework/AzFramework/Input/Devices/InputDeviceId.cpp",
+        "Code/Framework/AzFramework/Tests/InputDeviceIdReflectionTests.cpp",
+        "Code/Framework/AzFramework/Tests/frameworktests_files.cmake"
+      ],
+      "sig_category": "sig/core",
+      "categorization_source": "label",
+      "description": "Fix InputDeviceId construction in Lua.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20031,
+      "repo": "o3de/o3de",
+      "title": "Fix zero-item FrameGraph command list count",
+      "body": "## What does this PR do?\n\nCorrects zero-item FrameGraph command-list creation in DX12, Vulkan, and Metal. This supersedes #20011.\n\n`GetEstimatedItemCount()` describes the expected draw, dispatch, or copy submissions for a scope, so zero is valid when a pass has nothing to submit. The previous clamp used a range of `[1, estimatedItemCount]`; when the estimate was zero, it produced zero command lists and violated the execution group's requirement to have at least one.\n\nThis change applies the item-count limit before enforcing the command-list minimum. The scope keeps its zero item and submit counts, while its dedicated execute group receives one command list for scope work such as clears, barriers, and render-pass transitions. Nonzero scopes keep the same partitioning behavior.\n\n## How was this PR tested?\n\n- Built the Editor and `Atom_RHI.Tests` on Windows.\n- Passed `FrameGraphTests.TestSingleEmptyScope` and `FrameSchedulerTests.Test`.\n- Exercised 200-frame DX12 and Vulkan Editor smoke runs without the zero-command-list assertion or crash.\n\nThe matching Metal change was not built or runtime-tested on Windows.\n",
+      "url": "https://github.com/o3de/o3de/pull/20031",
+      "author": "EnterTheArcane",
+      "merged_at": "2026-08-22T15:44:34Z",
+      "labels": [
+        "feature/graphics",
+        "sig/graphics-audio",
+        "feature/graphics/rhi",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/Atom/RHI/DX12/Code/Source/RHI/FrameGraphExecuter.cpp",
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/FrameGraphExecuter.cpp",
+        "Gems/Atom/RHI/Vulkan/Code/Source/RHI/FrameGraphExecuter.cpp"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "label",
+      "description": "Corrects zero-item FrameGraph command-list creation in DX12, Vulkan, and Metal. This supersedes #20011.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20034,
+      "repo": "o3de/o3de",
+      "title": "Fix Metal color clears for render scopes without draw work",
+      "body": "## What does this PR do?\r\n\r\nFixes Metal rendering corruption when a render scope has no draw items but still needs to clear or resolve a color attachment. ([See the issue on the Discord thread here](https://discord.com/channels/805939474655346758/1349060320383074434/1534723008969838795))\r\n\r\n`Metal::Scope::Begin()` decides whether an otherwise empty scope needs a render command encoder. This regression was introduced by [(#18311)](https://github.com/o3de/o3de/pull/18311), specifically commit [`a947f75f`](https://github.com/o3de/o3de/commit/a947f75f816a4f207184a35b184a6d223b60e5be). That refactor replaced the previous explicit clear/resolve flags with inspection of the native Metal attachment descriptors, but the color-attachment loop was guarded by `needsEncoder` instead of `!needsEncoder`.\r\n\r\nBecause `needsEncoder` starts false, the loop skipped every color attachment unless depth or stencil had already established that an encoder was needed. In the repro, Forward had no draw items, and only its color attachment required a clear. Metal therefore created no Forward render encoder, so the `Forward.DiffuseImage` clear was never encoded. The next pass legally loaded the uncleared transient heap texture and exposed stale heap contents as deterministic triangles, bands, black gaps, and green dots. Post-processing and presentation only propagated those pixels, which is also why Metal API validation did not report an invalid command.\r\n\r\nThe fix changes the loop guard to `!needsEncoder`, inspect color attachments until one requires a clear or resolve encoder, then stop. This restores the intended pre-#18311 behavior without creating encoders for scopes that truly have no work, and matches DX12 and Vulkan behavior where attachment clears do not depend on draw count.\r\n\r\n### Before\r\n\r\n<img width=\"1129\" height=\"581\" alt=\"metal_before\" src=\"https://github.com/user-attachments/assets/88f89aca-5696-4046-b9f4-847a59734b8b\" />\r\n\r\n### After\r\n\r\n<img width=\"1129\" height=\"581\" alt=\"metal_after\" src=\"https://github.com/user-attachments/assets/2ac250e1-f51c-4bc9-ad33-0ed83fc3938d\" />\r\n\r\n## How was this PR tested?\r\n\r\n- Tested from `upstream/development` on macOS 27.0, Xcode 27.0, and an Apple M4 10-core GPU.\r\n- The bad trace has no `Root.MainPipeline_0.OpaquePass.Forward` render encoder. The first consumer, `DiffuseGlobalIlluminationPass.DiffuseCompositePass`, loads an already-corrupt `Forward.DiffuseImage`.\r\n- Captured fresh before/after Metal traces. After the fix, the zero-draw Forward encoder exists with `loadAction = Clear`, `Forward.DiffuseImage` is valid at the first consumer, and the image remains valid through ACES and `CopyToSwapChain`.\r\n- Metal API and load-action validation reported no new errors, GPU timeout, readback stall, or ignored submission.\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20034",
+      "author": "EnterTheArcane",
+      "merged_at": "2026-08-22T15:30:16Z",
+      "labels": [
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/Scope.cpp"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_title",
+      "description": "Fixes Metal rendering corruption when a render scope has no draw items but still needs to clear or resolve a color attachment. (\\[See the issue on the Discord thread here\\](https://discord.com/channels/805939474655346758/1349060320383074434/1534723008969838795)).",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20036,
+      "repo": "o3de/o3de",
+      "title": "fix(atom): move group barrier before early exit in SSS shader to prevent GPU deadlock",
+      "body": "**_Summery:_** Relocates `GroupMemoryBarrierWithGroupSync()` in **`ScreenSpaceSubsurfaceScatteringCS.azsl`** so it executes before thread termination checks.\r\n\r\n**_Old behavior:_**\r\n- Non-SSS threads exited early before reaching `GroupMemoryBarrierWithGroupSync()`.\r\n- On hardware such as Intel Iris Xe integrated GPUs, this barrier imbalance causes an immediate thread deadlock and TDR GPU crash when enabling SSS in EnhancedPBR.\r\n- Note: Certain discrete GPU drivers silently tolerate this spec violation, which is likely why the crash was not observed on higher-end hardware\r\n\r\n**_New behavior:_**\r\n- `GroupMemoryBarrierWithGroupSync()` executes before any early exit condition checks.\r\n- All threads in the group safely synchronize shared memory before any thread terminates, adhering strictly to Vulkan and DirectX 12 barrier specifications.\r\n- SSS renders correctly without hanging the GPU driver or crashing on Intel Iris Xe.\r\n\r\n**_Issue:_** Fixes #19838 \r\n\r\n## How was this PR tested?\r\n\r\n**_Testing Environment:_**\r\n- **GPU:** Intel Iris Xe (iGPU)\r\n- Material/Asset: EnhancedPBR material on a 3D mesh.\r\n\r\n**_Testing Steps & Results:_**\r\n- Assigned an `EnhancedPBR` material with Subsurface Scattering (SSS) enabled to a mesh in the editor.\r\n- Verified that the viewport and Atom renderer no longer lock up, crash, or trigger a GPU driver TDR upon enabling SSS.\r\n- Confirmed SSS passes execute properly and render the expected scatter effect without graphical artifacts.",
+      "url": "https://github.com/o3de/o3de/pull/20036",
+      "author": "maks7567",
+      "merged_at": "2026-09-02T20:07:01Z",
+      "labels": [
+        "sig/graphics-audio",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/Atom/Feature/Common/Assets/Shaders/PostProcessing/ScreenSpaceSubsurfaceScatteringCS.azsl"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "label",
+      "description": "fix(atom): move group barrier before early exit in SSS shader to prevent GPU deadlock: **_Summery:_** Relocates \\`GroupMemoryBarrierWithGroupSync()\\` in **\\`ScreenSpaceSubsurfaceScatteringCS.azsl\\`** so it executes before thread termination checks.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20052,
+      "repo": "o3de/o3de",
+      "title": "bugfix : Add null checks for ConsoleViewPane to prevent wild pointer access",
+      "body": "bugfix : Bug Report-Crash in RestoreDefaultLayout when Console View Pane is unavailable\r\n #20014\r\n\r\n## What does this PR do?\r\n\r\nAdds null checking for ConsoleViewPane in QtViewPaneManager to avoid accidental access to wild pointers when no ConsoleView instance has been created.\r\n\r\n**Old behavior:** When no ConsoleView instance existed, accessing ConsoleViewPane could result in wild pointer dereference.\r\n\r\n**New behavior:** Null checks are performed before accessing ConsoleViewPane, preventing potential crashes from invalid pointer access.",
+      "url": "https://github.com/o3de/o3de/pull/20052",
+      "author": "welber-zhang",
+      "merged_at": "2026-08-28T15:44:11Z",
+      "labels": [
+        "sig/core",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Editor/QtViewPaneManager.cpp"
+      ],
+      "sig_category": "sig/core",
+      "categorization_source": "label",
+      "description": "bugfix : Add null checks for ConsoleViewPane to prevent wild pointer access: bugfix : Bug Report-Crash in RestoreDefaultLayout when Console View Pane is unavailable #20014.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20070,
+      "repo": "o3de/o3de",
+      "title": "Fixes broken monolithic compile for meshoptimizer",
+      "body": "## What does this PR do?\r\n\r\nFixes issue https://github.com/o3de/o3de/issues/19962\r\n\r\nMeshoptimizer needs to be included so that monolithic builds work.\r\n\r\n## How was this PR tested?\r\n\r\nTested on windows making a monolithic build of startergame-assets using a custom installer.  NO more linker error during release monolithic build.\r\n\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20070",
+      "author": "nick-l-o3de",
+      "merged_at": "2026-09-02T20:00:28Z",
+      "labels": [
+        "sig/build",
+        "sig/graphics-audio",
+        "need-sync/to-development"
+      ],
+      "files": [
+        "Gems/Atom/RPI/3rdParty/Findmeshoptimizer.cmake",
+        "Gems/Atom/RPI/3rdParty/Installer/Findmeshoptimizer.cmake"
+      ],
+      "sig_category": "sig/build",
+      "categorization_source": "label",
+      "description": "Fixes broken monolithic compile for meshoptimizer: Fixes issue https://github.com/o3de/o3de/issues/19962.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20091,
+      "repo": "o3de/o3de",
+      "title": "Cherrypick fixes to 26100 (first pass)",
+      "body": "## What does this PR do?\r\n\r\nCollects all currently submitted PRs marked with need-sync/to-stabilization and cherry picks them from development to stabilization in reverse order of apply.\r\n\r\nSee https://github.com/o3de/o3de/pulls?q=is%3Apr+label%3Aneed-sync%2Fto-stabilization+is%3Aclosed\r\n\r\n## How was this PR tested?\r\n\r\nCompilation under windows/dx12, reprocessing all the assets for AutomatedTesting, and then doing basic human smoke tests such as loading sponza, loading and running terrain, physics levels in the editor.\r\n\r\nNote that all of the PRs in question are already fully reviewed and approved in `development`, this is just cherry-picking them as-is. \r\n\r\nThere were no conflicts to resolve for any of these.\r\n\r\nThe following PRs are included in this bundle of cherry-picks:\r\n* #19975 \r\n* #19981 \r\n* #19993 \r\n* #20013 \r\n* #20021 \r\n* #20022 \r\n* #20027 \r\n* #20031 \r\n* #20034 \r\n* #20036\r\n* #20052\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20091",
+      "author": "nick-l-o3de",
+      "merged_at": "2026-09-04T18:30:52Z",
+      "labels": [],
+      "files": [
+        "Code/Editor/Platform/Windows/Editor/Core/QtEditorApplication_windows.cpp",
+        "Code/Editor/Platform/Windows/Editor/Core/QtEditorApplication_windows.h",
+        "Code/Editor/QtViewPaneManager.cpp",
+        "Code/Framework/AzFramework/AzFramework/Input/Devices/InputDeviceId.cpp",
+        "Code/Framework/AzFramework/Tests/InputDeviceIdReflectionTests.cpp",
+        "Code/Framework/AzFramework/Tests/frameworktests_files.cmake",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Application/ToolsApplication.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Commands/SelectionCommand.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Commands/SelectionCommand.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Entity/PrefabEditorEntityOwnershipService.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Entity/ReadOnly/ReadOnlyEntityBus.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Entity/ReadOnly/ReadOnlyEntitySystemComponent.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/Instance/InstanceUpdateExecutor.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/Instance/InstanceUpdateExecutor.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/Instance/InstanceUpdateExecutorInterface.h",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/PrefabPublicHandler.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/PrefabSystemComponent.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/ToolsComponents/TransformComponent.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/Prefab/Procedural/ProceduralPrefabReadOnlyHandler.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/EntityPropertyEditor.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/PropertyAssetCtrl.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/PropertyAssetCtrl.hxx",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UI/PropertyEditor/PropertyColorCtrl.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UnitTest/AzToolsFrameworkTestHelpers.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/UnitTest/AzToolsFrameworkTestHelpers.h",
+        "Code/Framework/AzToolsFramework/Tests/ComponentModeSwitcherTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/ComponentModeTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/EditorTransformComponentSelectionTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Entity/ReadOnly/ReadOnlyEntityFixture.cpp",
+        "Code/Framework/AzToolsFramework/Tests/FocusMode/EditorFocusModeTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabDeleteTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabDetachPrefabAndRemoveContainerTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabDetachPrefabTests.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabTestFixture.cpp",
+        "Code/Framework/AzToolsFramework/Tests/Prefab/PrefabTestFixture.h",
+        "Code/Framework/AzToolsFramework/Tests/ToolsComponents/EditorTransformComponentTests.cpp",
+        "Gems/Atom/Feature/Common/Assets/Shaders/PostProcessing/ScreenSpaceSubsurfaceScatteringCS.azsl",
+        "Gems/Atom/RHI/DX12/Code/Source/RHI/FrameGraphExecuter.cpp",
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/FrameGraphExecuter.cpp",
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/Scope.cpp",
+        "Gems/Atom/RHI/Vulkan/Code/Source/RHI/FrameGraphExecuter.cpp",
+        "Gems/AudioSystem/Code/Source/Editor/AudioControlsWriter.cpp",
+        "Gems/ImGui/Code/Source/LYCommonMenu/ImGuiLYEntityOutliner.cpp",
+        "Gems/LyShine/Code/Editor/Widgets/PreviewActionWidget/PreviewActionLog.cpp",
+        "Gems/LyShine/Code/Source/UiCanvasComponent.cpp",
+        "Gems/WhiteBox/Code/Tests/WhiteBoxComponentTest.cpp"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_files",
+      "description": "Cherrypick fixes to 26100 (first pass): Collects all currently submitted PRs marked with need-sync/to-stabilization and cherry picks them from development to stabilization in reverse order of apply.",
+      "flags": [
+        "cherry-pick"
+      ],
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null

@@ -46,6 +46,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Update 3P version and SHA256 hash for DirectXShaderCompilerDxc-1.8.2505.1. [o3de#19967](https://github.com/o3de/o3de/pull/19967)
 - This PR converts D3D12MemoryAllocator 3p to FetchContent. [o3de#19992](https://github.com/o3de/o3de/pull/19992)
 - Update 3P version and SHA256 hash for freetype-2.11.1. [o3de#19997](https://github.com/o3de/o3de/pull/19997)
+- Fixes broken monolithic compile for meshoptimizer: Fixes issue https://github.com/o3de/o3de/issues/19962. [o3de#20070](https://github.com/o3de/o3de/pull/20070)
 
 ## SIG-Content
 - Build the Assimp library alongside o3de instead of depending on already-built 3p-package-source. This PR is a rebase of :. [o3de#19365](https://github.com/o3de/o3de/pull/19365)
@@ -116,9 +117,13 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - AudioSystem Gem Editor and Engine fixes: FileCacheManager dangling pointer and invisible Connection Properties. [o3de#19976](https://github.com/o3de/o3de/pull/19976)
 - Fixes three related Qt6 bugs in the GraphCanvas node palette (used by Script Canvas, Material Canvas, and any node editor), documented in #19966:. [o3de#19978](https://github.com/o3de/o3de/pull/19978)
 - Fixes Script Canvas in-place save (Ctrl+S, or File > Save) opening the Save As dialog instead of overwriting the file. [o3de#19979](https://github.com/o3de/o3de/pull/19979)
+- Fixes a popup debug runtime assert that the debug Qt catches, when you actually use a property asset control (like the "which font to use?" control in a text element). [o3de#19981](https://github.com/o3de/o3de/pull/19981)
 - Removes the remaining \`#ifndef\`/\`#define\` include guards and leaves each of those headers with a single \`#pragma once\` directly under the license block. [o3de#19984](https://github.com/o3de/o3de/pull/19984)
 - Pull request https://github.com/o3de/o3de/pull/19952 renamed the file for the ground plane. It had a spelling mistake in it originally, "GROUD" instead of "GROU**N**D". [o3de#19995](https://github.com/o3de/o3de/pull/19995)
 - Replace Git-Based FetchContent Patching with patch-ng. [o3de#19998](https://github.com/o3de/o3de/pull/19998)
+- Only block input events that are defined in \`UiNavigationHelper::Command(...)\` on active or hovered interactables when \`m_isConsumingAllInputEvents\` is true. [o3de#20013](https://github.com/o3de/o3de/pull/20013)
+- Fixes gamepad hot-plug detection in the Windows Editor while outside Game Mode. [o3de#20021](https://github.com/o3de/o3de/pull/20021)
+- Fixes the Preview Action Log readability in LyShine. [o3de#20022](https://github.com/o3de/o3de/pull/20022)
 
 ## SIG-Core
 - Very similar to https://github.com/o3de/o3de-extras/pull/1062 - but for cmake in project template. [o3de-extras#1064](https://github.com/o3de/o3de-extras/pull/1064)
@@ -150,6 +155,9 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Renames \`Gems/AtomLyIntegration/CommonFeatures/Assets/Objects/Groudplane\` to \`Groundplane\` to fix the misspelling in the asset picker. [o3de#19952](https://github.com/o3de/o3de/pull/19952)
 - Fix LuaIDE IPC, file path case preservation and wrong document invalidation. [o3de#19963](https://github.com/o3de/o3de/pull/19963)
 - Remove dlmalloc and nedmalloc from AzCore.: These libraries are no longer competitive compared with native allocators on modern platforms, and they are not maintained upstream.  Removing them reduces the size of the codebase and the number of dependencies. [o3de#19985](https://github.com/o3de/o3de/pull/19985)
+- Fix for detaching prefabs causing a crash Fixes https://github.com/o3de/o3de/issues/19988. [o3de#19993](https://github.com/o3de/o3de/pull/19993)
+- Fix InputDeviceId construction in Lua. [o3de#20027](https://github.com/o3de/o3de/pull/20027)
+- bugfix : Add null checks for ConsoleViewPane to prevent wild pointer access: bugfix : Bug Report-Crash in RestoreDefaultLayout when Console View Pane is unavailable #20014. [o3de#20052](https://github.com/o3de/o3de/pull/20052)
 
 ## SIG-Graphics-Audio
 - feature: improve assertions for RHI Vulkan result: \`AssertSuccess\` wraps an assertion for a given line but the asserted code is in a nested call. this just moves the assertion to a macro so the inlined call will be correctly reflected in the logs. [o3de#17169](https://github.com/o3de/o3de/pull/17169)
@@ -183,7 +191,11 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Modify the way import os, and remove useless return. [o3de#19927](https://github.com/o3de/o3de/pull/19927)
 - Separates \`FindKey\` result assignment from the comparison check in \`CCompoundSplineTrack::RemoveKey\`. [o3de#19949](https://github.com/o3de/o3de/pull/19949)
 - Refactor Unlit shader inputs and color evaluation: This PR: restores correct Tiled UV behavior; uses the standard fallback Draw SRG;. [o3de#19961](https://github.com/o3de/o3de/pull/19961)
+- Fixes an assert and UB in AudioControlsWriter. [o3de#19975](https://github.com/o3de/o3de/pull/19975)
 - Fix Cutout SSAO Artifacts and Blended Shadows in the Unlit Shader. [o3de#19994](https://github.com/o3de/o3de/pull/19994)
+- Corrects zero-item FrameGraph command-list creation in DX12, Vulkan, and Metal. This supersedes #20011. [o3de#20031](https://github.com/o3de/o3de/pull/20031)
+- Fixes Metal rendering corruption when a render scope has no draw items but still needs to clear or resolve a color attachment. (\[See the issue on the Discord thread here\](https://discord.com/channels/805939474655346758/1349060320383074434/1534723008969838795)). [o3de#20034](https://github.com/o3de/o3de/pull/20034)
+- fix(atom): move group barrier before early exit in SSS shader to prevent GPU deadlock: **_Summery:_** Relocates \`GroupMemoryBarrierWithGroupSync()\` in **\`ScreenSpaceSubsurfaceScatteringCS.azsl\`** so it executes before thread termination checks. [o3de#20036](https://github.com/o3de/o3de/pull/20036)
 
 ## SIG-Network
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)

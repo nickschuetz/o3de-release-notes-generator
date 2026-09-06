@@ -279,8 +279,9 @@ wording does not matter; a merge-commit container is listed with a note and
 its bundled fixes shown ✓. The merge button is still the thing to watch on a
 cherry-pick PR against the release branch: **Create a merge commit** keeps
 every fix under its own number, **Squash and merge** loses them all and the
-sidecar turns red. `#20006` was merged the right way; `#20091` (11 fixes,
-open as of 2026-09-03) should be too.
+sidecar turns red. `#20006` was merged the right way, and so was `#20091`
+(11 fixes, merged 2026-09-04): the 2026-09-06 sidecar lists it as a merge
+commit with all 11 ticked.
 
 Each bundled PR is marked:
 
@@ -316,8 +317,8 @@ gh api --paginate 'repos/o3de/o3de/issues?labels=need-sync/to-stabilization&stat
 
 The dangerous state is **merged but not yet cherry-picked**. Such a PR is in
 `development`, flagged as release content, and absent from the notes. As of
-2026-09-03 that is 11 PRs (`#19975` through `#20052`), all bundled in the
-open cherry-pick `#20091`. When a cherry-pick lands, the label is swapped for
+2026-09-06 that is `#20093`, `#20075` and `#20071` (merged Sep 4 and 5, after
+`#20091` collected the previous eleven). When a cherry-pick lands, the label is swapped for
 `sync/to-stabilization`: 44 closed PRs carry that one, none carry both, so a
 merged PR still wearing `need-sync/to-stabilization` after its cherry-pick
 merged is a labelling miss, not a missing fix. Compare the two windows by PR
