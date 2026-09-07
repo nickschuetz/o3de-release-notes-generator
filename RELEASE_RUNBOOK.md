@@ -151,8 +151,8 @@ python release_notes.py fetch \
   --from-ref 2605.0 \
   --to-ref origin/stabilization/26100 \
   --repos o3de/o3de o3de/o3de-extras \
-  --repo-path o3de/o3de=~/PROJECTS/o3de \
-  --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
+  --repo-path o3de/o3de=$HOME/PROJECTS/o3de \
+  --repo-path o3de/o3de-extras=$HOME/PROJECTS/o3de-extras \
   --exclude-json reports/26050_release_data.json \
   --output-json /tmp/unused.json \
   --dry-run
@@ -182,8 +182,8 @@ python release_notes.py generate \
   --from-ref 2605.0 \
   --to-ref origin/stabilization/26100 \
   --repos o3de/o3de o3de/o3de-extras \
-  --repo-path o3de/o3de=~/PROJECTS/o3de \
-  --repo-path o3de/o3de-extras=~/PROJECTS/o3de-extras \
+  --repo-path o3de/o3de=$HOME/PROJECTS/o3de \
+  --repo-path o3de/o3de-extras=$HOME/PROJECTS/o3de-extras \
   --exclude-json reports/26050_release_data.json \
   --output-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md \
