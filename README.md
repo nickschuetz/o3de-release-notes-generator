@@ -103,6 +103,7 @@ python release_notes.py fetch \
   [--reuse-existing] \
   [--exclude-json prior_release.json ...] \
   [--dry-run] \
+  [--no-container-recovery] \
   [--no-pointrelease-audit] \
   [--log-file PATH] \
   [-v]
@@ -121,6 +122,7 @@ python release_notes.py fetch \
 | `--output-json` | Yes | - | Output JSON file path |
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
+| `--no-container-recovery` | No | off | Do not recover PRs bundled in squashed cherry-pick containers. By default, when `--to-ref` names a `stabilization/NNNNN` branch, each cherry-pick PR merged into that branch is asked for its commit list, and any bundled PR missing from the window is fetched and reported under its own number. See [Squashed cherry-picks](#squashed-cherry-picks) |
 | `--no-pointrelease-audit` | No | off | Skip the point-release audit sidecar even when `--from-ref` looks like a point-release tag (`MAJOR.PATCH` with a non-zero patch) |
 | `--log-file` | No | - | Append logs to this file in addition to stderr. The path is validated like any other output path; if it is unwritable the run continues with stderr-only logging rather than aborting |
 | `-v`, `--verbose` | No | - | Verbose logging |
@@ -355,7 +357,7 @@ major token encodes year and month.
 The tool auto-detects the point-release pattern and:
 
 1. Emits a one-line `INFO` log noting that the merge-base of `2605.0` and `2605.2` against `--to-ref` is identical (point-release cherry-picks are correctly excluded; their bundled fixes are counted via the development-side merges instead).
-2. Writes a **point-release audit sidecar** at `reports/26100_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing; investigate). Containers are recognised by the PR numbers they carry, not only by how their title is worded, and a cherry-pick PR merged with a merge commit is listed with its bundled fixes confirmed. Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
+2. Writes a **point-release audit sidecar** at `reports/26100_release_notes_pointrelease_audit.md` listing every cherry-pick container PR found on the previous stabilization branch, with each bundled PR shown as ✓ (present in the rendered report) or ✗ (missing; investigate). Containers are recognised by the PR numbers they carry, not only by how their title is worded, and a cherry-pick PR merged with a merge commit is listed with its bundled fixes confirmed. Where the fetch stage read a container's commit list from GitHub, the audit uses that list instead of parsing the squash message. Turns the manual "did we lose any fixes?" check into a one-glance checklist. Suppress with `--no-pointrelease-audit`.
 3. Flags release-machinery PRs (version bumps, SBOM auto-updates, cherry-pick wrappers, "merging pointrelease into main" merges, etc.) with `release_machinery: true` in the JSON and excludes them from the rendered output. Opt back in with `--include-release-machinery`; useful for *point-release* notes where the machinery PRs are the headline content.
 
 ## Sample Output
@@ -486,8 +488,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
-    "schema_version": 6,
-    "tool_version": "0.11.0-beta",
+    "schema_version": 7,
+    "tool_version": "0.12.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -573,6 +575,10 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `metadata.reused_from_cache` | Per-repo count of PRs served from the previous report rather than re-fetched, and the policy used. |
 | `metadata.file_list_truncated` | Roll-up of the above: how many PRs were capped, which ones, and the subset whose SIG was decided by the file heuristic from a partial list. Verify those before publishing. |
 | `metadata.excluded_prior_releases` | Which prior reports were used as exclusion sources and how many PRs each repo dropped because of them. |
+| `recovered_from_container` | Number of the squashed cherry-pick PR this PR was recovered from. Present only on PRs that reached the release branch inside such a container and so have no commit of their own in the window. |
+| `bundled_prs` | On a cherry-pick container merged into the release branch: the PR numbers it carries, read from the container PR's commit list on GitHub. |
+| `base_ref` | On the same containers: the branch GitHub reports the container was merged into. |
+| `metadata.recovered_from_containers` | Per-repo map of container number to the PRs recovered from it, plus the total. Absent when nothing was recovered. |
 | `metadata.repo_refs` | Per-repo `{from_ref, to_ref}`. Emitted only when `--repo-from-ref` / `--repo-to-ref` made a repo's range differ from the global one. |
 
 ## PR Discovery
@@ -588,6 +594,46 @@ Both are required. O3DE `development` uses merge commits for a large minority of
 PRs, whose constituent commits carry no PR reference at all; matching only the
 squash form (and passing `--no-merges`) missed 19 PRs in the 26.05.0 → 26.10.0
 window. The count found via merge commits is logged on each run.
+
+### Squashed cherry-picks
+
+During stabilization, fixes reach the release branch in cherry-pick PRs that
+bundle several changes. When such a PR is merged with a merge commit, each
+picked commit keeps its `(#NNNN)` subject and `git log` finds it. When it is
+**squashed**, one commit lands carrying only the container's number, and the
+fixes inside it have no commit of their own in the window.
+
+When `--to-ref` names a `stabilization/NNNNN` branch, the tool asks GitHub for
+the commit list of every cherry-pick PR in the window. For those merged into
+that release branch, each commit subject ending in `(#NNNN)` names a bundled
+PR. Any that is in neither the window nor a prior release report is fetched,
+categorised and rendered like any other PR, and recorded with
+`recovered_from_container`:
+
+```
+[INFO] o3de/o3de: recovered 5 PR(s) from squashed cherry-pick #20102: #20004, #20071, #20075, #20093, #20099
+```
+
+Three guards keep this from inventing content:
+
+- **The commit list, not the squash message.** The squash message is free text
+  and nested squash bodies quote unrelated subjects. The PR's commits are what
+  was actually merged.
+- **Release branch only.** A sync-back PR (stabilization to development) is also
+  in the window, but what it bundles was merged into an earlier release branch
+  and belongs to that release. It is never a recovery source.
+- **Merged PRs only.** A subject can end in an issue number; a reference that
+  does not resolve to a merged PR is logged and left out.
+
+A cherry-pick of a single PR whose title is just the original subject, such as
+`Support automatic inertia calculation (#20053)`, is recognised the same way:
+its title ends in another PR's number and its commit list carries that number.
+A title alone is never enough, since `Fix X (#18886)` on an ordinary PR is an
+issue reference.
+
+The first 26.10.0 run with this enabled recovered 26 PRs from six containers.
+`--dry-run` makes no API calls, so its count excludes them. Disable with
+`--no-container-recovery`.
 
 ## SIG Categorization
 

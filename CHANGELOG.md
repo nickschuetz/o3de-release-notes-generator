@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0-beta] - 2026-10-01
+
+### Added
+- **PRs bundled in a squashed cherry-pick container are recovered and reported under their own numbers.** After the first pass, every cherry-pick PR into `stabilization/26100` was squash-merged: `#20102`, `#20123` and `#20140` in `o3de/o3de`, `#1093`, `#1094` and `#1095` in `o3de/o3de-extras`. A squash lands one commit carrying only the container's number, so the 26 fixes inside them had no commit of their own in the window and were absent from the notes. The audit could say so; nothing could put them back. For a stabilization `--to-ref`, the tool now asks GitHub for the base branch and commit list of each cherry-pick PR in the window, fetches every bundled PR the window lacks, and renders it like any other, marked `recovered_from_container`. Disable with `--no-container-recovery`.
+- **Three guards on what counts.** The PR's commit list is used, not the squash message, which is editable free text. Only containers merged into the release branch are sources: a sync-back container (stabilization to development) sits in the same window but bundles an earlier release's content, and `#19803` would otherwise have pulled `#19777` from 26.05.0 into these notes. Only merged PRs are added.
+- **A single-PR cherry-pick with an ordinary title is recognised.** `#20140` is titled `Support automatic inertia calculation in ArticulationLink (#20053)` and matched no cherry-pick pattern, so it rendered under the wrong number and `#20053` appeared nowhere. A PR is treated as a container when its title ends in another PR's number **and** its own commit list carries that number. Title alone is not enough: `Fix X (#18886)` on a development PR is an issue reference. The container is excluded only once the original is confirmed in the report; if it cannot be fetched, the container's bullet stays.
+- `Development -> Stabilization cherries` (the o3de-extras wording) is a cherry-pick title.
+- 37 new tests (424 -> 461).
+
+### Fixed
+- **The audit no longer invents bundled PRs.** It parsed the squash body, and nested squash bodies quote other subjects. Where the fetch stage recorded a container's commit list, the audit uses that instead and lists containers the git scan cannot recognise.
+- A long commit headline is truncated by GitHub, which cuts off the `(#NNNN)` at its end. The first live run of this feature lost 9 of 26 bundled PRs that way, including `#20099`. The full `message` is requested and its first line used.
+
+### Changed
+- Schema 6 -> 7: per-PR `recovered_from_container`, `bundled_prs`, `base_ref`; `metadata.recovered_from_containers`. Schema 6 files still load.
+- Runbook §7: the merge strategy of a cherry-pick PR no longer decides what the notes contain. §3 says to generate against `upstream` when `origin` is a fork.
+
 ## [0.11.0-beta] - 2026-09-03
 
 ### Fixed

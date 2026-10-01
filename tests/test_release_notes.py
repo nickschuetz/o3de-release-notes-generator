@@ -1209,10 +1209,12 @@ class TestNormalizePrDataTruncation:
 
 
 class TestSchemaVersion:
-    def test_schema_version_is_6(self):
-        # 5 -> 6 when metadata.reused_from_cache was added. Schema 5 files still
-        # load (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
-        assert release_notes.SCHEMA_VERSION == 6
+    def test_schema_version_is_7(self):
+        # 6 -> 7 when container recovery added per-PR `bundled_prs`, `base_ref`
+        # and `recovered_from_container`, plus metadata.recovered_from_containers.
+        # Schema 6 files still load (load_existing_json accepts SCHEMA_VERSION
+        # and SCHEMA_VERSION - 1).
+        assert release_notes.SCHEMA_VERSION == 7
 
     def test_metadata_records_tool_version(self):
         assert release_notes.__version__.endswith('-beta')
@@ -2132,7 +2134,7 @@ class TestSbomIntegrity:
 
 class TestSchemaVersionProvenance:
     def test_schema_version_is_current(self):
-        assert release_notes.SCHEMA_VERSION == 6
+        assert release_notes.SCHEMA_VERSION == 7
 
     def test_previous_schema_still_loads(self, tmp_path):
         path = tmp_path / 'old.json'
@@ -3192,3 +3194,315 @@ class TestStabilizationCherryPickAudit:
         content = out.read_text()
         assert '⚠ #19777' in content
         assert '○ #19777' not in content
+
+
+class TestContainerRecovery:
+    """Fixes that reach the release branch inside a squashed cherry-pick PR
+    must still be reported under their own numbers."""
+
+    BRANCH = 'stabilization/26100'
+
+    @staticmethod
+    def _pr(number, title, flags=(), merged_at='2026-09-10T00:00:00Z'):
+        return {'repo': 'o3de/o3de', 'number': number, 'title': title,
+                'flags': list(flags), 'merged_at': merged_at, 'body': '',
+                'labels': ['sig/core'], 'files': ['Code/a.cpp'],
+                'sig_category': 'sig/core'}
+
+    @staticmethod
+    def _info(base, *numbers):
+        return {'base_ref': base, 'commit_prs': list(numbers), 'commits_truncated': False}
+
+    # -- small helpers ------------------------------------------------------
+
+    @pytest.mark.parametrize('text,expected', [
+        ('Fix a crash (#20099)', 20099),
+        ('Fix a crash (#20099)  ', 20099),
+        # Only the last number is the PR; the first is an issue reference.
+        ('Fix prefab path expansion (#18886) (#19254)', 19254),
+        ('Decal fixes (supercedes #20050) (#20090)', 20090),
+        ('Mentions (#123) in the middle', None),
+        ('No number at all', None),
+        ('', None),
+    ])
+    def test_trailing_pr_number(self, text, expected):
+        assert release_notes.trailing_pr_number(text) == expected
+
+    @pytest.mark.parametrize('ref,expected', [
+        ('upstream/stabilization/26100', 'stabilization/26100'),
+        ('origin/stabilization/26100', 'stabilization/26100'),
+        ('stabilization/26100', 'stabilization/26100'),
+        ('origin/development', None),
+        ('2605.0', None),
+        ('', None),
+    ])
+    def test_release_branch_name(self, ref, expected):
+        assert release_notes.release_branch_name(ref) == expected
+
+    def test_extras_container_wording_is_a_cherry_pick(self):
+        flags = release_notes.detect_pr_flags(
+            {'title': 'Development -> Stabilization cherries: part 1'})
+        assert flags == ['cherry-pick']
+
+    def test_query_uses_variables_and_the_full_message(self):
+        query = release_notes._build_container_query([20102, 20123])
+        assert '$owner' in query and '$name' in query
+        assert 'pr_20102: pullRequest(number: 20102)' in query
+        assert 'baseRefName' in query
+        # messageHeadline is truncated by GitHub; see the fetch test below.
+        assert 'messageHeadline' not in query
+        assert 'commit { message }' in query
+
+    # -- reading commit lists -----------------------------------------------
+
+    @staticmethod
+    def _response(number, base, messages, total=None):
+        return {'data': {'repository': {f'pr_{number}': {
+            'number': number, 'baseRefName': base,
+            'commits': {
+                'totalCount': len(messages) if total is None else total,
+                'nodes': [{'commit': {'message': m}} for m in messages],
+            },
+        }}}}
+
+    def test_fetch_reads_the_subject_line_of_each_commit(self):
+        long_subject = ('Prefab: return a failure instead of crashing when '
+                        'InstantiatePrefab cannot load the file (#20099)')
+        response = self._response(20102, self.BRANCH, [
+            'Fix intermittent Mac asset build staging failures (#20071)\n\n'
+            '* Enhance Mac runtime dep handling\n* mentions (#11111) in its body',
+            long_subject + '\n\nFixes #7957.',
+            'Free up extra disk space on macOS runners (#20004)',
+            'Third-Party DCO Remediation Commit',
+            'Fix intermittent Mac asset build staging failures (#20071)',
+        ])
+        with mock.patch('release_notes._run_gh_command', return_value=response):
+            info = release_notes.fetch_container_commits('o3de/o3de', [20102])
+        assert info[20102]['base_ref'] == self.BRANCH
+        # Body numbers ignored, duplicates collapsed, order preserved, and the
+        # long subject keeps its number.
+        assert info[20102]['commit_prs'] == [20071, 20099, 20004]
+        assert info[20102]['commits_truncated'] is False
+
+    def test_fetch_flags_a_truncated_commit_list(self, caplog):
+        response = self._response(20102, self.BRANCH, ['Fix (#1)'], total=250)
+        with mock.patch('release_notes._run_gh_command', return_value=response), \
+                caplog.at_level('WARNING', logger='o3de.release_notes'):
+            info = release_notes.fetch_container_commits('o3de/o3de', [20102])
+        assert info[20102]['commits_truncated'] is True
+        assert any('may be partial' in r.message for r in caplog.records)
+
+    def test_fetch_failure_is_loud_and_not_fatal(self, caplog):
+        error = release_notes.GhCommandError('gh failed', 'boom')
+        with mock.patch('release_notes._run_gh_command', side_effect=error), \
+                caplog.at_level('WARNING', logger='o3de.release_notes'):
+            info = release_notes.fetch_container_commits('o3de/o3de', [20102])
+        assert info == {}
+        assert any('MISSING' in r.message and '#20102' in r.message
+                   for r in caplog.records)
+
+    def test_fetch_rejects_invalid_input(self):
+        with pytest.raises(ValueError):
+            release_notes.fetch_container_commits('o3de/o3de', [-1])
+        with pytest.raises(ValueError):
+            release_notes.fetch_container_commits('not a slug', [1])
+
+    # -- deciding what to recover -------------------------------------------
+
+    def test_candidates_are_flagged_prs_and_titles_ending_in_another_number(self):
+        prs = [
+            self._pr(20102, 'Cherrypick fixes (2)', flags=['cherry-pick']),
+            self._pr(20140, 'Support inertia (#20053)'),
+            self._pr(20112, 'Fix non-unity build'),
+            self._pr(20113, 'Self reference (#20113)'),
+        ]
+        assert release_notes.container_candidates(prs) == [20102, 20140]
+
+    def test_squashed_container_recovers_what_the_window_lacks(self):
+        container = self._pr(20102, 'Cherrypick fixes (2)', flags=['cherry-pick'])
+        info = {20102: self._info(self.BRANCH, 20071, 20075, 20099, 20102)}
+        recovered, implied = release_notes.plan_container_recovery(
+            [container], info, self.BRANCH,
+            window_numbers={20102, 20075}, prior_numbers={20071},
+        )
+        # 20075 is already in the window, 20071 shipped in a prior release.
+        assert recovered == {20099: 20102}
+        assert implied == {}
+        assert container['bundled_prs'] == [20071, 20075, 20099]
+        assert container['base_ref'] == self.BRANCH
+
+    def test_sync_back_container_is_not_recovered(self):
+        # Merged into development: what it bundles went into an EARLIER release
+        # branch. o3de/o3de#19803 carries #19777, which shipped in 26.05.0.
+        container = self._pr(19803, 'Cherry pick release fixes from '
+                             'stabilization/26050 to development', flags=['cherry-pick'])
+        info = {19803: self._info('development', 19776, 19777, 19779)}
+        recovered, implied = release_notes.plan_container_recovery(
+            [container], info, self.BRANCH, {19803}, set())
+        assert recovered == {} and implied == {}
+        assert 'bundled_prs' not in container
+
+    def test_issue_reference_in_a_title_is_not_a_cherry_pick(self):
+        # `Fix X (#18886)` on a development PR is an issue reference. Treating
+        # it as a container would delete a real change from the notes.
+        pr = self._pr(19254, 'Fix prefabs with a long path (#18886)')
+        info = {19254: self._info('development', 19254)}
+        recovered, implied = release_notes.plan_container_recovery(
+            [pr], info, self.BRANCH, {19254}, set())
+        assert recovered == {} and implied == {}
+        assert pr['flags'] == []
+
+    def test_title_number_must_also_be_in_the_commit_list(self):
+        # On the release branch, but its commits do not carry the number the
+        # title ends with: an ordinary fix that mentions an issue.
+        pr = self._pr(20117, 'Bootstrapping fixes (#20001)')
+        info = {20117: self._info(self.BRANCH, 20117)}
+        recovered, implied = release_notes.plan_container_recovery(
+            [pr], info, self.BRANCH, {20117}, set())
+        assert recovered == {} and implied == {}
+        assert 'bundled_prs' not in pr
+
+    def test_untitled_single_pick_is_recognised_by_its_commit_list(self):
+        # o3de/o3de#20140: no "cherry-pick" in the title, squashed, and the
+        # only trace of #20053 is the title suffix and the PR's commit list.
+        pr = self._pr(20140, 'Support automatic inertia calculation (#20053)')
+        info = {20140: self._info(self.BRANCH, 20053)}
+        recovered, implied = release_notes.plan_container_recovery(
+            [pr], info, self.BRANCH, {20140}, set())
+        assert recovered == {20053: 20140}
+        assert implied == {20140: 20053}
+
+    def test_a_pr_bundled_twice_is_attributed_once(self):
+        first = self._pr(20102, 'Cherrypick (2)', flags=['cherry-pick'])
+        second = self._pr(20123, 'Cherry-pick (3)', flags=['cherry-pick'])
+        info = {20102: self._info(self.BRANCH, 20099),
+                20123: self._info(self.BRANCH, 20099, 20113)}
+        recovered, _ = release_notes.plan_container_recovery(
+            [second, first], info, self.BRANCH, {20102, 20123}, set())
+        assert recovered == {20099: 20102, 20113: 20123}
+
+    # -- the fetch-stage wrapper --------------------------------------------
+
+    def _recover(self, repo_prs, info, fetched, window, prior=frozenset()):
+        with mock.patch('release_notes.fetch_container_commits', return_value=info), \
+                mock.patch('release_notes.fetch_pr_metadata_batch',
+                           return_value=fetched) as batch:
+            result = release_notes._recover_from_containers(
+                'o3de/o3de', repo_prs, self.BRANCH, set(window),
+                {('o3de/o3de', n) for n in prior},
+            )
+        return result, batch
+
+    def test_recovered_pr_joins_the_report_with_its_provenance(self):
+        container = self._pr(20102, 'Cherrypick fixes (2)', flags=['cherry-pick'])
+        repo_prs = [container]
+        fix = self._pr(20099, 'Prefab: return a failure instead of crashing')
+        result, batch = self._recover(
+            repo_prs, {20102: self._info(self.BRANCH, 20099)}, [fix], {20102})
+        assert result == {'20102': [20099]}
+        assert batch.call_args[0] == ('o3de/o3de', [20099])
+        added = repo_prs[-1]
+        assert added['number'] == 20099
+        assert added['recovered_from_container'] == 20102
+        assert added['sig_category'] and added['flags'] == []
+        # It renders: nothing about it is excluded.
+        assert release_notes.classify_reasons(repo_prs) == ['cherry-pick', None]
+
+    def test_nothing_to_recover_makes_no_metadata_request(self):
+        container = self._pr(20091, 'Cherrypick fixes', flags=['cherry-pick'])
+        result, batch = self._recover(
+            [container], {20091: self._info(self.BRANCH, 19975)}, [], {20091, 19975})
+        assert result == {}
+        batch.assert_not_called()
+
+    def test_unmerged_reference_is_not_added(self, caplog):
+        container = self._pr(20102, 'Cherrypick fixes (2)', flags=['cherry-pick'])
+        repo_prs = [container]
+        unmerged = self._pr(20500, 'Still open', merged_at='')
+        with caplog.at_level('WARNING', logger='o3de.release_notes'):
+            result, _ = self._recover(
+                repo_prs, {20102: self._info(self.BRANCH, 20500)}, [unmerged], {20102})
+        assert result == {}
+        assert [p['number'] for p in repo_prs] == [20102]
+        assert any('not a merged pull request' in r.message for r in caplog.records)
+
+    def test_implied_container_is_excluded_once_its_fix_is_reported(self):
+        container = self._pr(20140, 'Support inertia (#20053)')
+        repo_prs = [container]
+        fix = self._pr(20053, 'Support inertia')
+        self._recover(repo_prs, {20140: self._info(self.BRANCH, 20053)}, [fix], {20140})
+        assert container['flags'] == ['cherry-pick']
+        assert release_notes.classify_reasons(repo_prs) == ['cherry-pick', None]
+
+    def test_implied_container_keeps_its_bullet_when_the_fix_is_unavailable(self):
+        # If the original PR could not be fetched, the container's bullet is
+        # the only place the change appears. Excluding it would drop the change.
+        container = self._pr(20140, 'Support inertia (#20053)')
+        repo_prs = [container]
+        self._recover(repo_prs, {20140: self._info(self.BRANCH, 20053)}, [], {20140})
+        assert container['flags'] == []
+        assert release_notes.classify_reasons(repo_prs) == [None]
+
+    def test_no_candidates_makes_no_request_at_all(self):
+        with mock.patch('release_notes.fetch_container_commits') as commits:
+            result = release_notes._recover_from_containers(
+                'o3de/o3de', [self._pr(20112, 'Fix non-unity build')],
+                self.BRANCH, {20112}, set())
+        assert result == {}
+        commits.assert_not_called()
+
+    def test_flag_is_exposed_on_the_cli(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        release_notes._add_fetch_args(parser)
+        args = parser.parse_args(['--from-ref', 'a', '--to-ref', 'b',
+                                  '--output-json', 'x.json', '--no-container-recovery'])
+        assert args.no_container_recovery is True
+
+    # -- the audit ----------------------------------------------------------
+
+    def test_audit_prefers_the_commit_list_over_the_squash_body(self):
+        # The body-derived list is replaced wholesale, in both directions:
+        # numbers the body missed are added, numbers it invented are dropped.
+        from_git = [{'container_pr': 20102, 'container_sha': 'abc', 'title': 't',
+                     'bundled_prs': [20071, 11111], 'merge_commit': False}]
+        merged = [dict(self._pr(20102, 't', flags=['cherry-pick']),
+                       bundled_prs=[20004, 20071])]
+        out = release_notes._apply_verified_bundles(from_git, merged, 'o3de/o3de')
+        assert out[0]['bundled_prs'] == [20004, 20071]
+        assert out[0]['verified'] is True
+
+    def test_audit_lists_containers_git_cannot_recognise(self):
+        merged = [dict(self._pr(20140, 'Support inertia (#20053)', flags=['cherry-pick']),
+                       bundled_prs=[20053])]
+        out = release_notes._apply_verified_bundles([], merged, 'o3de/o3de')
+        assert [c['container_pr'] for c in out] == [20140]
+        assert out[0]['bundled_prs'] == [20053]
+
+    def test_audit_ignores_other_repos(self):
+        merged = [dict(self._pr(1093, 'cherries', flags=['cherry-pick']),
+                       repo='o3de/o3de-extras', bundled_prs=[1070])]
+        assert release_notes._apply_verified_bundles([], merged, 'o3de/o3de') == []
+
+    def test_audit_says_where_a_recovered_fix_came_from(self, tmp_path):
+        out = tmp_path / 'r.md'
+        release_notes.write_pointrelease_audit({
+            'from_ref': '2605.0', 'to_ref': 'upstream/stabilization/26100',
+            'predecessor_tag': '2605.0', 'kind': 'stabilization',
+            'per_repo': {'o3de/o3de': {
+                'containers': [{'container_pr': 20102, 'container_sha': 'abc',
+                                'title': 'Cherrypick fixes (2)',
+                                'bundled_prs': [20075, 20099],
+                                'merge_commit': False, 'verified': True}],
+                'present_pr_numbers': {20075, 20099},
+                'filtered_pr_numbers': {},
+                'prior_release_pr_numbers': set(),
+                'recovered_pr_numbers': {20099},
+                'predecessor_tag': '2605.0',
+            }},
+        }, out)
+        content = out.read_text()
+        assert "commit list on GitHub" in content
+        assert '✓ #20099: present in the rendered report, recovered from this container' in content
+        assert '✓ #20075: present in the rendered report\n' in content
+        assert 'Action required' not in content

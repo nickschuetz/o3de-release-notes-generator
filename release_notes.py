@@ -26,7 +26,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.11.0-beta'
+__version__ = '0.12.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -36,7 +36,7 @@ __version__ = '0.11.0-beta'
 #    and descriptions are no longer truncated mid-sentence, so data written by
 #    <=0.5.0-beta is structurally readable but semantically stale. Version 3
 #    files still load (renderer ignores the legacy flag); re-fetch for accuracy.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
@@ -268,6 +268,8 @@ CHERRY_PICK_PATTERNS = [
     re.compile(r'merge\s+changes\s+from\s+stabilization', re.IGNORECASE),
     re.compile(r'\[stabilization\]', re.IGNORECASE),
     re.compile(r'sync.*to.*development', re.IGNORECASE),
+    # o3de-extras 26.10.0: "Development -> Stabilization cherries: part 1".
+    re.compile(r'\bcherries\b', re.IGNORECASE),
 ]
 
 # Containers are commit/PR titles that bundle multiple cherry-picks from another
@@ -645,6 +647,14 @@ def is_stabilization_ref(ref: str) -> bool:
     return bool(STABILIZATION_BRANCH_PATTERN.search(ref or ''))
 
 
+def release_branch_name(ref: str) -> str | None:
+    """The branch a stabilization ref names, without its remote:
+    `upstream/stabilization/26100` -> `stabilization/26100`. None for any
+    other ref. This is what GitHub reports as a PR's base branch."""
+    match = STABILIZATION_BRANCH_PATTERN.search(ref or '')
+    return match.group(0).lstrip('/') if match else None
+
+
 def _bundled_prs_from_merge(
     repo_path: pathlib.Path,
     first_parent: str,
@@ -806,8 +816,9 @@ def write_pointrelease_audit(
             "cherry-picked commit's original `(#NNNN)` subject, so the fix enters\n"
             "the report under its own number and filtering the container out is\n"
             "harmless. A container that is *squashed* carries only its own number,\n"
-            "and every fix it bundles would then be missing from the report\n"
-            "entirely. Catching that is why this sidecar exists.\n"
+            "so the fixes it bundles are recovered from the container PR's commit\n"
+            "list on GitHub and reported under their own numbers. This sidecar\n"
+            "confirms that every one of them made it.\n"
         )
     else:
         lines.append(f"# Point-release audit for {audit_data.get('to_ref', '')}\n")
@@ -859,6 +870,7 @@ def write_pointrelease_audit(
         present = repo_audit.get('present_pr_numbers', set())
         filtered = repo_audit.get('filtered_pr_numbers', {})
         prior = repo_audit.get('prior_release_pr_numbers', set())
+        recovered = repo_audit.get('recovered_pr_numbers', set())
         lines.append(f"\n## {repo_slug}\n")
         if not containers:
             lines.append("_No cherry-pick containers found in this repo._\n")
@@ -869,10 +881,12 @@ def write_pointrelease_audit(
             bundled = entry.get('bundled_prs', [])
             grand_total_containers += 1
             grand_total_bundled += len(bundled)
-            merge_note = (
-                " _(merge commit: each picked commit keeps its own PR number)_"
-                if entry.get('merge_commit') else ""
-            )
+            if entry.get('merge_commit'):
+                merge_note = " _(merge commit: each picked commit keeps its own PR number)_"
+            elif entry.get('verified'):
+                merge_note = " _(bundled PRs read from the PR's commit list on GitHub)_"
+            else:
+                merge_note = ""
             lines.append(f"- **{cpr_label}**: {entry.get('title', '')}{merge_note}")
             if not bundled:
                 lines.append("  - _(no bundled PRs parsed from body)_")
@@ -880,7 +894,8 @@ def write_pointrelease_audit(
             for b in bundled:
                 if b in present:
                     grand_total_present += 1
-                    lines.append(f"  - ✓ #{b}: {present_wording}")
+                    how = ', recovered from this container' if b in recovered else ''
+                    lines.append(f"  - ✓ #{b}: {present_wording}{how}")
                 elif b in filtered:
                     grand_total_filtered += 1
                     lines.append(
@@ -1242,6 +1257,182 @@ def fetch_pr_metadata_batch(
                 logger.warning('PR #%d not found in %s', num, repo_slug)
 
     return all_prs
+
+
+# A commit subject ends with the number of the PR that produced it. Only the
+# LAST `(#N)` counts: `Fix X (#18886) (#19254)` is PR 19254 mentioning issue
+# 18886.
+TRAILING_PR_NUMBER_PATTERN = re.compile(r'\(#(\d+)\)\s*$')
+
+COMMITS_PAGE_SIZE = 100
+CONTAINER_QUERY_BATCH_SIZE = 30
+
+
+def trailing_pr_number(text: str) -> int | None:
+    match = TRAILING_PR_NUMBER_PATTERN.search(text or '')
+    return int(match.group(1)) if match else None
+
+
+def _build_container_query(pr_numbers: list[int]) -> str:
+    # Same injection posture as _build_graphql_query: owner/name are variables,
+    # PR numbers are integers that become aliases.
+    fragments = [
+        f'  pr_{int(num)}: pullRequest(number: {int(num)}) {{\n'
+        f'    number\n'
+        f'    baseRefName\n'
+        f'    commits(first: {COMMITS_PAGE_SIZE}) {{\n'
+        f'      totalCount\n'
+        f'      nodes {{ commit {{ message }} }}\n'
+        f'    }}\n'
+        f'  }}'
+        for num in pr_numbers
+    ]
+    return (
+        'query($owner: String!, $name: String!) {\n'
+        '  repository(owner: $owner, name: $name) {\n'
+        + '\n'.join(fragments) +
+        '\n  }\n'
+        '}'
+    )
+
+
+def fetch_container_commits(
+    repo_slug: str,
+    pr_numbers: list[int],
+) -> dict[int, dict[str, Any]]:
+    """Ask GitHub which commits each candidate container PR was made of.
+
+    A squash merge leaves one commit carrying only the container's number, and
+    the squash message is free text a maintainer can edit. The PR's own commit
+    list is not: it still holds every picked commit with its original
+    `(#NNNN)` subject, so it is the authoritative record of what was bundled.
+    The squash body is not, because nested squash bodies quote other PRs'
+    subjects (o3de/o3de#20102's body mentions #20004, which it does not carry).
+
+    Returns {container_number: {base_ref, commit_prs, commits_truncated}}.
+    A container whose query failed is absent from the result, and the failure
+    is logged at WARNING: a silent miss here is a fix missing from the notes.
+    """
+    repo_slug = validate_repo_slug(repo_slug)
+    for num in pr_numbers:
+        if not isinstance(num, int) or num <= 0 or num > MAX_PR_NUMBER:
+            raise ValueError(f'Invalid PR number: {num}')
+    owner, repo = repo_slug.split('/')
+
+    found: dict[int, dict[str, Any]] = {}
+    for i in range(0, len(pr_numbers), CONTAINER_QUERY_BATCH_SIZE):
+        batch = pr_numbers[i:i + CONTAINER_QUERY_BATCH_SIZE]
+        try:
+            data = _run_gh_command(
+                ['gh', 'api', 'graphql',
+                 '-f', f'query={_build_container_query(batch)}',
+                 '-f', f'owner={owner}',
+                 '-f', f'name={repo}'],
+                timeout=60,
+            )
+        except GhCommandError as e:
+            logger.warning(
+                '%s: could not read the commit lists of %d cherry-pick container(s) '
+                '(%s). Fixes bundled in a squashed container will be MISSING from '
+                'this report; re-run to retry. Affected: %s',
+                repo_slug, len(batch), e, ', '.join(f'#{n}' for n in batch),
+            )
+            continue
+        repo_data = data.get('data', {}).get('repository', {}) or {}
+        for num in batch:
+            raw = repo_data.get(f'pr_{num}')
+            if not raw:
+                continue
+            commits = raw.get('commits') or {}
+            nodes = commits.get('nodes') or []
+            commit_prs: list[int] = []
+            for node in nodes:
+                # `message`, not `messageHeadline`: GitHub truncates a long
+                # headline with an ellipsis, which cuts off the `(#NNNN)` that
+                # sits at the end of it. Half the bundled PRs in the first
+                # live run were lost that way.
+                message = ((node or {}).get('commit') or {}).get('message', '') or ''
+                subject = message.split('\n', 1)[0]
+                number = trailing_pr_number(subject)
+                if number is not None and number not in commit_prs:
+                    commit_prs.append(number)
+            truncated = int(commits.get('totalCount') or 0) > len(nodes)
+            if truncated:
+                logger.warning(
+                    '%s#%d has more than %d commits; its bundled-PR list may be partial',
+                    repo_slug, num, COMMITS_PAGE_SIZE,
+                )
+            found[num] = {
+                'base_ref': raw.get('baseRefName', '') or '',
+                'commit_prs': commit_prs,
+                'commits_truncated': truncated,
+            }
+    return found
+
+
+def container_candidates(repo_prs: list[dict[str, Any]]) -> list[int]:
+    """PRs worth asking GitHub about: anything already flagged as a
+    cherry-pick, plus anything whose title ends in another PR's number. The
+    second group is only a candidate; plan_container_recovery() decides."""
+    candidates = []
+    for pr in repo_prs:
+        number = pr.get('number', 0)
+        referenced = trailing_pr_number(pr.get('title', ''))
+        if 'cherry-pick' in (pr.get('flags') or []) or (
+                referenced is not None and referenced != number):
+            candidates.append(number)
+    return sorted(set(candidates))
+
+
+def plan_container_recovery(
+    repo_prs: list[dict[str, Any]],
+    container_info: dict[int, dict[str, Any]],
+    release_branch: str,
+    window_numbers: set[int],
+    prior_numbers: set[int],
+) -> tuple[dict[int, int], dict[int, int]]:
+    """Decide which PRs to recover from cherry-pick containers.
+
+    A container qualifies only when GitHub says it was merged INTO the release
+    branch being reported. A sync-back container (stabilization -> development)
+    also sits in the window, but what it bundles was merged into an earlier
+    release branch and belongs to that release.
+
+    A PR that is not title-flagged as a cherry-pick qualifies only when its
+    title ends in another PR's number AND its own commit list carries that same
+    number. Title alone is not enough: `Fix X (#18886)` on a development PR is
+    an issue reference, and treating it as a cherry-pick would delete a real
+    change.
+
+    Annotates each qualifying container in place with `base_ref` and
+    `bundled_prs`. Returns:
+      - recovered: {pr_number: container_number} for bundled PRs that are in
+        neither the window nor a prior release, i.e. the ones to fetch;
+      - implied: {container_number: referenced_pr} for containers recognised
+        by their commit list rather than their title.
+    """
+    recovered: dict[int, int] = {}
+    implied: dict[int, int] = {}
+    for pr in sorted(repo_prs, key=lambda p: p.get('number', 0)):
+        number = pr.get('number', 0)
+        info = container_info.get(number)
+        if not info or info.get('base_ref') != release_branch:
+            continue
+        bundled = [n for n in info.get('commit_prs', []) if n != number]
+        if not bundled:
+            continue
+        if 'cherry-pick' not in (pr.get('flags') or []):
+            referenced = trailing_pr_number(pr.get('title', ''))
+            if referenced is None or referenced not in bundled:
+                continue
+            implied[number] = referenced
+        pr['base_ref'] = info['base_ref']
+        pr['bundled_prs'] = sorted(bundled)
+        for n in bundled:
+            if n in window_numbers or n in prior_numbers or n in recovered:
+                continue
+            recovered[n] = number
+    return recovered, implied
 
 
 def files_possibly_truncated(pr_data: dict[str, Any]) -> bool:
@@ -2231,6 +2422,83 @@ def rederive_pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
     return pr
 
 
+def _derive_fetched_fields(pr: dict[str, Any]) -> dict[str, Any]:
+    sig, source = categorize_pr(pr)
+    pr['sig_category'] = sig
+    pr['categorization_source'] = source
+    pr['description'] = _build_pr_description(pr.get('title', ''), pr.get('body', ''))
+    pr['flags'] = detect_pr_flags(pr)
+    pr['release_machinery'] = is_release_machinery(pr)
+    pr['manual_override_sig'] = None
+    pr['manual_override_description'] = None
+    return pr
+
+
+def _recover_from_containers(
+    repo_slug: str,
+    repo_prs: list[dict[str, Any]],
+    release_branch: str,
+    window_numbers: set[int],
+    prior_keys: set[tuple[str, int]],
+) -> dict[str, list[int]]:
+    """Fetch the PRs that reached the release branch only inside a squashed
+    cherry-pick container, and append them to repo_prs.
+
+    Returns {container_number (as str, for JSON): [recovered PR numbers]}.
+    """
+    candidates = container_candidates(repo_prs)
+    if not candidates:
+        return {}
+    info = fetch_container_commits(repo_slug, candidates)
+    prior_numbers = {n for (repo, n) in prior_keys if repo == repo_slug}
+    recovered, implied = plan_container_recovery(
+        repo_prs, info, release_branch, window_numbers, prior_numbers,
+    )
+
+    fetched_numbers: set[int] = set()
+    if recovered:
+        for pr in fetch_pr_metadata_batch(repo_slug, sorted(recovered)):
+            number = pr.get('number', 0)
+            if not pr.get('merged_at'):
+                # A commit subject can end in an issue number or an unmerged
+                # PR's number. Neither is a shipped change.
+                logger.warning(
+                    '%s#%d is named in the commits of container #%d but is not a '
+                    'merged pull request; not adding it to the report',
+                    repo_slug, number, recovered.get(number, 0),
+                )
+                continue
+            _derive_fetched_fields(pr)
+            pr['recovered_from_container'] = recovered[number]
+            repo_prs.append(pr)
+            fetched_numbers.add(number)
+
+    # A container recognised by its commit list is excluded like any other
+    # cherry-pick, but only once the change it carries is known to be reported
+    # under its own number. Otherwise the container's bullet is the only place
+    # the change appears, and it stays.
+    by_number = {pr.get('number', 0): pr for pr in repo_prs}
+    for container, referenced in implied.items():
+        accounted = (
+            referenced in window_numbers or referenced in prior_numbers
+            or referenced in fetched_numbers
+        )
+        if accounted:
+            flags = by_number[container].setdefault('flags', [])
+            if 'cherry-pick' not in flags:
+                flags.append('cherry-pick')
+
+    per_container: dict[str, list[int]] = {}
+    for number in sorted(fetched_numbers):
+        per_container.setdefault(str(recovered[number]), []).append(number)
+    for source, numbers in per_container.items():
+        logger.info(
+            '%s: recovered %d PR(s) from squashed cherry-pick #%s: %s',
+            repo_slug, len(numbers), source, ', '.join(f'#{n}' for n in numbers),
+        )
+    return per_container
+
+
 def _run_fetch(args: argparse.Namespace) -> int:
     dry_run = getattr(args, 'dry_run', False)
 
@@ -2325,6 +2593,11 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 preview = ', '.join(f'#{n}' for n in pr_numbers[:10])
                 more = f' ... and {len(pr_numbers) - 10} more' if len(pr_numbers) > 10 else ''
                 logger.info('[dry-run] %s PR numbers: %s%s', repo_slug, preview, more)
+        if any(release_branch_name(ref) for ref in to_ref_map.values()):
+            logger.info(
+                '[dry-run] PRs bundled in squashed cherry-pick containers are found '
+                'through the GitHub API and are not counted above.'
+            )
         logger.info('[dry-run] No GitHub API calls made; no files written.')
         return 0
 
@@ -2342,6 +2615,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
     all_prs: list[dict[str, Any]] = []
     excluded_per_repo: dict[str, int] = {}
     reused_per_repo: dict[str, int] = {}
+    recovered_per_repo: dict[str, dict[str, list[int]]] = {}
     for repo_slug in args.repos:
         try:
             validate_repo_slug(repo_slug)
@@ -2375,6 +2649,9 @@ def _run_fetch(args: argparse.Namespace) -> int:
                            repo_slug, repo_from_ref, repo_to_ref)
             continue
 
+        window_numbers = set(pr_numbers)
+        repo_prs: list[dict[str, Any]] = []
+
         reused = [cacheable[(repo_slug, n)] for n in pr_numbers
                   if (repo_slug, n) in cacheable]
         if reused:
@@ -2386,25 +2663,24 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 'so newly applied SIG labels are picked up)',
                 repo_slug, len(reused), len(pr_numbers),
             )
-            all_prs.extend(rederive_pr_fields(pr) for pr in reused)
+            repo_prs.extend(rederive_pr_fields(pr) for pr in reused)
 
-        if not pr_numbers:
-            continue
+        if pr_numbers:
+            logger.info('Fetching PR metadata from GitHub for %s', repo_slug)
+            repo_prs.extend(
+                _derive_fetched_fields(pr)
+                for pr in fetch_pr_metadata_batch(repo_slug, pr_numbers)
+            )
 
-        logger.info('Fetching PR metadata from GitHub for %s', repo_slug)
-        fetched = fetch_pr_metadata_batch(repo_slug, pr_numbers)
+        release_branch = release_branch_name(repo_to_ref)
+        if release_branch and not getattr(args, 'no_container_recovery', False):
+            recovered_here = _recover_from_containers(
+                repo_slug, repo_prs, release_branch, window_numbers, prior_keys,
+            )
+            if recovered_here:
+                recovered_per_repo[repo_slug] = recovered_here
 
-        for pr in fetched:
-            sig, source = categorize_pr(pr)
-            pr['sig_category'] = sig
-            pr['categorization_source'] = source
-            pr['description'] = _build_pr_description(pr.get('title', ''), pr.get('body', ''))
-            pr['flags'] = detect_pr_flags(pr)
-            pr['release_machinery'] = is_release_machinery(pr)
-            pr['manual_override_sig'] = None
-            pr['manual_override_description'] = None
-
-        all_prs.extend(fetched)
+        all_prs.extend(repo_prs)
 
     existing_path = output_json if output_json.exists() else None
     merged = merge_with_existing(all_prs, existing_path)
@@ -2497,6 +2773,13 @@ def _run_fetch(args: argparse.Namespace) -> int:
             'policy': 'label-categorised PRs only; all others re-fetched',
         }
 
+    if recovered_per_repo:
+        metadata['recovered_from_containers'] = {
+            'per_repo': recovered_per_repo,
+            'total': sum(len(v) for per in recovered_per_repo.values() for v in per.values()),
+            'source': "each container PR's commit list on GitHub",
+        }
+
     if exclude_sources:
         metadata['excluded_prior_releases'] = {
             'sources': exclude_sources,
@@ -2579,6 +2862,43 @@ def _emit_point_release_awareness_log(
         )
 
 
+def _apply_verified_bundles(
+    containers: list[dict[str, Any]],
+    merged: list[dict[str, Any]],
+    repo_slug: str,
+) -> list[dict[str, Any]]:
+    """Prefer GitHub's commit list over the squash body for what a container
+    bundles, and add containers the git scan cannot recognise.
+
+    The squash body over-reports: nested squash messages quote other PRs'
+    subjects, so o3de/o3de#20102 appeared to bundle #20004 and the audit
+    raised a cross for a fix that was never in it.
+    """
+    verified = {
+        pr.get('number', 0): pr for pr in merged
+        if pr.get('repo') == repo_slug and pr.get('bundled_prs') is not None
+    }
+    seen = set()
+    for entry in containers:
+        number = entry.get('container_pr')
+        if number in verified:
+            entry['bundled_prs'] = list(verified[number]['bundled_prs'])
+            entry['verified'] = True
+            seen.add(number)
+    extra = [
+        {
+            'container_pr': number,
+            'container_sha': '',
+            'title': verified[number].get('title', ''),
+            'bundled_prs': list(verified[number]['bundled_prs']),
+            'merge_commit': False,
+            'verified': True,
+        }
+        for number in sorted(set(verified) - seen, reverse=True)
+    ]
+    return extra + containers
+
+
 def _maybe_write_pointrelease_audit(
     args: argparse.Namespace,
     merged: list[dict[str, Any]],
@@ -2622,6 +2942,7 @@ def _maybe_write_pointrelease_audit(
             window_end = args.to_ref
         major_tag = predecessor
         containers = extract_pointrelease_containers(rpath, predecessor, window_end)
+        containers = _apply_verified_bundles(containers, merged, repo_slug)
         if not containers:
             continue
         any_container = True
@@ -2651,6 +2972,10 @@ def _maybe_write_pointrelease_audit(
             'filtered_pr_numbers': filtered_numbers,
             'prior_release_pr_numbers': {
                 number for (repo, number) in prior_keys if repo == repo_slug
+            },
+            'recovered_pr_numbers': {
+                pr.get('number', 0) for pr in merged
+                if pr.get('repo') == repo_slug and pr.get('recovered_from_container')
             },
             'predecessor_tag': major_tag,
         }
@@ -2806,6 +3131,12 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
                              'because a release tag on the main line shares only an ancient '
                              'merge-base with development, so the raw window spans two '
                              'cycles. (repeatable)')
+    parser.add_argument('--no-container-recovery', action='store_true',
+                        help='Do not recover PRs bundled in squashed cherry-pick containers. '
+                             'By default, when --to-ref names a stabilization/NNNNN branch, '
+                             'each cherry-pick PR merged into it is asked for its commit list '
+                             'and any bundled PR missing from the window is fetched and '
+                             'reported under its own number.')
     parser.add_argument('--no-pointrelease-audit', action='store_true',
                         help='Skip the point-release audit sidecar even when --from-ref '
                              'looks like a point-release tag')
