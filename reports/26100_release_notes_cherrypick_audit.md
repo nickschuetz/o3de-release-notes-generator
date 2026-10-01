@@ -8,8 +8,9 @@ branch for this cycle. A container that is *merged* keeps each
 cherry-picked commit's original `(#NNNN)` subject, so the fix enters
 the report under its own number and filtering the container out is
 harmless. A container that is *squashed* carries only its own number,
-and every fix it bundles would then be missing from the report
-entirely. Catching that is why this sidecar exists.
+so the fixes it bundles are recovered from the container PR's commit
+list on GitHub and reported under their own numbers. This sidecar
+confirms that every one of them made it.
 
 The bundled PRs are extracted from the container's commit body (or,
 for a container merged with a merge commit, from the commits it
@@ -29,6 +30,20 @@ never see.
 
 ## o3de/o3de
 
+- **#20140**: Support automatic inertia calculation in ArticulationLink (#20053) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #20053: present in the rendered report, recovered from this container
+- **#20123**: Cherry-pick from `development` to `stabilization/26100` (#20123) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #20018: present in the rendered report, recovered from this container
+  - ✓ #20049: present in the rendered report, recovered from this container
+  - ✓ #20069: present in the rendered report, recovered from this container
+  - ✓ #20090: present in the rendered report, recovered from this container
+  - ✓ #20113: present in the rendered report, recovered from this container
+- **#20102**: Cherrypick fixes from `development` to `stabilization/26100` (2) (#20102) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #20004: present in the rendered report, recovered from this container
+  - ✓ #20071: present in the rendered report, recovered from this container
+  - ✓ #20075: present in the rendered report, recovered from this container
+  - ✓ #20093: present in the rendered report, recovered from this container
+  - ✓ #20099: present in the rendered report, recovered from this container
 - **#20091**: Cherrypick fixes to 26100 (first pass) _(merge commit: each picked commit keeps its own PR number)_
   - ✓ #19975: present in the rendered report
   - ✓ #19981: present in the rendered report
@@ -107,9 +122,27 @@ never see.
 
 ## o3de/o3de-extras
 
+- **#1095**: Development -> Stabilization cherries: part 1 (#1095) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #1066: present in the rendered report, recovered from this container
+  - ✓ #1067: present in the rendered report, recovered from this container
+  - ✓ #1089: present in the rendered report, recovered from this container
+  - ✓ #1090: present in the rendered report, recovered from this container
+- **#1094**: Development -> Stabilization cherries: SimulationInterfaces Gem (#1094) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #1071: present in the rendered report, recovered from this container
+  - ✓ #1074: present in the rendered report, recovered from this container
+  - ✓ #1076: present in the rendered report, recovered from this container
+  - ✓ #1078: present in the rendered report, recovered from this container
+- **#1093**: Development -> Stabilization cherries: RobotImporter Gem (#1093) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #1024: present in the rendered report, recovered from this container
+  - ✓ #1070: present in the rendered report, recovered from this container
+  - ✓ #1072: present in the rendered report, recovered from this container
+  - ✓ #1073: present in the rendered report, recovered from this container
+  - ✓ #1075: present in the rendered report, recovered from this container
+  - ✓ #1085: present in the rendered report, recovered from this container
+  - ✓ #1087: present in the rendered report, recovered from this container
 - **#1054**: Sync changes from stabilization back to development _(merge commit: each picked commit keeps its own PR number)_
   - ○ #1050: already reported in a prior release (correctly absent here)
 
 ---
 
-**Summary:** 15 container(s) checked, 59 bundled PR reference(s) parsed: 12 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
+**Summary:** 21 container(s) checked, 85 bundled PR reference(s) parsed: 38 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
