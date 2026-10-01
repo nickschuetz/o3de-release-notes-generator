@@ -9,6 +9,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 ## SIG-Build
 - Update multiplayer template to fix compile issue with floats. [o3de-extras#1055](https://github.com/o3de/o3de-extras/pull/1055)
 - There was a decision to push a fix to Multiplayer template right after the release of 2605.0. The fix was  in the \`main\` branch, it should be also available in \`development\`. [o3de-extras#1057](https://github.com/o3de/o3de-extras/pull/1057)
+- Add workflow to test simulation Gems for PR. [o3de-extras#1089](https://github.com/o3de/o3de-extras/pull/1089)
 - Allow O3DE to be configured by \[Emscripten\](https://emscripten.org/) compiler to target webassembly. Configuration will just fail on the missing 3p dependencies which will be progressively added by the PR above and its follow-ups. [o3de#19109](https://github.com/o3de/o3de/pull/19109)
 - This change resolves several compilation errors that occur when building the engine with a C++23 toolchain. O3DE currently targets C++20, but these updates improve forward compatibility by addressing issues already surfaced under C++23 without altering the engine's official standard version. [o3de#19425](https://github.com/o3de/o3de/pull/19425)
 - This adds initial support for the Wayland protocol in O3DE. Supports switching between X11 and Wayland at runtime or compile time. [o3de#19477](https://github.com/o3de/o3de/pull/19477)
@@ -46,7 +47,12 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Update 3P version and SHA256 hash for DirectXShaderCompilerDxc-1.8.2505.1. [o3de#19967](https://github.com/o3de/o3de/pull/19967)
 - This PR converts D3D12MemoryAllocator 3p to FetchContent. [o3de#19992](https://github.com/o3de/o3de/pull/19992)
 - Update 3P version and SHA256 hash for freetype-2.11.1. [o3de#19997](https://github.com/o3de/o3de/pull/19997)
+- Mac and iOS builds could run out of disk space while restoring and creating build caches. This now frees space by removing unused Xcode installations from GitHub-hosted runners, reduces the compiler cache size, and ensures temporary cache archives are cleaned up after extraction. [o3de#20004](https://github.com/o3de/o3de/pull/20004)
+- Fix Shader Builder AZSL compiler staging. [o3de#20069](https://github.com/o3de/o3de/pull/20069)
 - Fixes broken monolithic compile for meshoptimizer: Fixes issue https://github.com/o3de/o3de/issues/19962. [o3de#20070](https://github.com/o3de/o3de/pull/20070)
+- Fix intermittent Mac asset build staging failures: macOS asset jobs intermittently report:. [o3de#20071](https://github.com/o3de/o3de/pull/20071)
+- Fix shortcut event handling and harden CI artifact caches: Improves CI reliability in two places identified while investigating intermittent test failures. [o3de#20093](https://github.com/o3de/o3de/pull/20093)
+- Updates the package server URLs used for fetching third-party dependencies and LFS objects across multiple build workflows and configuration files. [o3de#20135](https://github.com/o3de/o3de/pull/20135)
 
 ## SIG-Content
 - Build the Assimp library alongside o3de instead of depending on already-built 3p-package-source. This PR is a rebase of :. [o3de#19365](https://github.com/o3de/o3de/pull/19365)
@@ -124,9 +130,14 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Only block input events that are defined in \`UiNavigationHelper::Command(...)\` on active or hovered interactables when \`m_isConsumingAllInputEvents\` is true. [o3de#20013](https://github.com/o3de/o3de/pull/20013)
 - Fixes gamepad hot-plug detection in the Windows Editor while outside Game Mode. [o3de#20021](https://github.com/o3de/o3de/pull/20021)
 - Fixes the Preview Action Log readability in LyShine. [o3de#20022](https://github.com/o3de/o3de/pull/20022)
+- Fixes further issues that arose from Class Wizard usage in new engine source. [o3de#20075](https://github.com/o3de/o3de/pull/20075)
+- Prefab: return a failure instead of crashing when InstantiatePrefab cannot load the file: Fixes #7957. Related to #2331. [o3de#20099](https://github.com/o3de/o3de/pull/20099)
+- Fix non-unity build: \`ReadOnlyEntityQueryInterface::RefreshReadOnlyState\` takes an \`AzToolsFramework::EntityIdList\` but the header never includes \`AzToolsFramework/Entity/EntityTypes.h\` that declares it. [o3de#20112](https://github.com/o3de/o3de/pull/20112)
+- Accounting for non-default 3p paths. Stronger bootstrapping, and clearer error reporting. -D 3P paths is not detectable as the only source of pyside, error describes clearly. [o3de#20117](https://github.com/o3de/o3de/pull/20117)
 
 ## SIG-Core
 - Very similar to https://github.com/o3de/o3de-extras/pull/1062 - but for cmake in project template. [o3de-extras#1064](https://github.com/o3de/o3de-extras/pull/1064)
+- Fix incorrect AZ::IO::Path constructor. [o3de-extras#1087](https://github.com/o3de/o3de-extras/pull/1087)
 - Component Creation Class Wizard Expansion. [o3de#19361](https://github.com/o3de/o3de/pull/19361)
 - Clean up of duplicate, unnecessary Cry Code (Part 1). [o3de#19510](https://github.com/o3de/o3de/pull/19510)
 - Migrate \`AZStd::array\` and \`AZStd::span\` to \`std::array\` and \`std::span\`, and compatibility changes required to compile. [o3de#19581](https://github.com/o3de/o3de/pull/19581)
@@ -158,8 +169,10 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Fix for detaching prefabs causing a crash Fixes https://github.com/o3de/o3de/issues/19988. [o3de#19993](https://github.com/o3de/o3de/pull/19993)
 - Fix InputDeviceId construction in Lua. [o3de#20027](https://github.com/o3de/o3de/pull/20027)
 - bugfix : Add null checks for ConsoleViewPane to prevent wild pointer access: bugfix : Bug Report-Crash in RestoreDefaultLayout when Console View Pane is unavailable #20014. [o3de#20052](https://github.com/o3de/o3de/pull/20052)
+- Fixes \`SystemFile::Read\` and \`SystemFile::Write\` requests larger than INT_MAX. Oversized transfers are chunked for regular files, avoiding Mac errors and Linux truncation while preserving existing single-call behavior for pipes, sockets, and other non-regular descriptors. [o3de#20113](https://github.com/o3de/o3de/pull/20113)
 
 ## SIG-Graphics-Audio
+- This PR bumped tracy version to 1.14.1. Also it now marks the frame at RHI::FrameEventBus::OnFrameEnd to make frame time more accurate. [o3de-extras#1090](https://github.com/o3de/o3de-extras/pull/1090)
 - feature: improve assertions for RHI Vulkan result: \`AssertSuccess\` wraps an assertion for a given line but the asserted code is in a nested call. this just moves the assertion to a macro so the inlined call will be correctly reflected in the logs. [o3de#17169](https://github.com/o3de/o3de/pull/17169)
 - This PR moves two features that are currently only supported for raytracing shaders out of the \`RayTracingFeatureProcessor\` (and the \`RayTracingSceneSrg\`) into the more general \`MeshFeatureProcessor\` (and the \`SceneSrg\`). [o3de#19123](https://github.com/o3de/o3de/pull/19123)
 - An initial GTAO implementation. [o3de#19167](https://github.com/o3de/o3de/pull/19167)
@@ -193,9 +206,12 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Refactor Unlit shader inputs and color evaluation: This PR: restores correct Tiled UV behavior; uses the standard fallback Draw SRG;. [o3de#19961](https://github.com/o3de/o3de/pull/19961)
 - Fixes an assert and UB in AudioControlsWriter. [o3de#19975](https://github.com/o3de/o3de/pull/19975)
 - Fix Cutout SSAO Artifacts and Blended Shadows in the Unlit Shader. [o3de#19994](https://github.com/o3de/o3de/pull/19994)
+- This PR brings the AZSL compiler into the O3DE source tree under \`Code/Tools/ShaderCompiler\` and builds it as an O3DE host tool. [o3de#20018](https://github.com/o3de/o3de/pull/20018)
 - Corrects zero-item FrameGraph command-list creation in DX12, Vulkan, and Metal. This supersedes #20011. [o3de#20031](https://github.com/o3de/o3de/pull/20031)
 - Fixes Metal rendering corruption when a render scope has no draw items but still needs to clear or resolve a color attachment. (\[See the issue on the Discord thread here\](https://discord.com/channels/805939474655346758/1349060320383074434/1534723008969838795)). [o3de#20034](https://github.com/o3de/o3de/pull/20034)
 - fix(atom): move group barrier before early exit in SSS shader to prevent GPU deadlock: **_Summery:_** Relocates \`GroupMemoryBarrierWithGroupSync()\` in **\`ScreenSpaceSubsurfaceScatteringCS.azsl\`** so it executes before thread termination checks. [o3de#20036](https://github.com/o3de/o3de/pull/20036)
+- Fix hard edges at terrain detail layer boundaries with no macro material. [o3de#20049](https://github.com/o3de/o3de/pull/20049)
+- continuation of the effort from @wdstudiosma https://github.com/o3de/o3de/pull/20050. [o3de#20090](https://github.com/o3de/o3de/pull/20090)
 
 ## SIG-Network
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)
@@ -216,6 +232,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Updates locked Python dependencies in \`python/requirements.txt\` to non-vulnerable versions with verified PyPI SHA256 digests. [o3de#19948](https://github.com/o3de/o3de/pull/19948)
 
 ## SIG-Simulation
+- Bump libsdformat 13.5.0->16.0.1. [o3de-extras#1024](https://github.com/o3de/o3de-extras/pull/1024)
 - The robot rocked after spawning, due to setting initial pose as setpoint. With this feature, you have robot's articualtion created in initial position. It adjust prefab to use https://github.com/o3de/o3de/pull/19594. [o3de-extras#1025](https://github.com/o3de/o3de-extras/pull/1025)
 - Fixes to manipulation components and ROS 2 gems. [o3de-extras#1034](https://github.com/o3de/o3de-extras/pull/1034)
 - This MR adds a call to modify a namespace name if needed. The call was implemented before the refactor of \`ROS2FrameComponent\` and was removed by accident:. [o3de-extras#1037](https://github.com/o3de/o3de-extras/pull/1037)
@@ -230,13 +247,27 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - ROS 2 TFBroadcaster initialization was changed in ROS 2 Lyrical Luth; the deprecation warnings are treated as errors in O3DE, making the build impossible. This PR fixes the build for ROS 2 Lyrical Luth. [o3de-extras#1061](https://github.com/o3de/o3de-extras/pull/1061)
 - Fix AUTOMOC warnings. [o3de-extras#1062](https://github.com/o3de/o3de-extras/pull/1062)
 - Added GetFrameTransform to the ROS2Frame EBus. [o3de-extras#1065](https://github.com/o3de/o3de-extras/pull/1065)
+- This PR makes the ROS 2 package dependencies survive the gem export. [o3de-extras#1066](https://github.com/o3de/o3de-extras/pull/1066)
+- Introduce compression to ROS 2 camera. [o3de-extras#1067](https://github.com/o3de/o3de-extras/pull/1067)
 - Renaming certain files and functions to correct misleading names, resulting from the gem's expansion and the switch of the parsing module from URDF to SDF. [o3de-extras#1068](https://github.com/o3de/o3de-extras/pull/1068)
 - Fix build after o3de#19951: The O3DE engine update https://github.com/o3de/o3de/pull/19951 ("Remove support for CryEngine IPlugins"), deleted \`Legacy::EditorCommon\` target and moved all the leftover code to \`Legacy::EditorCore\` target. This triggers a problem in _extras_:. [o3de-extras#1069](https://github.com/o3de/o3de-extras/pull/1069)
+- Refactor of the RobotImporter gem files from the Utils directory. [o3de-extras#1070](https://github.com/o3de/o3de-extras/pull/1070)
+- \[Simulation Interfaces\] Add notifications for SpawnEntity and SpawnEntities services. [o3de-extras#1071](https://github.com/o3de/o3de-extras/pull/1071)
+- Collect all files responsible for parsing the robot description file (SdfParser, FixURDF, Xacro) into a single RobotImporter/Parsing folder. [o3de-extras#1072](https://github.com/o3de/o3de-extras/pull/1072)
+- Rename the folder holding the prefab building code (URDF -> Building). The old name is a leftover from the times when the gem did not parse SDF and used a different library that handled URDF only. [o3de-extras#1073](https://github.com/o3de/o3de-extras/pull/1073)
+- I noticed that on O3DE 2605.0 simulation entities are not removed during level unload. I added explicit removal of those entities with keeping the \`UnloadWorld\` synchronous, as it was. [o3de-extras#1074](https://github.com/o3de/o3de-extras/pull/1074)
+- RobotImporter Gem - passing referenced assets and import status through EBuses. [o3de-extras#1075](https://github.com/o3de/o3de-extras/pull/1075)
+- Fix ResetSimulationService handler: bits not ints. [o3de-extras#1078](https://github.com/o3de/o3de-extras/pull/1078)
+- Refactor of RobotImporter asset detection and copying - deduplication across diffrent import method. [o3de-extras#1085](https://github.com/o3de/o3de-extras/pull/1085)
 - This PR extends the Recast Navigation support in O3DE by adding DetourCrowd - a component that controls agents (NPCs). It supports self collision avoidance and creates smooth looking movement. [o3de#19707](https://github.com/o3de/o3de/pull/19707)
 - Complete the deprecation of PhysX(4) from the O3DE, and support aliasing for backwards compatibility. [o3de#19726](https://github.com/o3de/o3de/pull/19726)
 - Continuation of PhysX4 removal. [o3de#19742](https://github.com/o3de/o3de/pull/19742)
 - Added additional \`PropertyVisibility\` for \`Tag\` and \`ContactEffset\` to AzPhysics \`ColliderConfiguration\`. [o3de#19769](https://github.com/o3de/o3de/pull/19769)
 - Adds an \`m_enableEnhancedDeterminism\` option to \`AzPhysics::SceneConfiguration\`. This exposes the PhysX enhanced determinism flag which provides additional levels of determinism at a potential performance cost per the PhysX Docs:. [o3de#19826](https://github.com/o3de/o3de/pull/19826)
+- bugfix : Bug Report-ArticulationLink lacks Inertia Tensor configuration and auto-compute, causing PhysX simulation mismatch with Isaac Sim #20016. [o3de#20053](https://github.com/o3de/o3de/pull/20053)
+
+## SIG-Testing
+- Replace deprecated \`::testing::Invoke(...)\` wrappers with direct callables in \`InterfacesTest.cpp\`. Actions can now be constructed directly from a callable, so the wrapper is unnecessary and newer googletest/gmock flags it as an error under \`-Werror -Wdeprecated-declarations\`. [o3de-extras#1076](https://github.com/o3de/o3de-extras/pull/1076)
 
 ## SIG-UI-UX
 - Eliminates a hack that was causing infinite repaint: The QSpinBox component tries to render its suffix (if it has one) in a lighter text color than the rest of the text. [o3de#19938](https://github.com/o3de/o3de/pull/19938)
