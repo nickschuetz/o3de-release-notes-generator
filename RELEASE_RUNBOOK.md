@@ -191,7 +191,11 @@ python release_notes.py generate \
   --log-file reports/generate.log
 ```
 
-Roughly one GraphQL request per 30 PRs, so a ~420-PR cycle is about 14 requests.
+Use `upstream/stabilization/26100` when `origin` is a fork: the fork's copy of
+the branch was 18 commits behind on 2026-10-01.
+
+Roughly one GraphQL request per 30 PRs, so a ~420-PR cycle is about 14 requests,
+plus one for the commit lists of the cherry-pick containers.
 Add `--reuse-existing` on mid-cycle re-runs to serve label-categorised PRs from
 the previous report instead of re-fetching them.
 
@@ -269,19 +273,23 @@ The tool writes an audit sidecar in two situations:
 release branch by cherry-pick. When a cherry-pick PR is *merged*, each picked
 commit keeps its original `(#NNNN)` subject, so the fix enters the report under
 its own number and filtering the container out is harmless. That is what
-happened with #20006 / #19998 on 2026-08-12. When a container is *squashed*, it
-carries only its own number, is filtered out as a cherry-pick, and takes every
-fix it bundles with it. The sidecar exists to catch that.
+happened with #20006 / #19998 on 2026-08-12 and with #20091 on 2026-09-04. When
+a container is *squashed*, it carries only its own number and the fixes inside
+it have no commit of their own on the branch.
 
-Both outcomes are audited. A squashed container is recognised by the PR
-numbers in its body (GitHub keeps the picked subjects there), so the title
-wording does not matter; a merge-commit container is listed with a note and
-its bundled fixes shown ✓. The merge button is still the thing to watch on a
-cherry-pick PR against the release branch: **Create a merge commit** keeps
-every fix under its own number, **Squash and merge** loses them all and the
-sidecar turns red. `#20006` was merged the right way, and so was `#20091`
-(11 fixes, merged 2026-09-04): the 2026-09-06 sidecar lists it as a merge
-commit with all 11 ticked.
+Both outcomes are handled, so the merge button no longer decides what the notes
+contain. For a squashed container the tool reads the PR's commit list from
+GitHub, fetches each bundled PR that the window lacks, and reports it under its
+own number. Every pass after the first was squashed in this cycle (`#20102`,
+`#20123`, `#20140`, and `#1093` to `#1095` in extras), and the 2026-10-01 run
+recovered 26 PRs from them. Look for the `recovered N PR(s) from squashed
+cherry-pick` lines in the log, and for a WARNING saying a container's commit
+list could not be read: that one means fixes are missing and the run should be
+repeated.
+
+The sidecar confirms the result. A merge-commit container is listed with a
+note, a squashed one with "bundled PRs read from the PR's commit list on
+GitHub", and each recovered fix says which container it came from.
 
 Each bundled PR is marked:
 
@@ -292,7 +300,7 @@ Each bundled PR is marked:
 
 Check every ⚠ and ✗ before publishing. A ✗ is not automatically a loss: the
 window reaches back to the merge-base, so containers from earlier cycles appear
-too. The 2026-09-03 run showed 9, all from the 26.05 and 25.10 cycles, and
+too. Every run since 2026-09-03 has shown the same 9, all from the 26.05 and 25.10 cycles, and
 #19777 among them turned out to be a genuine gap in the 26.05.0 notes rather
 than anything owed to 26.10.0. A container that predates the branch cut
 belongs to an earlier cycle by construction.
