@@ -64,13 +64,13 @@ python release_notes.py render \
 - Summary command parsed via `shlex.split()` (not `.split()`) so quoted args are supported
 - Summary command runtime bounded by `--summary-timeout` (default 300s, range 10–3600s)
 - LLM output cleaned by `_clean_summary()` (strips preamble and dividers)
-- SIG categorization tiebreaks deterministically via `SIG_CANONICAL_ORDER` (label sort + title-keyword tiebreak); do not introduce non-deterministic ordering
+- SIG categorization is deterministic; do not introduce ordering that depends on dict or label-return order. `SIG_CANONICAL_ORDER` breaks ties between multiple labels and, as a last resort, between evenly split file votes. It must **not** break a title-keyword tie: alphabetical order is not evidence, and it sent every such tie to `sig/build`
 
 ## Architecture
 
 Three-stage pipeline: Extract (git log) → Categorize (SIG labels/heuristics) → Render (markdown). See ARCHITECTURE.md for full details including security model (OWASP/NIST).
 
-SIG categorization heuristics are data-driven dicts at the top of `release_notes.py` (`SIG_TITLE_KEYWORDS`, `SIG_FILE_PATH_PATTERNS`); edit these to adjust categorization.
+SIG categorization heuristics are data-driven dicts at the top of `release_notes.py` (`SIG_TITLE_KEYWORDS`, `SIG_FILE_PATH_PATTERNS`); edit these to adjust categorization. Order is label, then file ownership, then title. Do not put the title back in front of the files: against 265 single-label PRs it agreed with the label 71% of the time to the files' 76%, and one stray keyword outvoted every changed file. `SIG_FILE_PATH_PATTERNS` is a curated copy of **o3de/o3de's** CODEOWNERS; every other repo consults its own `.github/CODEOWNERS` first (`Templates/Multiplayer/` is sig/network in o3de-extras, sig/core by the map). No heuristic passes about 76%, so do not chase accuracy by tuning: guesses go to the `_sig_review.md` sheet for a person to settle, by label on GitHub or `manual_override_sig`.
 
 PR discovery requires BOTH `PR_NUMBER_PATTERN` (squash merges, `(#N)`) and `MERGE_COMMIT_PR_PATTERN` (merge commits, `Merge pull request #N`). Do not add `--no-merges` back to the git log call: O3DE uses both merge strategies and merge-commit PRs have no other reference.
 

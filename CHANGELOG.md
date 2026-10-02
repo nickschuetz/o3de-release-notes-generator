@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0-beta] - 2026-10-02
+
+### Changed
+- **File ownership is consulted before the title.** Scored against 265 pull requests carrying exactly one SIG label, title keywords agreed with the label 71% of the time and file ownership 76%. With the title first, one keyword outvoted every changed file: "Add imgui.ini to .gitignore" was under Graphics-Audio, and three MotionMatching fixes were under Content for the word "motion".
+- **A title-keyword tie is no answer.** It was broken by `SIG_CANONICAL_ORDER`, which is alphabetical, so `sig/build` won every tie it was in. `o3de-extras#1055`, "Update multiplayer template to fix compile issue with floats", has one Build keyword and one Network keyword and was filed under Build.
+- A file-vote tie is settled by the title when it names exactly one of the tied SIGs, and by canonical order only after that.
+- 18 entries in the 26.10.0 draft change SIG. The Platform, Security and Testing sections empty out: each held only title-keyword guesses whose files point elsewhere, and all of those are flagged in the review sheet.
+
+### Added
+- **Each repo's own CODEOWNERS is read** from `--to-ref` in the local clone. The built-in map is a curated copy of `o3de/o3de`'s and was being applied to every repo: `Templates/` is SIG-Core there, while `o3de-extras` assigns `Templates/Multiplayer/` to SIG-Network, which is where #1055 now lands. For `o3de/o3de` the curated map still goes first (it beat the raw file 11 to 8 where they disagreed, since CODEOWNERS gives `/cmake/` to Core) and CODEOWNERS fills the gaps. New source value `heuristic_codeowners`.
+- **A SIG review sheet**, `<stem>_sig_review.md`, written on every `fetch` and `generate`. No ordering of heuristics exceeds about 76%: paths say who owns the code, a label says who owns the change. The sheet lists every entry not settled by a single label with its evidence, in four sections: needs a decision, check these first, placed by file ownership, and more than one SIG label. `--no-sig-review` suppresses it.
+- 48 new tests (461 -> 509).
+
 ## [0.12.0-beta] - 2026-10-01
 
 ### Added
