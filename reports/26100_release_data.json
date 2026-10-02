@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-10-01T15:57:27.986968+00:00",
+    "generated_at": "2026-10-02T21:33:05.552770+00:00",
     "from_ref": "2605.0",
     "to_ref": "upstream/stabilization/26100",
     "repos": [
@@ -12,14 +12,15 @@
       "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras"
     },
     "schema_version": 7,
-    "tool_version": "0.12.0-beta",
+    "tool_version": "0.13.0-beta",
     "pr_count": 268,
     "categorization_summary": {
       "label": 161,
-      "heuristic_files": 40,
-      "heuristic_title": 64,
+      "heuristic_files": 89,
+      "heuristic_title": 6,
       "uncategorized": 1,
-      "manual_override": 2
+      "manual_override": 2,
+      "heuristic_codeowners": 9
     },
     "release_machinery_count": 2,
     "file_list_truncated": {
@@ -40,15 +41,16 @@
         "o3de/o3de#20123"
       ],
       "categorized_from_partial_files": [
+        "o3de/o3de#19571",
         "o3de/o3de#19984"
       ]
     },
     "reused_from_cache": {
       "per_repo": {
-        "o3de/o3de": 133,
+        "o3de/o3de": 135,
         "o3de/o3de-extras": 9
       },
-      "total": 142,
+      "total": 144,
       "policy": "label-categorised PRs only; all others re-fetched"
     },
     "recovered_from_containers": {
@@ -121,7 +123,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-10-01T15:57:27.986968+00:00"
+      "end": "2026-10-02T21:33:05.552770+00:00"
     }
   },
   "pull_requests": [
@@ -1119,8 +1121,8 @@
         "Code/Tools/ProjectManager/Source/GemCatalog/GemFilterWidget.cpp",
         "Code/Tools/ProjectManager/Source/NewProjectSettingsScreen.cpp"
       ],
-      "sig_category": "sig/platform",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_files",
       "description": "Mac ARM64 integration.",
       "flags": [],
       "release_machinery": false,
@@ -1369,7 +1371,7 @@
         "Code/Tools/LuaIDE/Source/LUA/LUAEditorStyleMessages.h"
       ],
       "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "This is happening. When opening the LUA Editor, going the Options/Settings then just press the cancel button, it will reset to some strange values even though no changes where made.",
       "flags": [],
       "release_machinery": false,
@@ -1389,8 +1391,8 @@
       "files": [
         "Gems/MotionMatching/Code/Source/MotionMatchingSystemComponent.cpp"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_files",
       "description": "MotionMatching's debugdraw, disable by default.",
       "flags": [],
       "release_machinery": false,
@@ -1574,7 +1576,7 @@
         "Code/Framework/AzToolsFramework/AzToolsFramework/Viewport/ViewportTypes.h"
       ],
       "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "\\[Editor\\] Fix pick (translate, rotate, scale) objects which are far way from origin: Please have a read at the issue I created: \\[Issue\\](https://github.com/o3de/o3de/issues/19600).",
       "flags": [],
       "release_machinery": false,
@@ -1621,7 +1623,7 @@
         "cmake/Platform/Mac/PAL_mac.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Adds support for building on Mac with non-Xcode compilers (like the latest LLVM Clang).",
       "flags": [],
       "release_machinery": false,
@@ -1802,8 +1804,8 @@
         "Gems/MotionMatching/Assets/ControllableCharacter/CameraController_ControllableCharacter.scriptcanvas",
         "Gems/MotionMatching/Assets/ControllableCharacter/CharacterController.scriptcanvas"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_files",
       "description": "Fixed MotionMatching ScriptCanvas demo files: Manually migrated missing nodes to modern equivalents.",
       "flags": [],
       "release_machinery": false,
@@ -1844,7 +1846,7 @@
         "Gems/SurfaceData/Code/Tests/MixedAllocatorTest.cpp"
       ],
       "sig_category": "sig/core",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Removes the implicit \\`allocator(const char*)\\` constructor from \\`AZStd::allocator\\` and refactors all AZStd allocator classes to better match C++20 idioms.",
       "flags": [],
       "release_machinery": false,
@@ -2181,7 +2183,7 @@
         "Gems/Stars/Code/stars_headers_files.cmake"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Stars: Make exposure, radius, and twinkle rate accessible via ebus and expose the methods to behavior context for scripting.",
       "flags": [],
       "release_machinery": false,
@@ -2205,7 +2207,7 @@
         "Gems/Atom/Feature/Common/Assets/Shaders/Unlit/UnlitOpaque.shader"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "This PR updates the \\`Unlit\\` shader implementation added in the previous PR.",
       "flags": [],
       "release_machinery": false,
@@ -2226,7 +2228,7 @@
         "Gems/Stars/Code/Source/StarsComponentController.cpp"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Add checks for when a negative value is passed to the ebus setter methods that were added in #19654.",
       "flags": [],
       "release_machinery": false,
@@ -2476,7 +2478,7 @@
         "Code/Framework/AzToolsFramework/AzToolsFramework/UI/Outliner/EntityOutlinerWidget.cpp"
       ],
       "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Outliner clears selection on Asset Browser focus. This prevents entering \"rename\" when selecting back to the outliner entity.",
       "flags": [],
       "release_machinery": false,
@@ -2737,7 +2739,7 @@
         "Gems/RecastNavigation/Code/recastnavigation_private_files.cmake"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "This PR extends the Recast Navigation support in O3DE by adding DetourCrowd - a component that controls agents (NPCs). It supports self collision avoidance and creates smooth looking movement.",
       "flags": [],
       "release_machinery": false,
@@ -2985,7 +2987,7 @@
         "scripts/o3de/o3de/utils.py"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Complete the deprecation of PhysX(4) from the O3DE, and support aliasing for backwards compatibility.",
       "flags": [],
       "release_machinery": false,
@@ -3040,8 +3042,8 @@
       "files": [
         "Gems/MotionMatching/Code/Source/MotionMatchingData.cpp"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_files",
       "description": "The MotionMatching gem currently supports two multithreaded init implementations, one with the Jobs system (default) and one with TaskGraph.",
       "flags": [],
       "release_machinery": false,
@@ -3062,7 +3064,7 @@
         "Code/Framework/AzCore/AzCore/Script/ScriptContext.cpp"
       ],
       "sig_category": "sig/core",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "AzCore/Script: drop redundant \\<Lua/lobject.h> include.",
       "flags": [],
       "release_machinery": false,
@@ -3203,7 +3205,7 @@
         "scripts/o3de/o3de/upgrade_physx_gem.py"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Continuation of PhysX4 removal.",
       "flags": [],
       "release_machinery": false,
@@ -3364,7 +3366,7 @@
         "Gems/OpenParticleSystem/Code/Source/Editor/Serializer/ParticleSystemSerializer.cpp"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "OpenParticleSystem/ParticleBuilder: declare material JobDependency by path on cold cache.",
       "flags": [],
       "release_machinery": false,
@@ -3491,7 +3493,7 @@
         "Code/Framework/AzFramework/AzFramework/Physics/Shape.h"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Added additional \\`PropertyVisibility\\` for \\`Tag\\` and \\`ContactEffset\\` to AzPhysics \\`ColliderConfiguration\\`.",
       "flags": [],
       "release_machinery": false,
@@ -3599,7 +3601,7 @@
         "engine.json"
       ],
       "sig_category": "sig/core",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "This PR set's the \\`engine.json\\` -> \\`version\\` tag to \\`2.7.0\\`, as discussed in https://discordapp.com/channels/805939474655346758/1477717691740459161 Some additional discussions are available in Github RFC: https://github.com/o3de/sig-release/pull/354.",
       "flags": [],
       "release_machinery": true,
@@ -3725,7 +3727,7 @@
         "Code/Framework/AzToolsFramework/AzToolsFramework/Prefab/PrefabPublicHandler.cpp"
       ],
       "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Fix editor crash creating an entity with no level loaded.",
       "flags": [],
       "release_machinery": false,
@@ -3773,8 +3775,8 @@
       "files": [
         "Code/Framework/AzFramework/Platform/Linux/AzFramework/Input/LibEVDevWrapper.cpp"
       ],
-      "sig_category": "sig/platform",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/core",
+      "categorization_source": "heuristic_files",
       "description": "Fix Linux gamepad support when only the libevdev runtime is installed.",
       "flags": [],
       "release_machinery": false,
@@ -3947,7 +3949,7 @@
         "cmake/Platform/Common/GCC/Configurations_gcc.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "no-fast-math is disabled twice in this file, and in the second encounter it puts a PRIVATE in the compiler flags. This leads to weird gcc error messages complaining about a missing linker script PRIVATE.",
       "flags": [],
       "release_machinery": false,
@@ -3968,7 +3970,7 @@
         "Code/Framework/AzToolsFramework/AzToolsFramework/ToolsComponents/TransformComponent.cpp"
       ],
       "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Fixed editor \\`TransformComponent\\` not notifying of child add/removal.",
       "flags": [],
       "release_machinery": false,
@@ -4089,7 +4091,7 @@
         "Gems/PhysX/Core/Code/Source/Scene/PhysXScene.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Adds an \\`m_enableEnhancedDeterminism\\` option to \\`AzPhysics::SceneConfiguration\\`. This exposes the PhysX enhanced determinism flag which provides additional levels of determinism at a potential performance cost per the PhysX Docs:.",
       "flags": [],
       "release_machinery": false,
@@ -4276,7 +4278,7 @@
         "cmake/3rdParty/Platform/Windows/BuiltInPackages_windows.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Update 3P version and SHA256 hash for pyside6-6.10.2.",
       "flags": [],
       "release_machinery": false,
@@ -4359,7 +4361,7 @@
         "cmake/LyAutoGen.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Fixes the autogen cmake script to not trigger a full cmake regenerate….",
       "flags": [],
       "release_machinery": false,
@@ -4459,8 +4461,8 @@
         "Code/Framework/AzToolsFramework/AzToolsFramework/UI/Outliner/EntityOutlinerListModel.hxx",
         "Gems/Multiplayer/Code/Source/NetworkEntity/NetworkEntityManager.cpp"
       ],
-      "sig_category": "sig/network",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/core",
+      "categorization_source": "heuristic_files",
       "description": "Fixes network-related crashes during Init of entities and dangling child entities.",
       "flags": [],
       "release_machinery": false,
@@ -4539,7 +4541,7 @@
         "Gems/OpenParticleSystem/Code/Source/Runtime/OpenParticleSystem/ParticlePipelineState.cpp"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Preloads the material asset so it's ready when Create() needs it.",
       "flags": [],
       "release_machinery": false,
@@ -4634,8 +4636,8 @@
       "files": [
         "Gems/LmbrCentral/Code/Platform/Mac/lrelease_mac.cmake"
       ],
-      "sig_category": "sig/platform",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/core",
+      "categorization_source": "heuristic_files",
       "description": "Mac fix lrelease rpath: Similar to https://github.com/o3de/o3de/pull/19852, this should allow translation assets to be built by asset processor.",
       "flags": [],
       "release_machinery": false,
@@ -4854,8 +4856,8 @@
         "Gems/ImGui/Code/Source/ImGuiManager.cpp",
         "Gems/ImGui/Code/Source/ImGuiManager.h"
       ],
-      "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/core",
+      "categorization_source": "heuristic_files",
       "description": "This stops the imgui console from receiving inputs when the entire imgui layer is hidden, preventing unintentional garbage text from piling up in the console text entry field while its closed. It does this by queuing up the text events and only flushing them when the imgui mode is visible.",
       "flags": [],
       "release_machinery": false,
@@ -5062,7 +5064,7 @@
         "Gems/Atom/RPI/Code/Source/RPI.Builders/Model/ModelAssetBuilderComponent.cpp"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "This PR upgrades meshoptimizer 3p to v1.2 Also removed \"sparse\" and \"lock border\" LOD generation options as they are intended for meshlets simplification.",
       "flags": [],
       "release_machinery": false,
@@ -5192,7 +5194,7 @@
         "cmake/3rdParty/Platform/Windows/BuiltInPackages_windows.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Update 3P version and SHA256 hash for pyside6-6.10.2.",
       "flags": [],
       "release_machinery": false,
@@ -5451,7 +5453,7 @@
         "cmake/3rdParty/Platform/Mac/BuiltInPackages_mac_arm64.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "(Addresses missing promotion for expat for mac).",
       "flags": [],
       "release_machinery": false,
@@ -5893,8 +5895,8 @@
         "Gems/ScriptCanvas/Code/Include/ScriptCanvas/Libraries/Math/Vector3.cpp",
         "Gems/ScriptCanvas/Code/Include/ScriptCanvas/Libraries/Math/Vector3.h"
       ],
-      "sig_category": "sig/core",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_files",
       "description": "SmoothCriticallyDamped Makes \\`SmoothCriticallyDamped(...)\\` available to use in Lua and Script Canvas. Specifically, reflect methods for floats/numbers, Vector2, Vector3, and Quaternion.",
       "flags": [],
       "release_machinery": false,
@@ -6069,7 +6071,7 @@
         "Gems/Multiplayer/Code/Source/Components/NetworkRigidBodyComponent.cpp"
       ],
       "sig_category": "sig/network",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Fixes a server crash when running a level containing a Network Rigid Body Component.",
       "flags": [],
       "release_machinery": false,
@@ -6133,8 +6135,8 @@
       "files": [
         "python/requirements.txt"
       ],
-      "sig_category": "sig/security",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "Updates locked Python dependencies in \\`python/requirements.txt\\` to non-vulnerable versions with verified PyPI SHA256 digests.",
       "flags": [],
       "release_machinery": false,
@@ -6370,7 +6372,7 @@
         ".github/workflows/ar-canary.yml"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Removes the scheduled cron job for nightly runs, which prevent it from running in forks. We will be executing the scheduled nightly runs through a separate process not tied this workflow.",
       "flags": [],
       "release_machinery": false,
@@ -6591,8 +6593,8 @@
       "files": [
         "Gems/Atom/Tools/AtomToolsFramework/Code/Source/Viewport/RenderViewportWidget.cpp"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_files",
       "description": "Fix LyShine editor crash from zero-size viewport window: Fixes the issue that RenderViewportWidget ever can get 0x0 which prevents a crash.",
       "flags": [],
       "release_machinery": false,
@@ -6613,7 +6615,7 @@
         "cmake/3rdParty/Platform/Mac/BuiltInPackages_mac_arm64.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Update 3P version and SHA256 hash for DirectXShaderCompilerDxc-1.8.2505.1.",
       "flags": [],
       "release_machinery": false,
@@ -6633,8 +6635,8 @@
       "files": [
         "cmake/Platform/Mac/runtime_dependencies_mac.cmake.in"
       ],
-      "sig_category": "sig/platform",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/build",
+      "categorization_source": "heuristic_files",
       "description": "Fixes Mac bundling issues with Qt6.",
       "flags": [],
       "release_machinery": false,
@@ -6679,8 +6681,8 @@
         "Gems/AudioSystem/Code/Source/Editor/QConnectionsWidget.cpp",
         "Gems/AudioSystem/Code/Source/Engine/FileCacheManager.cpp"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_codeowners",
       "description": "AudioSystem Gem Editor and Engine fixes: FileCacheManager dangling pointer and invisible Connection Properties.",
       "flags": [],
       "release_machinery": false,
@@ -6900,7 +6902,7 @@
         "Code/Framework/AzCore/AzCore/azcore_files.cmake"
       ],
       "sig_category": "sig/core",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Remove dlmalloc and nedmalloc from AzCore.: These libraries are no longer competitive compared with native allocators on modern platforms, and they are not maintained upstream.  Removing them reduces the size of the codebase and the number of dependencies.",
       "flags": [],
       "release_machinery": false,
@@ -6930,8 +6932,8 @@
         "Gems/Atom/RHI/DX12/External/AMD_D3D12MemoryAllocator/v2.0.1/dx12ma/D3D12MemAlloc.natvis",
         "Gems/Atom/RHI/DX12/External/AMD_D3D12MemoryAllocator/v2.0.1/dx12ma/LICENSE.txt"
       ],
-      "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_files",
       "description": "This PR converts D3D12MemoryAllocator 3p to FetchContent.",
       "flags": [],
       "release_machinery": false,
@@ -7010,7 +7012,7 @@
         "Gems/Atom/Feature/Common/Assets/Shaders/Unlit/Unlit.shader"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Fix Cutout SSAO Artifacts and Blended Shadows in the Unlit Shader.",
       "flags": [],
       "release_machinery": false,
@@ -7080,7 +7082,7 @@
         "cmake/3rdParty/Platform/Mac/BuiltInPackages_mac_arm64.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Update 3P version and SHA256 hash for freetype-2.11.1.",
       "flags": [],
       "release_machinery": false,
@@ -7472,7 +7474,7 @@
         "Gems/Atom/RHI/Metal/Code/Source/RHI/Scope.cpp"
       ],
       "sig_category": "sig/graphics-audio",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Fixes Metal rendering corruption when a render scope has no draw items but still needs to clear or resolve a color attachment. (\\[See the issue on the Discord thread here\\](https://discord.com/channels/805939474655346758/1349060320383074434/1534723008969838795)).",
       "flags": [],
       "release_machinery": false,
@@ -7570,7 +7572,7 @@
         "Gems/PhysX/Core/Code/Source/EditorArticulationLinkComponent.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "bugfix : Bug Report-ArticulationLink lacks Inertia Tensor configuration and auto-compute, causing PhysX simulation mismatch with Isaac Sim #20016.",
       "flags": [],
       "release_machinery": false,
@@ -8180,7 +8182,7 @@
         "cmake/3rdPartyPackages.cmake"
       ],
       "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Updates the package server URLs used for fetching third-party dependencies and LFS objects across multiple build workflows and configuration files.",
       "flags": [],
       "release_machinery": false,
@@ -8206,7 +8208,7 @@
         "Gems/PhysX/Core/Code/Source/EditorArticulationLinkComponent.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Support automatic inertia calculation in ArticulationLink: This PR cherry-picks https://github.com/o3de/o3de/pull/20053 from the \\`development\\` to the \\`stabilization\\` branch.",
       "flags": [
         "cherry-pick"
@@ -8290,7 +8292,7 @@
         "Gems/WarehouseAutomation/Assets/Factory/ConveyorLine/ConveyorBelt_effector.fbx.assetinfo"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_codeowners",
       "description": "Fixes to manipulation components and ROS 2 gems.",
       "flags": [],
       "release_machinery": false,
@@ -8311,7 +8313,7 @@
         "Gems/ROS2/Code/Source/Frame/NamespaceComputation.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_codeowners",
       "description": "This MR adds a call to modify a namespace name if needed. The call was implemented before the refactor of \\`ROS2FrameComponent\\` and was removed by accident:.",
       "flags": [],
       "release_machinery": false,
@@ -8337,7 +8339,7 @@
         "Gems/SimulationInterfaces/Code/simulationinterfaces_private_files.cmake"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Add support for \\`simulation_interfaces/srv/SpawnEntities.srv\\` added recently. Note, that this is waiting for the release at the moment.",
       "flags": [],
       "release_machinery": false,
@@ -8396,7 +8398,7 @@
         "Gems/SimulationInterfaces/Code/Tests/Tools/InterfacesTest.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_files",
+      "categorization_source": "heuristic_codeowners",
       "description": "This PR adds a support for the latest \\[simulation_interfaces\\](https://github.com/ros-simulation/simulation_interfaces) 2.1.0 package alongside already supported 1.4.0/1.5.0/1.6.0. 2.1.0 will be a part of ROS 2 Lyrical Luth release in late May.",
       "flags": [],
       "release_machinery": false,
@@ -8420,7 +8422,7 @@
         "Gems/SimulationInterfaces/Code/Tests/Tools/InterfacesTest.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_files",
+      "categorization_source": "heuristic_codeowners",
       "description": "Fix development (and tests).",
       "flags": [],
       "release_machinery": false,
@@ -8466,8 +8468,8 @@
         "Templates/Ros2FleetRobotTemplate/Template/Examples/ros2_ws/src/o3de_fleet_nav/launch/o3de_fleet_nav_launch.py",
         "Templates/Ros2RoboticManipulationTemplate/Template/Examples/panda_moveit_config_demo.launch.py"
       ],
-      "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/core",
+      "categorization_source": "heuristic_files",
       "description": "Cherry-pick commits pushed directly to \\`stabilization\\` branch back to the \\`development\\` branch. There was only one difference, namely #1041.",
       "flags": [
         "cherry-pick"
@@ -8578,8 +8580,8 @@
         "Templates/Multiplayer/template.json",
         "repo.json"
       ],
-      "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/network",
+      "categorization_source": "heuristic_codeowners",
       "description": "Update multiplayer template to fix compile issue with floats.",
       "flags": [],
       "release_machinery": false,
@@ -8600,7 +8602,7 @@
         "Gems/SimulationInterfaces/Code/Source/Services/SetEntityStateServiceHandler.cpp"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_files",
       "description": "Problem solved here is to choose compile-time which version of response message to use. In version 1.5.0 there is no simulation_interfaces::msg::Result::INVALID_POSE, so we need to use both constexpr and SFINAE to give compiler a way out to compile.",
       "flags": [],
       "release_machinery": false,
@@ -8622,8 +8624,8 @@
         "Templates/Multiplayer/template.json",
         "repo.json"
       ],
-      "sig_category": "sig/build",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/network",
+      "categorization_source": "heuristic_codeowners",
       "description": "There was a decision to push a fix to Multiplayer template right after the release of 2605.0. The fix was  in the \\`main\\` branch, it should be also available in \\`development\\`.",
       "flags": [],
       "release_machinery": false,
@@ -8748,7 +8750,7 @@
         "Gems/ROS2/Code/Source/Frame/ROS2FrameEditorComponent.h"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_title",
+      "categorization_source": "heuristic_codeowners",
       "description": "Added GetFrameTransform to the ROS2Frame EBus.",
       "flags": [],
       "release_machinery": false,
@@ -9185,8 +9187,8 @@
       "files": [
         "Gems/SimulationInterfaces/Code/Tests/Clients/InterfacesTest.cpp"
       ],
-      "sig_category": "sig/testing",
-      "categorization_source": "heuristic_title",
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_files",
       "description": "Replace deprecated \\`::testing::Invoke(...)\\` wrappers with direct callables in \\`InterfacesTest.cpp\\`. Actions can now be constructed directly from a callable, so the wrapper is unnecessary and newer googletest/gmock flags it as an error under \\`-Werror -Wdeprecated-declarations\\`.",
       "flags": [],
       "release_machinery": false,
@@ -9499,7 +9501,7 @@
         "Gems/ROS2Sensors/Code/ros2sensors_tests_files.cmake"
       ],
       "sig_category": "sig/simulation",
-      "categorization_source": "heuristic_files",
+      "categorization_source": "heuristic_codeowners",
       "description": "Development -> Stabilization cherries: part 1.",
       "flags": [
         "cherry-pick"
