@@ -104,6 +104,7 @@ python release_notes.py fetch \
   [--exclude-json prior_release.json ...] \
   [--dry-run] \
   [--no-container-recovery] \
+  [--no-sig-review] \
   [--no-pointrelease-audit] \
   [--log-file PATH] \
   [-v]
@@ -123,6 +124,7 @@ python release_notes.py fetch \
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
 | `--no-container-recovery` | No | off | Do not recover PRs bundled in squashed cherry-pick containers. By default, when `--to-ref` names a `stabilization/NNNNN` branch, each cherry-pick PR merged into that branch is asked for its commit list, and any bundled PR missing from the window is fetched and reported under its own number. See [Squashed cherry-picks](#squashed-cherry-picks) |
+| `--no-sig-review` | No | off | Skip the [SIG review sheet](#sig-review-sheet), a sidecar listing every entry whose SIG was guessed rather than taken from a single `sig/*` label |
 | `--no-pointrelease-audit` | No | off | Skip the point-release audit sidecar even when `--from-ref` looks like a point-release tag (`MAJOR.PATCH` with a non-zero patch) |
 | `--log-file` | No | - | Append logs to this file in addition to stderr. The path is validated like any other output path; if it is unwritable the run continues with stderr-only logging rather than aborting |
 | `-v`, `--verbose` | No | - | Verbose logging |
@@ -489,7 +491,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 7,
-    "tool_version": "0.12.0-beta",
+    "tool_version": "0.13.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -562,7 +564,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | Field | Description |
 |-------|-------------|
 | `sig_category` | Assigned SIG. Set automatically, or via `manual_override_sig`. |
-| `categorization_source` | How the SIG was assigned: `label`, `heuristic_title`, `heuristic_files`, `uncategorized`, `manual_override` |
+| `categorization_source` | How the SIG was assigned: `label`, `heuristic_files` (built-in ownership map), `heuristic_codeowners` (the repo's own CODEOWNERS), `heuristic_title`, `uncategorized`, `manual_override` |
 | `flags` | Auto-detected flags. Currently only `cherry-pick` (title evidence), which excludes the PR from rendered markdown. A legacy `stabilization-sync` value may appear in JSON written by ≤0.5.0-beta; it is ignored on render. |
 | `release_machinery` | Auto-detected boolean for release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`/`.github/FUNDING.yml`-only diffs). Excluded from rendered markdown and summary prompts by default; opt back in with `--include-release-machinery`. |
 | `manual_override_sig` | Set this to reassign a PR to a different SIG. Preserved on re-runs. |
@@ -637,13 +639,34 @@ The first 26.10.0 run with this enabled recovered 26 PRs from six containers.
 
 ## SIG Categorization
 
-PRs are categorized using three methods in priority order:
+PRs are categorized by the first of these that gives an answer:
 
 1. **GitHub labels** - PRs with `sig/*` labels (e.g., `sig/build`, `sig/graphics-audio`) are categorized directly. Highest confidence.
-2. **Title keywords** - PR titles are matched against keyword lists per SIG.
-3. **File paths** - Changed file paths are matched against directory-to-SIG mappings.
+2. **File ownership** - Each changed file votes for the SIG that owns its path, and the SIG with the most votes wins. Two sources of ownership are consulted:
+   - the built-in map (`SIG_FILE_PATH_PATTERNS`), a curated copy of `o3de/o3de`'s CODEOWNERS;
+   - the repo's own `.github/CODEOWNERS`, read from `--to-ref` in the local clone.
 
-If none match, the PR is marked `uncategorized` for manual triage.
+   For `o3de/o3de` the map goes first and CODEOWNERS fills in where the map is silent. For every other repo its own CODEOWNERS goes first, because the map describes a different repository: `Templates/` is SIG-Core in `o3de/o3de`, while `o3de-extras` assigns `Templates/Multiplayer/` to SIG-Network.
+3. **Title keywords** - Only when no changed file is owned by any SIG. The SIG with the most keyword hits wins; a tie is no answer.
+
+If none answers, the PR is marked `uncategorized` for manual triage.
+
+Files come before the title because they are the better witness. Scored against 265 pull requests carrying exactly one SIG label, file ownership agreed with the label 76% of the time and title keywords 71%. With the title first, a single keyword outvoted every changed file: "Add imgui.ini to .gitignore" was filed under Graphics-Audio.
+
+**No ordering gets past about three in four.** Paths say who owns the code; a label says who owns the change, and a build fix inside editor code belongs to SIG-Build. Guesses therefore need a reviewer, which is what the review sheet is for.
+
+### SIG review sheet
+
+Every `fetch` or `generate` run writes `<output-md stem>_sig_review.md` next to the report (next to the JSON when there is no `--output-md`). It lists every entry whose SIG was not settled by a single label, with the evidence for each:
+
+| Section | What is in it |
+|---|---|
+| Needs a decision | Uncategorized PRs. These are left out of the report until placed. |
+| Check these first | Thin evidence: a tie, a title keyword with no file behind it, a winner owning under 60% of the matched files, or a title that points to a different SIG than the files. |
+| Placed by file ownership | One SIG clearly owns most of the changed files. |
+| More than one SIG label | PRs carrying several `sig/*` labels. They appear once, under the first alphabetically. |
+
+Correct a placement by adding the right `sig/*` label on GitHub, which the next run picks up, or by setting `manual_override_sig` in the JSON. Suppress the sheet with `--no-sig-review`.
 
 ### Updating Heuristics
 
@@ -651,7 +674,7 @@ The categorization data lives as four data-driven structures at the top of `rele
 
 | Constant | Purpose |
 |----------|---------|
-| `SIG_CANONICAL_ORDER` | Canonical SIG list. Defines section order in markdown output **and** acts as the deterministic tiebreaker when a PR has multiple SIG labels or its title matches keywords from multiple SIGs. |
+| `SIG_CANONICAL_ORDER` | Canonical SIG list. Defines section order in markdown output **and** acts as the deterministic tiebreaker when a PR has multiple SIG labels, or when its changed files split evenly between SIGs and the title cannot settle it. A tie between title keywords is not broken this way; it is no answer. |
 | `SIG_DISPLAY_NAMES` | Map from `sig/foo` → `SIG-Foo` (the heading that appears in the rendered markdown). |
 | `SIG_TITLE_KEYWORDS` | Per-SIG keyword list for the title-heuristic categorizer. |
 | `SIG_FILE_PATH_PATTERNS` | Per-SIG file-path prefix list for the file-heuristic categorizer (longest-match-wins). |
@@ -718,7 +741,7 @@ CI from committing a timestamp-only SBOM change on every push.
 python -m pytest tests/ -v
 ```
 
-300+ unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (including deterministic tiebreaks for both title and file-based heuristics), GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
+300+ unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (labels, file ownership from the built-in map and from each repo's CODEOWNERS, title keywords, and how ties are settled), the SIG review sheet, GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
 resolution, render reconciliation accounting, markdown/HTML escaping (including
 the double-escape and raw-HTML regressions), subprocess timeout handling, atomic
 write permissions and durability, SBOM determinism and dependency-graph

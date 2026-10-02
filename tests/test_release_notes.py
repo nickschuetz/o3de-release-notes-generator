@@ -252,14 +252,20 @@ class TestCategorizeByTitle:
     def test_no_match(self):
         assert release_notes._categorize_by_title('Miscellaneous cleanup') is None
 
-    def test_tie_resolved_by_canonical_order(self):
-        # Construct a title that hits exactly one keyword in two different SIG
-        # buckets so they tie on count. The result must be the SIG that comes
-        # first in SIG_CANONICAL_ORDER, regardless of dict insertion order.
-        # 'cmake' → sig/build; 'physx' → sig/simulation.
-        # sig/build appears earlier in SIG_CANONICAL_ORDER → wins.
-        result = release_notes._categorize_by_title('cmake physx integration')
-        assert result == 'sig/build'
+    def test_a_tie_is_an_abstention(self):
+        # 'cmake' -> sig/build; 'physx' -> sig/simulation: one keyword each.
+        # The tie used to go to whichever SIG sorts first alphabetically, so
+        # sig/build won every tie it was in. Alphabetical order is not
+        # evidence, so a tie now says nothing and the next step decides.
+        assert release_notes._categorize_by_title('cmake physx integration') is None
+
+    def test_the_real_tie_that_was_filed_under_build(self):
+        # o3de/o3de-extras#1055: 'compile' (build) against 'multiplayer' (network).
+        title = 'Update multiplayer template to fix compile issue with floats.'
+        assert release_notes._categorize_by_title(title) is None
+
+    def test_more_keywords_still_wins_outright(self):
+        assert release_notes._categorize_by_title('cmake physx collider fix') == 'sig/simulation'
 
 
 class TestCategorizeByFiles:
@@ -302,15 +308,22 @@ class TestCategorizePriority:
         assert sig == 'sig/core'
         assert source == 'label'
 
-    def test_title_over_files(self):
+    def test_files_over_title(self):
+        # File ownership agreed with the SIG label on 76% of labelled PRs and a
+        # title keyword on 71%, and with the title first one stray keyword
+        # outvoted every changed file.
         pr = {
             'labels': [],
             'title': 'Fix CMake build error',
             'files': ['Code/Framework/AzCore/AzCore/Module.cpp'],
         }
         sig, source = release_notes.categorize_pr(pr)
-        assert sig == 'sig/build'
-        assert source == 'heuristic_title'
+        assert sig == 'sig/core'
+        assert source == 'heuristic_files'
+
+    def test_title_decides_only_when_no_file_is_owned(self):
+        pr = {'labels': [], 'title': 'Fix CMake build error', 'files': ['README.md']}
+        assert release_notes.categorize_pr(pr) == ('sig/build', 'heuristic_title')
 
     def test_files_fallback(self):
         pr = {
@@ -3506,3 +3519,275 @@ class TestContainerRecovery:
         assert '✓ #20099: present in the rendered report, recovered from this container' in content
         assert '✓ #20075: present in the rendered report\n' in content
         assert 'Action required' not in content
+
+
+class TestCodeowners:
+    EXTRAS = (
+        '# o3de-extras\n'
+        'Templates/Multiplayer/ @o3de/sig-network-maintainers\n'
+        'Gems/OpenXRVk/ @o3de/sig-platform-reviewers @o3de/sig-platform-maintainers\n'
+        'Gems/ROS2/ @o3de/sig-simulation-reviewers @o3de/sig-simulation-maintainers\n'
+    )
+
+    def test_parse_maps_teams_to_sigs_in_file_order(self):
+        rules = release_notes.parse_codeowners(self.EXTRAS)
+        assert rules == [
+            ('Templates/Multiplayer/', 'sig/network'),
+            ('Gems/OpenXRVk/', 'sig/platform'),
+            ('Gems/ROS2/', 'sig/simulation'),
+        ]
+
+    def test_parse_skips_comments_blanks_and_unknown_owners(self):
+        text = (
+            '\n# comment\n'
+            '/docs/ @someone-else\n'
+            '/a/ @o3de/sig-nonexistent-reviewers\n'
+            '/b/ @other @o3de/sig-core-maintainers  # trailing comment\n'
+        )
+        assert release_notes.parse_codeowners(text) == [('/b/', 'sig/core')]
+
+    def test_parse_handles_empty_input(self):
+        assert release_notes.parse_codeowners('') == []
+
+    @pytest.mark.parametrize('pattern,path,expected', [
+        ('/Gems/ImGui/', 'Gems/ImGui/Code/a.cpp', True),
+        ('Templates/Multiplayer/', 'Templates/Multiplayer/template.json', True),
+        ('/Gems/ImGui/', 'Gems/ImGuiExtra/a.cpp', False),
+        ('/Gems/ImGui/', 'Gems/ImGui', False),
+        ('/engine.json', 'engine.json', True),
+        ('/engine.json', 'Code/engine.json', False),
+        ('/Code/Framework/AzTest', 'Code/Framework/AzTest/a.cpp', True),
+        ('/Gems/LyShine*/', 'Gems/LyShineExamples/Code/a.cpp', True),
+        ('/Gems/LyShine*/', 'Gems/Other/a.cpp', False),
+        ('/scripts/o3de.*', 'scripts/o3de.sh', True),
+        ('/Code/Framework/AzCore/Tests/AssetManager.*',
+         'Code/Framework/AzCore/Tests/AssetManager.cpp', True),
+        # A star never crosses a directory separator.
+        ('/scripts/o3de.*', 'scripts/o3de/o3de/manifest.py', False),
+        ('/**/docs/', 'a/docs/b.md', False),
+        ('', 'a', False),
+    ])
+    def test_pattern_matching(self, pattern, path, expected):
+        assert release_notes._codeowners_pattern_matches(pattern, path) is expected
+
+    def test_last_matching_rule_wins(self):
+        rules = [('/Code/Framework/AzCore/', 'sig/core'),
+                 ('/Code/Framework/AzCore/AzCore/Math/', 'sig/simulation')]
+        votes = release_notes._codeowners_votes(
+            ['Code/Framework/AzCore/AzCore/Math/Vector3.h', 'Code/Framework/AzCore/a.cpp'], rules)
+        assert votes == {'sig/simulation': 1, 'sig/core': 1}
+
+    def test_load_reads_the_file_at_the_ref(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as run:
+            run.return_value = mock.MagicMock(returncode=0, stdout=self.EXTRAS, stderr='')
+            rules = release_notes.load_codeowners(tmp_path, 'upstream/stabilization/26100')
+        assert ('Templates/Multiplayer/', 'sig/network') in rules
+        cmd = run.call_args[0][0]
+        assert cmd == ['git', 'show', 'upstream/stabilization/26100:.github/CODEOWNERS']
+
+    def test_load_tolerates_a_repo_without_one(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as run:
+            run.return_value = mock.MagicMock(returncode=128, stdout='', stderr='not found')
+            assert release_notes.load_codeowners(tmp_path, 'main') == []
+
+    def test_load_tolerates_a_git_failure(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('git', 30)):
+            assert release_notes.load_codeowners(tmp_path, 'main') == []
+
+    def test_load_rejects_a_hostile_ref(self, tmp_path):
+        with pytest.raises(ValueError):
+            release_notes.load_codeowners(tmp_path, '--upload-pack=x')
+
+
+class TestCategorizationOrder:
+    EXTRAS_RULES = [('Templates/Multiplayer/', 'sig/network'),
+                    ('Gems/ROS2/', 'sig/simulation')]
+
+    def _extras_1055(self):
+        return {
+            'repo': 'o3de/o3de-extras', 'number': 1055, 'labels': [],
+            'title': 'Update multiplayer template to fix compile issue with floats.',
+            'files': [
+                'Templates/Multiplayer/Template/Gem/Source/AutoGen/'
+                'NetworkSimplePlayerCameraComponent.AutoComponent.xml',
+                'Templates/Multiplayer/template.json',
+                'repo.json',
+            ],
+        }
+
+    def test_extras_1055_goes_to_network(self):
+        # Filed under Build by an alphabetical title tie. The repo's own
+        # CODEOWNERS gives Templates/Multiplayer/ to sig/network.
+        pr = self._extras_1055()
+        assert release_notes.categorize_pr(pr, self.EXTRAS_RULES) == (
+            'sig/network', 'heuristic_codeowners')
+
+    def test_without_codeowners_the_built_in_map_still_answers(self):
+        # The map was written for o3de/o3de, where Templates/ is sig/core.
+        pr = self._extras_1055()
+        assert release_notes.categorize_pr(pr) == ('sig/core', 'heuristic_files')
+
+    def test_other_repos_consult_their_own_codeowners_before_the_map(self):
+        pr = {'repo': 'o3de/o3de-extras', 'labels': [], 'title': 'Tidy',
+              'files': ['Templates/Multiplayer/a.txt']}
+        assert release_notes.categorize_pr(pr, [('Templates/Multiplayer/', 'sig/network')])[0] \
+            == 'sig/network'
+
+    def test_o3de_consults_the_curated_map_before_codeowners(self):
+        # o3de/o3de's CODEOWNERS gives /cmake/ to sig/core; the curated map
+        # says sig/build and was right more often where the two disagreed.
+        pr = {'repo': 'o3de/o3de', 'labels': [], 'title': 'Tidy',
+              'files': ['cmake/LYPython.cmake']}
+        assert release_notes.categorize_pr(pr, [('/cmake/', 'sig/core')]) == (
+            'sig/build', 'heuristic_files')
+
+    def test_o3de_falls_back_to_codeowners_where_the_map_is_silent(self):
+        pr = {'repo': 'o3de/o3de', 'labels': [], 'title': 'Tidy',
+              'files': ['SomewhereNew/a.cpp']}
+        assert release_notes.categorize_pr(pr, [('/SomewhereNew/', 'sig/network')]) == (
+            'sig/network', 'heuristic_codeowners')
+
+    def test_label_still_beats_everything(self):
+        pr = dict(self._extras_1055(), labels=['sig/build'])
+        assert release_notes.categorize_pr(pr, self.EXTRAS_RULES) == ('sig/build', 'label')
+
+    def test_a_title_tie_with_no_owned_file_is_uncategorized(self):
+        pr = {'repo': 'o3de/o3de', 'labels': [], 'title': 'cmake physx integration',
+              'files': ['README.md']}
+        assert release_notes.categorize_pr(pr) == ('uncategorized', 'uncategorized')
+
+    def test_file_tie_is_settled_by_the_title_when_it_names_one_of_them(self):
+        votes = {'sig/content': 1, 'sig/core': 1}
+        assert release_notes._decide_from_votes(votes, 'Fix AzCore allocator') == (
+            'sig/core', 'title')
+
+    def test_file_tie_the_title_cannot_settle_falls_to_canonical_order(self):
+        votes = {'sig/core': 1, 'sig/content': 1}
+        assert release_notes._decide_from_votes(votes, 'Tidy') == ('sig/content', 'order')
+
+    def test_clear_file_winner_ignores_the_title(self):
+        votes = {'sig/core': 3, 'sig/build': 1}
+        assert release_notes._decide_from_votes(votes, 'Fix CMake build') == ('sig/core', '')
+
+    def test_no_votes_is_no_decision(self):
+        assert release_notes._decide_from_votes({}, 'anything') == (None, '')
+
+    def test_rederive_passes_codeowners_through(self):
+        pr = dict(self._extras_1055(), body='')
+        release_notes.rederive_pr_fields(pr, self.EXTRAS_RULES)
+        assert pr['sig_category'] == 'sig/network'
+        assert pr['categorization_source'] == 'heuristic_codeowners'
+
+
+class TestSigReview:
+    @staticmethod
+    def _pr(number, title, files, source, sig, labels=(), repo='o3de/o3de', **extra):
+        return dict({'repo': repo, 'number': number, 'title': title, 'files': list(files),
+                     'labels': list(labels), 'flags': [], 'categorization_source': source,
+                     'sig_category': sig, 'url': ''}, **extra)
+
+    def test_clear_file_ownership_is_not_weak(self):
+        pr = self._pr(1, 'Tidy', ['Code/Framework/AzCore/a.cpp', 'Code/Framework/AzCore/b.cpp',
+                                  'README.md'], 'heuristic_files', 'sig/core')
+        text, weak = release_notes.explain_categorization(pr)
+        assert text == 'file map: 2 of 3 files'
+        assert weak is False
+
+    def test_a_tie_is_weak_and_says_how_it_was_settled(self):
+        pr = self._pr(2, 'Tidy', ['Code/Framework/AzCore/a.cpp',
+                                  'Code/Framework/AzToolsFramework/b.cpp'],
+                      'heuristic_files', 'sig/content')
+        text, weak = release_notes.explain_categorization(pr)
+        assert 'tie, settled alphabetically' in text
+        assert 'also core 1' in text
+        assert weak is True
+
+    def test_a_narrow_majority_is_weak(self):
+        files = (['Code/Framework/AzCore/a.cpp'] * 5) + (['cmake/a.cmake'] * 4)
+        pr = self._pr(3, 'Tidy', files, 'heuristic_files', 'sig/core')
+        text, weak = release_notes.explain_categorization(pr)
+        assert text == 'file map: 5 of 9 files (also build 4)'
+        assert weak is True
+
+    def test_a_title_pointing_elsewhere_is_weak(self):
+        # A build fix inside core code: the files say core, the title says build.
+        pr = self._pr(4, 'Fix CMake build error', ['Code/Framework/AzCore/a.cpp'],
+                      'heuristic_files', 'sig/core')
+        text, weak = release_notes.explain_categorization(pr)
+        assert text.endswith('the title suggests build')
+        assert weak is True
+
+    def test_codeowners_evidence_is_named_as_such(self):
+        pr = self._pr(1055, 'Tidy', ['Templates/Multiplayer/a', 'repo.json'],
+                      'heuristic_codeowners', 'sig/network', repo='o3de/o3de-extras')
+        text, weak = release_notes.explain_categorization(
+            pr, [('Templates/Multiplayer/', 'sig/network')])
+        assert text == 'CODEOWNERS: 1 of 2 files'
+        assert weak is False
+
+    def test_title_only_is_always_weak_and_quotes_the_keyword(self):
+        pr = self._pr(5, 'Add imgui.ini to .gitignore', ['.gitignore'],
+                      'heuristic_title', 'sig/graphics-audio')
+        text, weak = release_notes.explain_categorization(pr)
+        assert '"imgui"' in text
+        assert weak is True
+
+    def test_truncated_file_list_is_mentioned(self):
+        pr = self._pr(6, 'Tidy', ['Code/Framework/AzCore/a.cpp'], 'heuristic_files',
+                      'sig/core', files_truncated=True)
+        assert 'truncated' in release_notes.explain_categorization(pr)[0]
+
+    def test_uncategorized_says_why(self):
+        pr = self._pr(7, 'cmake physx integration', ['README.md'], 'uncategorized',
+                      'uncategorized')
+        text, weak = release_notes.explain_categorization(pr)
+        assert 'tie between build, simulation' in text and weak is True
+
+    def test_review_buckets(self):
+        prs = [
+            self._pr(1, 'Tidy', ['Code/Framework/AzCore/a.cpp'], 'heuristic_files', 'sig/core'),
+            self._pr(2, 'Add imgui.ini', ['.gitignore'], 'heuristic_title',
+                     'sig/graphics-audio'),
+            self._pr(3, 'cmake physx', ['README.md'], 'uncategorized', 'uncategorized'),
+            self._pr(4, 'Labelled once', ['a'], 'label', 'sig/core', labels=['sig/core']),
+            self._pr(5, 'Labelled twice', ['a'], 'label', 'sig/content',
+                     labels=['sig/core', 'sig/content']),
+            self._pr(6, 'Release plus one', ['a'], 'label', 'sig/core',
+                     labels=['sig/release', 'sig/core']),
+            dict(self._pr(7, 'Cherry-pick x', ['a'], 'heuristic_files', 'sig/core'),
+                 flags=['cherry-pick']),
+            self._pr(8, 'By hand', ['a'], 'manual_override', 'sig/core'),
+        ]
+        review = release_notes.build_sig_review(prs)
+        numbers = {k: [e['pr']['number'] for e in v] for k, v in review.items()}
+        assert numbers == {'undecided': [3], 'weak': [2], 'guessed': [1], 'multi_label': [5]}
+        assert review['multi_label'][0]['evidence'] == 'labels: content, core'
+
+    def test_sheet_is_written_with_every_section(self, tmp_path):
+        prs = [
+            self._pr(1, 'Tidy | pipes', ['Code/Framework/AzCore/a.cpp'], 'heuristic_files',
+                     'sig/core'),
+            self._pr(2, 'Add imgui.ini', ['.gitignore'], 'heuristic_title',
+                     'sig/graphics-audio'),
+        ]
+        out = tmp_path / 'review.md'
+        release_notes.write_sig_review(release_notes.build_sig_review(prs), 2, '26.10.0', out)
+        content = out.read_text()
+        assert content.startswith('# SIG placement review for 26.10.0')
+        assert '2 of 2 entries' in content
+        assert '## Needs a decision (0)' in content
+        assert '## Check these first (1)' in content
+        assert '## Placed by file ownership (1)' in content
+        assert '## More than one SIG label (0)' in content
+        assert 'manual_override_sig' in content
+        # A pipe in a title must not break the table.
+        assert 'Tidy \\| pipes' in content
+
+    def test_flag_is_exposed_on_the_cli(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        release_notes._add_fetch_args(parser)
+        args = parser.parse_args(['--from-ref', 'a', '--to-ref', 'b',
+                                  '--output-json', 'x.json', '--no-sig-review'])
+        assert args.no_sig_review is True

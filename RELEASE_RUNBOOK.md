@@ -233,7 +233,16 @@ python release_notes.py render \
   --include-uncategorized --include-release-machinery
 ```
 
-Fix categorization in `reports/26100_release_data.json` by setting, per PR:
+Then read `reports/26100_release_notes_sig_review.md`. It lists every entry
+whose SIG was guessed, with the evidence, and puts the doubtful ones first.
+About one guess in four is wrong, and no tuning fixes that: file paths say who
+owns the code, not who owns the change. Work through "Needs a decision" and
+"Check these first", and skim the rest. This is a good document to hand to SIG
+leads, since each can check their own section in a few minutes.
+
+The durable correction is a `sig/*` label on the pull request: the next run
+picks it up, and so does every future report. Otherwise fix categorization in
+`reports/26100_release_data.json` by setting, per PR:
 
 - `manual_override_sig` to reassign the SIG
 - `manual_override_description` to rewrite the bullet

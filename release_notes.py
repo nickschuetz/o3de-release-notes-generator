@@ -7,6 +7,7 @@
 #
 
 import argparse
+import fnmatch
 import contextlib
 import json
 import logging
@@ -26,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.12.0-beta'
+__version__ = '0.13.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -1477,28 +1478,36 @@ def _categorize_by_labels(labels: list[str]) -> str | None:
     return sig_labels[0]
 
 
-def _categorize_by_title(title: str) -> str | None:
+def _title_keyword_counts(title: str) -> dict[str, int]:
     title_lower = f' {title.lower()} '
-    best_sig = None
-    best_count = 0
-    best_priority = len(SIG_CANONICAL_ORDER)
+    counts: dict[str, int] = {}
     for sig, keywords in SIG_TITLE_KEYWORDS.items():
         count = sum(1 for kw in keywords if kw.lower() in title_lower)
-        if count == 0:
-            continue
-        priority = SIG_CANONICAL_ORDER.index(sig) if sig in SIG_CANONICAL_ORDER else len(SIG_CANONICAL_ORDER)
-        # Prefer higher count; on ties, prefer the SIG earlier in the canonical
-        # order. Without an explicit tiebreak the choice depends on dict
-        # iteration order, which is not a reliable contract.
-        if count > best_count or (count == best_count and priority < best_priority):
-            best_count = count
-            best_sig = sig
-            best_priority = priority
-    return best_sig
+        if count:
+            counts[sig] = count
+    return counts
 
 
-def _categorize_by_files(file_paths: list[str]) -> str | None:
-    sig_counts: dict[str, int] = {}
+def _categorize_by_title(title: str) -> str | None:
+    """The SIG whose keywords appear most in the title, or None.
+
+    A tie is an abstention. It used to be broken by SIG_CANONICAL_ORDER, which
+    is alphabetical, so sig/build won every tie it was in: "Update multiplayer
+    template to fix compile issue" has one Build keyword and one Network
+    keyword and was filed under Build (o3de/o3de-extras#1055). Alphabetical
+    order says nothing about which SIG owns a change, and a wrong heading is
+    harder to notice than an entry waiting in triage.
+    """
+    counts = _title_keyword_counts(title)
+    if not counts:
+        return None
+    top = max(counts.values())
+    leaders = [sig for sig, count in counts.items() if count == top]
+    return leaders[0] if len(leaders) == 1 else None
+
+
+def _file_map_votes(file_paths: list[str]) -> dict[str, int]:
+    votes: dict[str, int] = {}
     for fpath in file_paths:
         best_sig = None
         best_len = 0
@@ -1508,33 +1517,242 @@ def _categorize_by_files(file_paths: list[str]) -> str | None:
                     best_sig = sig
                     best_len = len(pattern)
         if best_sig:
-            sig_counts[best_sig] = sig_counts.get(best_sig, 0) + 1
-    if not sig_counts:
-        return None
-    max_count = max(sig_counts.values())
-    tied = [sig for sig, cnt in sig_counts.items() if cnt == max_count]
+            votes[best_sig] = votes.get(best_sig, 0) + 1
+    return votes
+
+
+def _decide_from_votes(votes: dict[str, int], title: str = '') -> tuple[str | None, str]:
+    """Pick the SIG with the most file votes.
+
+    Returns (sig, tiebreak) where tiebreak is '' for an outright winner,
+    'title' when a tie was settled by the title's keywords, and 'order' when
+    it fell through to SIG_CANONICAL_ORDER. The last is kept so the result is
+    deterministic, and is reported so a reviewer can see it was a coin toss.
+    """
+    if not votes:
+        return None, ''
+    top = max(votes.values())
+    tied = [sig for sig, count in votes.items() if count == top]
     if len(tied) == 1:
-        return tied[0]
+        return tied[0], ''
+    keyword_counts = _title_keyword_counts(title)
+    named = {sig: keyword_counts[sig] for sig in tied if sig in keyword_counts}
+    if named:
+        best = max(named.values())
+        leaders = [sig for sig, count in named.items() if count == best]
+        if len(leaders) == 1:
+            return leaders[0], 'title'
     for sig in SIG_CANONICAL_ORDER:
         if sig in tied:
-            return sig
-    return tied[0]
+            return sig, 'order'
+    return tied[0], 'order'
 
 
-def categorize_pr(pr_data: dict[str, Any]) -> tuple[str, str]:
+def _categorize_by_files(file_paths: list[str]) -> str | None:
+    sig, _ = _decide_from_votes(_file_map_votes(file_paths))
+    return sig
+
+
+# --- CODEOWNERS -------------------------------------------------------------
+#
+# SIG_FILE_PATH_PATTERNS is a curated copy of o3de/o3de's CODEOWNERS. Applying
+# it to another repository is a category error: `Templates/` is sig/core in
+# o3de/o3de, but o3de-extras assigns `Templates/Multiplayer/` to sig/network.
+# Each repo's own CODEOWNERS is therefore read from the ref being reported.
+
+CODEOWNERS_PATH = '.github/CODEOWNERS'
+MAX_CODEOWNERS_BYTES = 262144
+CODEOWNERS_TEAM_PATTERN = re.compile(r'^@o3de/(sig-[a-z-]+?)-(?:reviewers|maintainers)$')
+
+# The repo SIG_FILE_PATH_PATTERNS was curated for. There the map goes first:
+# measured against 236 single-label PRs it beat the raw CODEOWNERS 11 to 8
+# where the two disagreed (CODEOWNERS gives `/cmake/` to sig/core, for one).
+# Everywhere else the repo's own CODEOWNERS goes first.
+CURATED_FILE_MAP_REPO = 'o3de/o3de'
+
+CodeownersRules = list[tuple[str, str]]
+
+
+def parse_codeowners(text: str) -> CodeownersRules:
+    """Parse CODEOWNERS into (pattern, sig) pairs, in file order.
+
+    Only `@o3de/sig-<name>-reviewers|maintainers` owners are understood; a
+    line owned by anyone else is skipped. When a line names several SIGs the
+    first is used.
+    """
+    rules: CodeownersRules = []
+    for raw in (text or '')[:MAX_CODEOWNERS_BYTES].splitlines():
+        line = raw.split('#', 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        for owner in parts[1:]:
+            match = CODEOWNERS_TEAM_PATTERN.match(owner)
+            if not match:
+                continue
+            sig = match.group(1).replace('sig-', 'sig/', 1)
+            if sig in SIG_CANONICAL_ORDER:
+                rules.append((parts[0], sig))
+                break
+    return rules
+
+
+def _codeowners_pattern_matches(pattern: str, path: str) -> bool:
+    """A deliberately small subset of CODEOWNERS matching: root-anchored
+    paths, directory prefixes, and `*` within one path segment. That covers
+    every rule in both O3DE repos; `**` and unanchored basenames are not
+    supported and simply never match."""
+    anchored = pattern.lstrip('/')
+    if not anchored or '**' in anchored:
+        return False
+    is_dir = anchored.endswith('/')
+    segments = anchored.rstrip('/').split('/')
+    path_segments = path.split('/')
+    if len(path_segments) < len(segments) + (1 if is_dir else 0):
+        return False
+    return all(
+        fnmatch.fnmatchcase(actual, expected)
+        for actual, expected in zip(path_segments, segments, strict=False)
+    )
+
+
+def _codeowners_votes(file_paths: list[str], rules: CodeownersRules) -> dict[str, int]:
+    votes: dict[str, int] = {}
+    for fpath in file_paths:
+        owner = None
+        for pattern, sig in rules:
+            # Last match wins, as on GitHub.
+            if _codeowners_pattern_matches(pattern, fpath):
+                owner = sig
+        if owner:
+            votes[owner] = votes.get(owner, 0) + 1
+    return votes
+
+
+def load_codeowners(repo_path: pathlib.Path, ref: str) -> CodeownersRules:
+    """Read CODEOWNERS from `ref` in the local clone. A repo without one, or
+    any git failure, yields no rules: the heuristic is optional, the run is
+    not."""
+    ref = validate_git_ref(ref)
+    try:
+        result = subprocess.run(
+            ['git', 'show', f'{ref}:{CODEOWNERS_PATH}'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=30,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('Could not read %s at %s in %s: %s', CODEOWNERS_PATH, ref, repo_path, e)
+        return []
+    if result.returncode != 0:
+        logger.info('No %s at %s in %s; file ownership falls back to the built-in map',
+                    CODEOWNERS_PATH, ref, repo_path)
+        return []
+    return parse_codeowners(result.stdout)
+
+
+def _ownership_steps(
+    pr_data: dict[str, Any],
+    codeowners: CodeownersRules | None,
+) -> list[tuple[str, dict[str, int]]]:
+    files = pr_data.get('files', []) or []
+    steps = [('heuristic_files', _file_map_votes(files))]
+    if codeowners:
+        own = ('heuristic_codeowners', _codeowners_votes(files, codeowners))
+        if pr_data.get('repo') == CURATED_FILE_MAP_REPO:
+            steps.append(own)
+        else:
+            steps.insert(0, own)
+    return steps
+
+
+def categorize_pr(
+    pr_data: dict[str, Any],
+    codeowners: CodeownersRules | None = None,
+) -> tuple[str, str]:
+    """Assign a SIG: label, then who owns the changed files, then the title.
+
+    Files come before the title. Measured against 265 PRs carrying exactly one
+    SIG label, a title keyword agreed with the label 71% of the time and file
+    ownership 76%; with the title first, one stray keyword ("imgui" in "Add
+    imgui.ini to .gitignore") outvoted every changed file.
+    """
     sig = _categorize_by_labels(pr_data.get('labels', []))
     if sig:
         return sig, 'label'
 
-    sig = _categorize_by_title(pr_data.get('title', ''))
+    title = pr_data.get('title', '')
+    for source, votes in _ownership_steps(pr_data, codeowners):
+        sig, _ = _decide_from_votes(votes, title)
+        if sig:
+            return sig, source
+
+    sig = _categorize_by_title(title)
     if sig:
         return sig, 'heuristic_title'
 
-    sig = _categorize_by_files(pr_data.get('files', []))
-    if sig:
-        return sig, 'heuristic_files'
-
     return 'uncategorized', 'uncategorized'
+
+
+def explain_categorization(
+    pr_data: dict[str, Any],
+    codeowners: CodeownersRules | None = None,
+) -> tuple[str, bool]:
+    """Say, for a reviewer, what evidence put a PR under its SIG.
+
+    Returns (evidence, weak). `weak` marks the placements most worth a second
+    look: a tie, a title-only match, a winner that owns under 60% of the
+    files that matched anything, or a title that names a different SIG.
+    """
+    source = pr_data.get('categorization_source', '')
+    title = pr_data.get('title', '')
+    files = pr_data.get('files', []) or []
+    if source in ('heuristic_files', 'heuristic_codeowners'):
+        votes = dict(_ownership_steps(pr_data, codeowners)).get(source, {})
+        winner, tiebreak = _decide_from_votes(votes, title)
+        if winner is None:
+            return 'evidence no longer reproducible; re-run fetch', True
+        basis = 'CODEOWNERS' if source == 'heuristic_codeowners' else 'file map'
+        matched = sum(votes.values())
+        others = ', '.join(
+            f'{sig.split("/", 1)[1]} {count}'
+            for sig, count in sorted(votes.items(), key=lambda kv: (-kv[1], kv[0]))
+            if sig != winner
+        )
+        text = f'{basis}: {votes[winner]} of {len(files)} files'
+        if others:
+            text += f' (also {others})'
+        if tiebreak == 'title':
+            text += '; tie settled by the title'
+        elif tiebreak == 'order':
+            text += '; tie, settled alphabetically'
+        if pr_data.get('files_truncated'):
+            text += '; file list truncated at 100'
+        weak = bool(tiebreak) or votes[winner] * 10 < matched * 6
+        # The title is the weaker witness, but when it names a different SIG
+        # outright the two disagree, and that is exactly the case where a
+        # change belongs to one SIG and the code it touches to another.
+        title_sig = _categorize_by_title(title)
+        if title_sig and title_sig != winner and not tiebreak:
+            text += f'; the title suggests {title_sig.split("/", 1)[1]}'
+            weak = True
+        return text, weak
+    if source == 'heuristic_title':
+        title_lower = f' {title.lower()} '
+        words = [kw.strip() for kw in SIG_TITLE_KEYWORDS.get(pr_data.get('sig_category', ''), [])
+                 if kw.lower() in title_lower]
+        quoted = ', '.join(f'"{w}"' for w in words) or 'none'
+        return f'title keyword only ({quoted}); no changed file is owned by a SIG', True
+    if source == 'uncategorized':
+        counts = _title_keyword_counts(title)
+        if counts:
+            tied = ', '.join(sig.split('/', 1)[1] for sig in sorted(counts))
+            return f'no file owner; title keywords tie between {tied}', True
+        return 'no file owner and no title keyword', True
+    return source, False
 
 
 # Flags that remove a PR from the rendered report and the summary prompt.
@@ -2404,7 +2622,10 @@ def select_cacheable_prs(existing: dict[str, Any] | None) -> dict[tuple[str, int
     }
 
 
-def rederive_pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
+def rederive_pr_fields(
+    pr: dict[str, Any],
+    codeowners: CodeownersRules | None = None,
+) -> dict[str, Any]:
     """Recompute every derived field from the cached raw GitHub fields.
 
     Reusing a cached PR must not also reuse conclusions drawn by an older
@@ -2412,7 +2633,7 @@ def rederive_pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
     everything else is ours to recompute, so a heuristic change applies to
     cached entries on the next run without a re-fetch.
     """
-    sig, source = categorize_pr(pr)
+    sig, source = categorize_pr(pr, codeowners)
     pr['sig_category'] = sig
     pr['categorization_source'] = source
     pr['description'] = _build_pr_description(pr.get('title', ''), pr.get('body', ''))
@@ -2422,8 +2643,11 @@ def rederive_pr_fields(pr: dict[str, Any]) -> dict[str, Any]:
     return pr
 
 
-def _derive_fetched_fields(pr: dict[str, Any]) -> dict[str, Any]:
-    sig, source = categorize_pr(pr)
+def _derive_fetched_fields(
+    pr: dict[str, Any],
+    codeowners: CodeownersRules | None = None,
+) -> dict[str, Any]:
+    sig, source = categorize_pr(pr, codeowners)
     pr['sig_category'] = sig
     pr['categorization_source'] = source
     pr['description'] = _build_pr_description(pr.get('title', ''), pr.get('body', ''))
@@ -2440,6 +2664,7 @@ def _recover_from_containers(
     release_branch: str,
     window_numbers: set[int],
     prior_keys: set[tuple[str, int]],
+    codeowners: CodeownersRules | None = None,
 ) -> dict[str, list[int]]:
     """Fetch the PRs that reached the release branch only inside a squashed
     cherry-pick container, and append them to repo_prs.
@@ -2468,7 +2693,7 @@ def _recover_from_containers(
                     repo_slug, number, recovered.get(number, 0),
                 )
                 continue
-            _derive_fetched_fields(pr)
+            _derive_fetched_fields(pr, codeowners)
             pr['recovered_from_container'] = recovered[number]
             repo_prs.append(pr)
             fetched_numbers.add(number)
@@ -2616,6 +2841,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
     excluded_per_repo: dict[str, int] = {}
     reused_per_repo: dict[str, int] = {}
     recovered_per_repo: dict[str, dict[str, list[int]]] = {}
+    codeowners_by_repo: dict[str, CodeownersRules] = {}
     for repo_slug in args.repos:
         try:
             validate_repo_slug(repo_slug)
@@ -2651,6 +2877,8 @@ def _run_fetch(args: argparse.Namespace) -> int:
 
         window_numbers = set(pr_numbers)
         repo_prs: list[dict[str, Any]] = []
+        codeowners = load_codeowners(local_path, repo_to_ref)
+        codeowners_by_repo[repo_slug] = codeowners
 
         reused = [cacheable[(repo_slug, n)] for n in pr_numbers
                   if (repo_slug, n) in cacheable]
@@ -2663,12 +2891,12 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 'so newly applied SIG labels are picked up)',
                 repo_slug, len(reused), len(pr_numbers),
             )
-            repo_prs.extend(rederive_pr_fields(pr) for pr in reused)
+            repo_prs.extend(rederive_pr_fields(pr, codeowners) for pr in reused)
 
         if pr_numbers:
             logger.info('Fetching PR metadata from GitHub for %s', repo_slug)
             repo_prs.extend(
-                _derive_fetched_fields(pr)
+                _derive_fetched_fields(pr, codeowners)
                 for pr in fetch_pr_metadata_batch(repo_slug, pr_numbers)
             )
 
@@ -2676,6 +2904,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
         if release_branch and not getattr(args, 'no_container_recovery', False):
             recovered_here = _recover_from_containers(
                 repo_slug, repo_prs, release_branch, window_numbers, prior_keys,
+                codeowners,
             )
             if recovered_here:
                 recovered_per_repo[repo_slug] = recovered_here
@@ -2815,6 +3044,9 @@ def _run_fetch(args: argparse.Namespace) -> int:
     # point-release tag with a known predecessor sibling.
     if not getattr(args, 'no_pointrelease_audit', False):
         _maybe_write_pointrelease_audit(args, merged, repo_path_map, output_json)
+
+    if not getattr(args, 'no_sig_review', False):
+        _maybe_write_sig_review(args, merged, codeowners_by_repo, output_json)
 
     return 0
 
@@ -3008,6 +3240,154 @@ def _maybe_write_pointrelease_audit(
         logger.warning('Could not write audit sidecar: %s', e)
 
 
+GUESSED_SOURCES = frozenset({'heuristic_title', 'heuristic_files', 'heuristic_codeowners'})
+
+
+def _competing_sig_labels(pr: dict[str, Any]) -> list[str]:
+    """The SIG labels a PR carries when there is more than one to choose from,
+    after the same sig/release rule the label step applies."""
+    labels = [lbl for lbl in pr.get('labels', []) or [] if lbl in SIG_CANONICAL_ORDER]
+    if 'sig/release' in labels and len(labels) > 1:
+        labels = [lbl for lbl in labels if lbl != 'sig/release']
+    return sorted(labels, key=SIG_CANONICAL_ORDER.index) if len(labels) > 1 else []
+
+
+def build_sig_review(
+    pr_list: list[dict[str, Any]],
+    codeowners_by_repo: dict[str, CodeownersRules] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Sort the report's entries into what a reviewer needs to look at.
+
+    Only entries that would render are considered (plus uncategorized ones,
+    which do not render until someone places them). Returns four lists of
+    {pr, evidence}: `undecided`, `weak`, `guessed`, `multi_label`.
+    """
+    codeowners_by_repo = codeowners_by_repo or {}
+    reasons = classify_reasons(pr_list, include_uncategorized=True)
+    review: dict[str, list[dict[str, Any]]] = {
+        'undecided': [], 'weak': [], 'guessed': [], 'multi_label': [],
+    }
+    for pr, reason in zip(pr_list, reasons, strict=True):
+        if reason is not None:
+            continue
+        source = pr.get('categorization_source', '')
+        rules = codeowners_by_repo.get(pr.get('repo', ''))
+        if source == 'uncategorized':
+            evidence, _ = explain_categorization(pr, rules)
+            review['undecided'].append({'pr': pr, 'evidence': evidence})
+        elif source in GUESSED_SOURCES:
+            evidence, weak = explain_categorization(pr, rules)
+            review['weak' if weak else 'guessed'].append({'pr': pr, 'evidence': evidence})
+        elif source == 'label':
+            competing = _competing_sig_labels(pr)
+            if competing:
+                review['multi_label'].append({
+                    'pr': pr,
+                    'evidence': 'labels: ' + ', '.join(lbl.split('/', 1)[1] for lbl in competing),
+                })
+    order = {sig: i for i, sig in enumerate(SIG_CANONICAL_ORDER)}
+    for entries in review.values():
+        entries.sort(key=lambda e: (
+            order.get(e['pr'].get('sig_category', ''), len(order)),
+            e['pr'].get('repo', ''), e['pr'].get('number', 0),
+        ))
+    return review
+
+
+def write_sig_review(
+    review: dict[str, list[dict[str, Any]]],
+    rendered_count: int,
+    release_label: str,
+    output_path: pathlib.Path,
+) -> None:
+    """Write the reviewer-facing sheet of every SIG placement that was not
+    decided by a single GitHub label."""
+    guessed_total = len(review['weak']) + len(review['guessed'])
+    lines = [
+        f'# SIG placement review for {release_label}\n',
+        f'{guessed_total} of {rendered_count} entries in the report were placed under a SIG by a '
+        f'guess rather than by a `sig/*` label on the pull request. Measured against '
+        f'labelled pull requests, roughly three guesses in four agree with the label, '
+        f'so some of these are under the wrong heading.\n',
+        'To correct one, either:\n',
+        '- add the right `sig/*` label to the pull request on GitHub (preferred: the '
+        'next run picks it up and the fix outlives this report), or',
+        '- set `manual_override_sig` on that pull request in the release data JSON, '
+        'which survives re-runs.\n',
+        'Nothing in this file is published. It is regenerated on every run.\n',
+    ]
+
+    def table(entries: list[dict[str, Any]], show_sig: bool = True) -> None:
+        header = '| PR | Title | Placed under | Evidence |' if show_sig else '| PR | Title | Evidence |'
+        lines.append(header)
+        lines.append('|---|---|---|---|' if show_sig else '|---|---|---|')
+        for entry in entries:
+            pr = entry['pr']
+            ref = _format_pr_reference(pr.get('repo', ''), pr.get('number', 0), pr.get('url', ''))
+            title = _escape_markdown(_strip_title_decorations(pr.get('title', '')))
+            evidence = _escape_markdown(entry['evidence'])
+            if show_sig:
+                sig = SIG_DISPLAY_NAMES.get(pr.get('sig_category', ''), pr.get('sig_category', ''))
+                lines.append(f'| {ref} | {title} | {sig} | {evidence} |')
+            else:
+                lines.append(f'| {ref} | {title} | {evidence} |')
+        lines.append('')
+
+    sections = [
+        ('undecided', 'Needs a decision',
+         'No SIG could be chosen. These are **left out of the report** until placed.', False),
+        ('weak', 'Check these first',
+         'The evidence is thin: a tie, a title keyword with no file to back it, a '
+         'winner that owns under 60% of the files that matched anything, or a title '
+         'that points to a different SIG than the files do.', True),
+        ('guessed', 'Placed by file ownership',
+         'One SIG clearly owns most of the changed files. Usually right; wrong when the '
+         'change belongs to a different SIG than the code it touches, such as a build '
+         'fix inside editor code.', True),
+        ('multi_label', 'More than one SIG label',
+         'These carry several `sig/*` labels and appear once, under the first in '
+         'alphabetical order. Remove the labels that do not apply, or override.', True),
+    ]
+    for key, heading, blurb, show_sig in sections:
+        entries = review[key]
+        lines.append(f'## {heading} ({len(entries)})\n')
+        if not entries:
+            lines.append('_None._\n')
+            continue
+        lines.append(blurb + '\n')
+        table(entries, show_sig)
+
+    write_markdown_atomic('\n'.join(lines), output_path)
+
+
+def _maybe_write_sig_review(
+    args: argparse.Namespace,
+    merged: list[dict[str, Any]],
+    codeowners_by_repo: dict[str, CodeownersRules],
+    output_json: pathlib.Path,
+) -> None:
+    review = build_sig_review(merged, codeowners_by_repo)
+    output_md = getattr(args, 'output_md', None)
+    suffix = '_sig_review.md'
+    if output_md:
+        md_path = pathlib.Path(output_md).resolve()
+        review_path = md_path.with_name(md_path.stem + suffix)
+    else:
+        review_path = output_json.with_name(output_json.stem + suffix)
+    rendered = sum(1 for reason in classify_reasons(merged) if reason is None)
+    label = str(getattr(args, 'release_version', None) or getattr(args, 'to_ref', '') or '')
+    try:
+        write_sig_review(review, rendered, label, review_path)
+    except OSError as e:
+        logger.warning('Could not write SIG review sheet: %s', e)
+        return
+    logger.info(
+        'SIG review: %d undecided, %d weak, %d other guesses, %d multi-label. Sheet at %s',
+        len(review['undecided']), len(review['weak']), len(review['guessed']),
+        len(review['multi_label']), review_path,
+    )
+
+
 def _run_render(args: argparse.Namespace) -> int:
     input_json = pathlib.Path(args.input_json).resolve()
     if not input_json.exists():
@@ -3137,6 +3517,10 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
                              'each cherry-pick PR merged into it is asked for its commit list '
                              'and any bundled PR missing from the window is fetched and '
                              'reported under its own number.')
+    parser.add_argument('--no-sig-review', action='store_true',
+                        help='Skip the SIG review sheet, a sidecar listing every entry whose '
+                             'SIG was guessed rather than taken from a single sig/* label, '
+                             'with the evidence for each')
     parser.add_argument('--no-pointrelease-audit', action='store_true',
                         help='Skip the point-release audit sidecar even when --from-ref '
                              'looks like a point-release tag')
