@@ -491,7 +491,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 7,
-    "tool_version": "0.13.0-beta",
+    "tool_version": "0.13.1-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -641,7 +641,7 @@ The first 26.10.0 run with this enabled recovered 26 PRs from six containers.
 
 PRs are categorized by the first of these that gives an answer:
 
-1. **GitHub labels** - PRs with `sig/*` labels (e.g., `sig/build`, `sig/graphics-audio`) are categorized directly. Highest confidence.
+1. **GitHub labels** - PRs with `sig/*` labels (e.g., `sig/build`, `sig/graphics-audio`) are categorized directly. Highest confidence. One exception: `sig/release` places a PR only when it comes from the `o3de/sig-release` repository. In the engine repos that label marks release-branch logistics, such as sync and cherry-pick PRs, not ownership, so a PR carrying only `sig/release` is placed by its files like an unlabelled one. `manual_override_sig` can still put a PR under SIG-Release by hand.
 2. **File ownership** - Each changed file votes for the SIG that owns its path, and the SIG with the most votes wins. Two sources of ownership are consulted:
    - the built-in map (`SIG_FILE_PATH_PATTERNS`), a curated copy of `o3de/o3de`'s CODEOWNERS;
    - the repo's own `.github/CODEOWNERS`, read from `--to-ref` in the local clone.

@@ -27,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.13.0-beta'
+__version__ = '0.13.1-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -1465,12 +1465,31 @@ def _normalize_pr_data(raw: dict[str, Any], repo_slug: str) -> dict[str, Any]:
     }
 
 
-def _categorize_by_labels(labels: list[str]) -> str | None:
+# SIG-Release's own work lives in this repository. Everywhere else the
+# `sig/release` label marks release-branch logistics, not ownership: across the
+# 26.05 and 26.10 windows it sat on ten pull requests, nine of them sync
+# containers, and the tenth (o3de/o3de#20009, an SDK install fix merged
+# straight into stabilization) became a one-entry SIG-Release section that
+# told readers nothing about where the change belongs.
+SIG_RELEASE_HOME_REPO = 'o3de/sig-release'
+
+
+def _placing_sig_labels(labels: list[str], repo: str = '') -> list[str]:
+    """The `sig/*` labels that can place a PR, in canonical order.
+
+    `sig/release` places a PR only in SIG_RELEASE_HOME_REPO, and even there
+    it yields to any other SIG label.
+    """
     sig_labels = [lbl for lbl in labels if lbl.startswith('sig/') and lbl in SIG_CANONICAL_ORDER]
+    if 'sig/release' in sig_labels and (repo != SIG_RELEASE_HOME_REPO or len(sig_labels) > 1):
+        sig_labels = [lbl for lbl in sig_labels if lbl != 'sig/release']
+    return sorted(set(sig_labels), key=SIG_CANONICAL_ORDER.index)
+
+
+def _categorize_by_labels(labels: list[str], repo: str = '') -> str | None:
+    sig_labels = _placing_sig_labels(labels, repo)
     if not sig_labels:
         return None
-    if 'sig/release' in sig_labels and len(sig_labels) > 1:
-        sig_labels = [lbl for lbl in sig_labels if lbl != 'sig/release']
     # Deterministic: when a PR carries multiple SIG labels, pick the one earliest
     # in SIG_CANONICAL_ORDER. Without this sort, GitHub's label-return order
     # decides, which is not stable across runs.
@@ -1680,7 +1699,7 @@ def categorize_pr(
     ownership 76%; with the title first, one stray keyword ("imgui" in "Add
     imgui.ini to .gitignore") outvoted every changed file.
     """
-    sig = _categorize_by_labels(pr_data.get('labels', []))
+    sig = _categorize_by_labels(pr_data.get('labels', []), pr_data.get('repo', ''))
     if sig:
         return sig, 'label'
 
@@ -3246,10 +3265,8 @@ GUESSED_SOURCES = frozenset({'heuristic_title', 'heuristic_files', 'heuristic_co
 def _competing_sig_labels(pr: dict[str, Any]) -> list[str]:
     """The SIG labels a PR carries when there is more than one to choose from,
     after the same sig/release rule the label step applies."""
-    labels = [lbl for lbl in pr.get('labels', []) or [] if lbl in SIG_CANONICAL_ORDER]
-    if 'sig/release' in labels and len(labels) > 1:
-        labels = [lbl for lbl in labels if lbl != 'sig/release']
-    return sorted(labels, key=SIG_CANONICAL_ORDER.index) if len(labels) > 1 else []
+    labels = _placing_sig_labels(pr.get('labels', []) or [], pr.get('repo', ''))
+    return labels if len(labels) > 1 else []
 
 
 def build_sig_review(

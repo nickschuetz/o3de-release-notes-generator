@@ -222,8 +222,46 @@ class TestCategorizeByLabels:
         result = release_notes._categorize_by_labels(['sig/release', 'sig/build'])
         assert result == 'sig/build'
 
-    def test_only_sig_release(self):
-        assert release_notes._categorize_by_labels(['sig/release']) == 'sig/release'
+    def test_sig_release_places_a_pr_only_in_its_home_repo(self):
+        assert release_notes._categorize_by_labels(
+            ['sig/release'], 'o3de/sig-release') == 'sig/release'
+
+    @pytest.mark.parametrize('repo', ['o3de/o3de', 'o3de/o3de-extras', ''])
+    def test_sig_release_elsewhere_is_not_a_placement(self, repo):
+        # There it marks release-branch logistics. Nine of its ten uses across
+        # two cycles were sync containers.
+        assert release_notes._categorize_by_labels(['sig/release'], repo) is None
+
+    def test_sig_release_yields_to_another_sig_even_at_home(self):
+        assert release_notes._categorize_by_labels(
+            ['sig/release', 'sig/build'], 'o3de/sig-release') == 'sig/build'
+
+    def test_lone_sig_release_falls_through_to_file_ownership(self):
+        # o3de/o3de#20009: an SDK install fix merged straight into
+        # stabilization, which had become a one-entry SIG-Release section.
+        pr = {'repo': 'o3de/o3de', 'labels': ['sig/release', 'need-sync/to-development'],
+              'title': 'Fixes several issues with the install verison of O3DE-SDK',
+              'files': ['scripts/o3de/CMakeLists.txt', 'cmake/Install.cmake']}
+        sig, source = release_notes.categorize_pr(pr)
+        assert sig == 'sig/build'
+        assert source == 'heuristic_files'
+
+    def test_sig_release_is_not_a_competing_label(self):
+        pr = {'repo': 'o3de/o3de', 'labels': ['sig/release', 'sig/build']}
+        assert release_notes._competing_sig_labels(pr) == []
+        pr = {'repo': 'o3de/o3de', 'labels': ['sig/release', 'sig/build', 'sig/core']}
+        assert release_notes._competing_sig_labels(pr) == ['sig/build', 'sig/core']
+
+    def test_manual_override_can_still_choose_sig_release(self, tmp_path):
+        existing = tmp_path / 'e.json'
+        existing.write_text(json.dumps({
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION},
+            'pull_requests': [{'repo': 'o3de/o3de', 'number': 1,
+                               'manual_override_sig': 'sig/release'}],
+        }))
+        merged = release_notes.merge_with_existing(
+            [{'repo': 'o3de/o3de', 'number': 1, 'sig_category': 'sig/build'}], existing)
+        assert merged[0]['sig_category'] == 'sig/release'
 
     def test_no_sig_labels(self):
         assert release_notes._categorize_by_labels(['bug', 'enhancement']) is None
