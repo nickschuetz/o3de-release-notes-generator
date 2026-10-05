@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-10-05T19:39:56.242742+00:00",
+    "generated_at": "2026-10-05T23:33:14.677423+00:00",
     "from_ref": "2605.0",
     "to_ref": "upstream/stabilization/26100",
     "repos": [
@@ -15,8 +15,8 @@
     "tool_version": "0.13.1-beta",
     "pr_count": 268,
     "categorization_summary": {
-      "label": 157,
-      "heuristic_files": 93,
+      "label": 158,
+      "heuristic_files": 92,
       "heuristic_title": 6,
       "uncategorized": 1,
       "manual_override": 2,
@@ -49,10 +49,10 @@
     },
     "reused_from_cache": {
       "per_repo": {
-        "o3de/o3de": 135,
+        "o3de/o3de": 131,
         "o3de/o3de-extras": 9
       },
-      "total": 144,
+      "total": 140,
       "policy": "label-categorised PRs only; all others re-fetched"
     },
     "recovered_from_containers": {
@@ -125,7 +125,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-10-05T19:39:56.242742+00:00"
+      "end": "2026-10-05T23:33:14.677423+00:00"
     }
   },
   "pull_requests": [
@@ -7190,6 +7190,7 @@
       "author": "nick-l-o3de",
       "merged_at": "2026-08-13T21:48:22Z",
       "labels": [
+        "sig/build",
         "sig/release",
         "need-sync/to-development"
       ],
@@ -7198,8 +7199,8 @@
         "Gems/Atom/Feature/Common/Assets/Shaders/PostProcessing/MotionBlur.shadervariantlist",
         "scripts/o3de/CMakeLists.txt"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "heuristic_files",
+      "sig_category": "sig/build",
+      "categorization_source": "label",
       "description": "1.  No longer attempts to copy an non-existent egg-link file 2.  Links assimp statically.  Its not acutally used or exposed outside of the scene API dll, which is always a dll, so its not necessary to ship it. 3.  Fixes the motion blur asset, which was missing integration into stabilization.",
       "flags": [],
       "release_machinery": false,

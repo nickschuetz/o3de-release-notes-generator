@@ -1,6 +1,6 @@
 # SIG placement review for 26.10.0
 
-94 of 244 entries in the report were placed under a SIG by a guess rather than by a `sig/*` label on the pull request. Measured against labelled pull requests, roughly three guesses in four agree with the label, so some of these are under the wrong heading.
+93 of 244 entries in the report were placed under a SIG by a guess rather than by a `sig/*` label on the pull request. Measured against labelled pull requests, roughly three guesses in four agree with the label, so some of these are under the wrong heading.
 
 To correct one, either:
 
@@ -13,7 +13,7 @@ Nothing in this file is published. It is regenerated on every run.
 
 _None._
 
-## Check these first (23)
+## Check these first (22)
 
 The evidence is thin: a tie, a title keyword with no file to back it, a winner that owns under 60% of the files that matched anything, or a title that points to a different SIG than the files do.
 
@@ -25,7 +25,6 @@ The evidence is thin: a tie, a title keyword with no file to back it, a winner t
 | [o3de#19593](https://github.com/o3de/o3de/pull/19593) | Fix Wignored-attributes warnings | SIG-Content | file map: 1 of 2 files (also core 1); tie, settled alphabetically |
 | [o3de#19734](https://github.com/o3de/o3de/pull/19734) | libtiff: migrate legacy typedefs to C99 standard types | SIG-Content | file map: 1 of 2 files (also graphics-audio 1); tie, settled alphabetically |
 | [o3de#19934](https://github.com/o3de/o3de/pull/19934) | Reflect SmoothCriticallyDamped function for scripting and add SmoothStep | SIG-Content | file map: 16 of 27 files (also simulation 11); the title suggests core |
-| [o3de#20009](https://github.com/o3de/o3de/pull/20009) | Fixes several issues with the install verison of O3DE-SDK | SIG-Content | file map: 1 of 3 files (also core 1, graphics-audio 1); tie, settled alphabetically |
 | [o3de#19801](https://github.com/o3de/o3de/pull/19801) | Fix Linux gamepad support when only the libevdev runtime is installed | SIG-Core | file map: 1 of 1 files; the title suggests platform |
 | [o3de#19856](https://github.com/o3de/o3de/pull/19856) | Fixes network-related crashes during Init of entities and dangling child entities | SIG-Core | file map: 4 of 7 files (also content 2, network 1); the title suggests network |
 | [o3de#19870](https://github.com/o3de/o3de/pull/19870) | Mac fix lrelease rpath | SIG-Core | file map: 1 of 1 files; the title suggests platform |
