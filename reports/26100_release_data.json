@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-10-02T21:33:05.552770+00:00",
+    "generated_at": "2026-10-05T19:39:56.242742+00:00",
     "from_ref": "2605.0",
     "to_ref": "upstream/stabilization/26100",
     "repos": [
@@ -12,11 +12,11 @@
       "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras"
     },
     "schema_version": 7,
-    "tool_version": "0.13.0-beta",
+    "tool_version": "0.13.1-beta",
     "pr_count": 268,
     "categorization_summary": {
-      "label": 161,
-      "heuristic_files": 89,
+      "label": 157,
+      "heuristic_files": 93,
       "heuristic_title": 6,
       "uncategorized": 1,
       "manual_override": 2,
@@ -42,7 +42,9 @@
       ],
       "categorized_from_partial_files": [
         "o3de/o3de#19571",
-        "o3de/o3de#19984"
+        "o3de/o3de#19609",
+        "o3de/o3de#19984",
+        "o3de/o3de#20123"
       ]
     },
     "reused_from_cache": {
@@ -123,7 +125,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-10-02T21:33:05.552770+00:00"
+      "end": "2026-10-05T19:39:56.242742+00:00"
     }
   },
   "pull_requests": [
@@ -1744,8 +1746,8 @@
         "Templates/GraphicsGem/Template/CMakeLists.txt",
         "Templates/PythonToolGem/Template/CMakeLists.txt"
       ],
-      "sig_category": "sig/release",
-      "categorization_source": "label",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_files",
       "description": "This is just a merge of the changes that went to stabilization but missed development. These are already reviewed PRs and already working in stabilization.",
       "flags": [
         "cherry-pick"
@@ -2702,8 +2704,8 @@
         "Gems/OpenParticleSystem/Code/Source/Serializer/ParticleBase.h",
         "Gems/OpenParticleSystem/Code/Source/Thumbnail/ParticleMaterialThumbnail.cpp"
       ],
-      "sig_category": "sig/release",
-      "categorization_source": "label",
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_files",
       "description": "It merges the below 3 changes from stabilization to dev.",
       "flags": [
         "cherry-pick"
@@ -7196,8 +7198,8 @@
         "Gems/Atom/Feature/Common/Assets/Shaders/PostProcessing/MotionBlur.shadervariantlist",
         "scripts/o3de/CMakeLists.txt"
       ],
-      "sig_category": "sig/release",
-      "categorization_source": "label",
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_files",
       "description": "1.  No longer attempts to copy an non-existent egg-link file 2.  Links assimp statically.  Its not acutally used or exposed outside of the scene API dll, which is always a dll, so its not necessary to ship it. 3.  Fixes the motion blur asset, which was missing integration into stabilization.",
       "flags": [],
       "release_machinery": false,
@@ -7516,7 +7518,7 @@
       "merged_at": "2026-09-14T21:07:32Z",
       "labels": [
         "sig/graphics-audio",
-        "need-sync/to-stabilization"
+        "sync/to-stabilization"
       ],
       "files": [
         "Gems/Atom/RHI/DX12/Code/Source/RHI/Conversions.cpp",
@@ -8144,8 +8146,8 @@
         "Code/Tools/ShaderCompiler/Tests/Advanced/RespectEmitLine/main.azsl",
         "Code/Tools/ShaderCompiler/Tests/Advanced/RespectEmitLine/main.azsl.mcpp"
       ],
-      "sig_category": "sig/release",
-      "categorization_source": "label",
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_files",
       "description": "Cherry-pick from \\`development\\` to \\`stabilization/26100\\`.",
       "flags": [
         "cherry-pick"

@@ -123,6 +123,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Removes the remaining \`#ifndef\`/\`#define\` include guards and leaves each of those headers with a single \`#pragma once\` directly under the license block. [o3de#19984](https://github.com/o3de/o3de/pull/19984)
 - Pull request https://github.com/o3de/o3de/pull/19952 renamed the file for the ground plane. It had a spelling mistake in it originally, "GROUD" instead of "GROU**N**D". [o3de#19995](https://github.com/o3de/o3de/pull/19995)
 - Replace Git-Based FetchContent Patching with patch-ng. [o3de#19998](https://github.com/o3de/o3de/pull/19998)
+- 1.  No longer attempts to copy an non-existent egg-link file 2.  Links assimp statically.  Its not acutally used or exposed outside of the scene API dll, which is always a dll, so its not necessary to ship it. 3.  Fixes the motion blur asset, which was missing integration into stabilization. [o3de#20009](https://github.com/o3de/o3de/pull/20009)
 - Only block input events that are defined in \`UiNavigationHelper::Command(...)\` on active or hovered interactables when \`m_isConsumingAllInputEvents\` is true. [o3de#20013](https://github.com/o3de/o3de/pull/20013)
 - Fixes gamepad hot-plug detection in the Windows Editor while outside Game Mode. [o3de#20021](https://github.com/o3de/o3de/pull/20021)
 - Fixes the Preview Action Log readability in LyShine. [o3de#20022](https://github.com/o3de/o3de/pull/20022)
@@ -220,9 +221,6 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)
 - Fix AutoComponent jinja narrowing conversions for vector properties. [o3de#19879](https://github.com/o3de/o3de/pull/19879)
 - Fixes a server crash when running a level containing a Network Rigid Body Component. [o3de#19944](https://github.com/o3de/o3de/pull/19944)
-
-## SIG-Release
-- 1.  No longer attempts to copy an non-existent egg-link file 2.  Links assimp statically.  Its not acutally used or exposed outside of the scene API dll, which is always a dll, so its not necessary to ship it. 3.  Fixes the motion blur asset, which was missing integration into stabilization. [o3de#20009](https://github.com/o3de/o3de/pull/20009)
 
 ## SIG-Simulation
 - Bump libsdformat 13.5.0->16.0.1. [o3de-extras#1024](https://github.com/o3de/o3de-extras/pull/1024)

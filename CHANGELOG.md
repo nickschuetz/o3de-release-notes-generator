@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`sig/release` places a pull request only when it comes from the `o3de/sig-release` repository.** In the engine repos the label marks release-branch logistics rather than ownership: across the 26.05 and 26.10 windows it sat on ten pull requests, nine of them sync or cherry-pick containers. The tenth, `o3de/o3de#20009`, is an SDK install fix merged straight into stabilization, and it had become a SIG-Release section with one entry. A PR carrying only `sig/release` is now placed by its files like an unlabelled one, and so appears in the SIG review sheet. `manual_override_sig` can still choose SIG-Release by hand.
-- In the 26.10.0 draft, #20009 moves from SIG-Release to SIG-Build and the SIG-Release section is gone.
+- In the 26.10.0 draft the SIG-Release section is gone. #20009 touches three files owned by three different SIGs, so it lands under SIG-Content on an alphabetical tie and is listed under "Check these first" in the review sheet. It wants a `sig/build` label on GitHub.
 - 7 new tests (509 -> 516).
 
 ## [0.13.0-beta] - 2026-10-02
