@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0-beta] - 2026-10-07
+
+### Added
+- **`--summary-file`** on `render` and `generate`: a Markdown file whose text becomes the narrative at the top of the report. Until now the only route into that slot was the LLM command, so an approved narrative had to be pasted into the rendered file and was lost on the next regenerate. The file takes precedence over `--generate-summary`, is capped at 64 KB, and gets the same tag escaping as model output. The 26.10.0 narrative is rendered from `reports/hints/26100_summary_draft.md`.
+- 5 new tests (534 -> 539).
+
 ## [0.14.0-beta] - 2026-10-07
 
 ### Added

@@ -141,6 +141,7 @@ python release_notes.py render \
   [--include-uncategorized] \
   [--include-release-machinery] \
   [--include-duplicates] \
+  [--summary-file <path>] \
   [--generate-summary] \
   [--summary-cmd <command>] \
   [--summary-hint <text>] \
@@ -156,6 +157,7 @@ python release_notes.py render \
 | `--include-uncategorized` | No | off | Show PRs that couldn't be categorized |
 | `--include-release-machinery` | No | off | Include release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) in the rendered output. Off by default for major releases; turn on for point-release notes where machinery IS the content |
 | `--include-duplicates` | No | off | Keep every PR sharing a title within a repo. Off by default: when two PRs in the same repo have the same title **and** the same changed-file list, one bullet is rendered and the collapsed PR numbers are logged at WARNING |
+| `--summary-file` | No | - | Markdown file whose text becomes the narrative summary at the top of the report. Takes precedence over `--generate-summary`, so an approved narrative survives every regenerate. Tag-like `<` is escaped as for model output |
 | `--generate-summary` | No | off | Generate a narrative summary using an LLM |
 | `--summary-cmd` | No | `ollama run --nowordwrap qwen2.5:14b` | Command to generate the summary |
 | `--summary-hint` | No | - | Narrative guidance: inline text or `@filepath` to read from a file |
@@ -493,7 +495,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 8,
-    "tool_version": "0.14.0-beta",
+    "tool_version": "0.15.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
