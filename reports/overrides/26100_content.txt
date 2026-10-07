@@ -1,0 +1,238 @@
+# SIG-Content, 26.10.0
+
+o3de#19365
+Assimp is built alongside the engine through FetchContent instead of arriving as a prebuilt package, and moves from 5.4.3 to 6.0.2.
+
+o3de#19429
+Scene import checks Assimp's incomplete-scene flag correctly; the test had been reverted to an always-true expression.
+
+o3de#19523
+Drag and drop in the EMotionFX parameter window inserts at the right index under Qt6, without private APIs.
+
+o3de#19567
+The Editor and its tools now build on a standard Qt 6.10.2, replacing the custom Qt 5.15.2 build that O3DE had carried for years.
+
+o3de#19571
+Native Mac ARM64 builds: multi-architecture detection, arm64-specific CMake files, and the Qt and moc fixes the platform needed.
+
+o3de#19590
+Cancelling the Lua Editor's settings dialog no longer applies stray values; settings change only when you made changes and confirmed them.
+
+o3de#19593
+Fixed ignored-attribute warnings from EBus instantiation macros in the component mode code.
+
+o3de#19605
+Objects far from the origin can be picked for translate, rotate and scale again.
+
+o3de#19617
+Assimp no longer configures ccache on its own; the engine's compiler launcher handles it, which avoids breakage when ccache lives in a path with spaces.
+
+o3de#19625
+Assimp is patched for a missing include in its tinyusdz code that broke some Linux builds.
+
+o3de#19627
+Opening the Material Editor no longer shows a spurious dialog.
+
+o3de#19678
+Asset types registered with a group appear in nested New menus, with slashes in the group name creating deeper levels.
+
+o3de#19681
+Editor tool windows on Windows Alt-Tab as individual windows instead of all together.
+
+o3de#19684
+Asset Browser fixes: the project folder is the top folder, thumbnail search no longer stops at the first result, favourites persist, the default destination is sensible, and folders support Open in Seconds.
+
+o3de#19685
+Focusing the Asset Browser clears the Outliner's selection, so re-selecting an entity in the Outliner no longer starts a rename.
+
+o3de#19686
+Entity Inspector fields behave consistently: Escape and undo restore the previous value, the mouse wheel is no longer swallowed while scrubbing, mouse editing requires selecting the field first, and Tab skips non-interactive elements.
+
+o3de#19688
+Cut, copy, paste, duplicate and save shortcuts behave the same across the Inspector, Outliner, LyShine Inspector, LyShine editor and Asset Editor.
+
+o3de#19689
+Asset Editor fixes: Open Recent lists each file once and the asset picker accepts wrapped types.
+
+o3de#19695
+The LyShine editor gains the component menu from the main Editor, filtered for UI and canvas components, grouped by category, with Script Canvas available for UI canvases.
+
+o3de#19710
+Assimp moves to 6.0.4.
+
+o3de#19713
+A new colour gradient primitive with its own field editor. Undo of marker position changes is still incomplete.
+
+o3de#19734
+The TIFF loaders use C99 integer types instead of libtiff's deprecated typedefs, which modern Linux distributions reject.
+
+o3de#19735
+Levels can be loaded from and saved to Gem asset directories, not only the project; the Welcome screen, Open Recent, Open Level, Save As and New Level all understand Gem-based levels.
+
+o3de#19741
+Fixed a buffer overflow when the Editor generated a thumbnail for a 3D texture; the depth dimension was not accounted for.
+
+o3de#19747
+Asset Builder processes shut themselves down when the Asset Processor dies, instead of lingering at 300 MB each across restarts.
+
+o3de#19750
+Wrapped tool windows on Linux and Mac show the guest's initial title.
+
+o3de#19767
+Typo fixes: "an empty" rather than "a empty" in several messages.
+
+o3de#19797
+Creating an entity from a tool or Python with no level loaded fails cleanly instead of crashing the Editor.
+
+o3de#19800
+Fixed an intermittent Editor crash when assigning a Lua script that exposes properties to a Lua Script component.
+
+o3de#19811
+Particle Editor fixes: no crash when toggling View menu actions after closing every tab, and emitters re-dock correctly.
+
+o3de#19816
+The Editor transform component notifies when a child is added or removed, as the runtime component already did.
+
+o3de#19817
+Generated Python stubs include argument names for EBus events, not only their types.
+
+o3de#19819
+Fixed a crash in Track View on a click without mouse movement.
+
+o3de#19827
+Tests for entity activation behaviour, written alongside the multiplayer initialisation fixes.
+
+o3de#19833
+The Asset Editor supports undo.
+
+o3de#19839
+The Asset Processor no longer freezes or crashes when a job fails or is cancelled while its builder is already defunct, and logs more about builder state.
+
+o3de#19844
+Graph Canvas search returns only real matches; it had treated every valid regular expression match object as a hit.
+
+o3de#19848
+WhiteBox's Draw Shape tool shows live dimension readouts while dragging, adds sphere and staircase shapes, and supports boolean operations.
+
+o3de#19850
+Cancelling Script Canvas's Save As dialog closes it instead of reopening it in a loop.
+
+o3de#19864
+Title bars highlight correctly on hover under Qt6.
+
+o3de#19868
+Scroll bars are styled correctly under Qt6.
+
+o3de#19869
+The Document Property Editor hides properties marked hidden; it had compared the visibility attribute against the wrong type.
+
+o3de#19871
+Builds on Ubuntu 24.04 with Clang 18: a header Qt6 no longer includes transitively is added, and AUTOMOC and AUTORCC warnings are removed.
+
+o3de#19875
+Qt6 fixes for the New Level dialog's icon tinting, the Welcome screen's recent level names, and the Entity Inspector.
+
+o3de#19876
+Mouse wheel scrolling works in the components tree; a Qt5 workaround that forwarded scroll events was now consuming them.
+
+o3de#19877
+Drop-down indicators on tool buttons are aligned correctly under Qt6.
+
+o3de#19878
+Combo box drawing in the open state moves fully into a delegate, with dead code removed.
+
+o3de#19880
+Several undo and redo problems in the Inspector are fixed, including crashes and a state where edits silently stopped saving.
+
+o3de#19883
+The Inspector has a Collapse All button.
+
+o3de#19889
+Menu item spacing, icon alignment and hover behaviour are restored under Qt6 for every kind of menu.
+
+o3de#19892
+Tab widgets render correctly under Qt6.
+
+o3de#19896
+Three further low-priority Qt6 regressions in widget styling are fixed.
+
+o3de#19900
+LuaIDE no longer crashes on exit from a double free of its style object.
+
+o3de#19904
+The Asset Processor's PAK rule uses a plain file pattern; the previous negative-lookahead expression cost over a thousand regex steps per path and slowed startup.
+
+o3de#19908
+The ImGui toggle moves from Home to the tilde key, which no longer conflicts with text input.
+
+o3de#19912
+The File menu opens faster; the Recent Files submenu is populated only when it is about to show.
+
+o3de#19925
+Undo is no longer left open between frames in the Inspector, which could crash the Editor or leave it unable to save edits, and an unused Cry "super undo" API is removed.
+
+o3de#19926
+Saving no longer leaves the Ctrl key stuck in the viewport; a focus guard added for committing Inspector edits failed to return focus.
+
+o3de#19932
+The Inspector queues model resets instead of rebuilding on every change, improving performance with large components.
+
+o3de#19933
+Non-unity builds compile again after missing includes and forward declarations were added.
+
+o3de#19934
+SmoothCriticallyDamped and a new SmoothStep are available to Lua and Script Canvas for numbers, Vector2, Vector3 and Quaternion.
+
+o3de#19947
+Fixed a crash when entering prefab focus mode from the Outliner, and the flicker and inconsistent Outliner state that came with it.
+
+o3de#19951
+The Sandbox IPlugin system inherited from CryEngine, with its four Editor plugin DLLs, is removed; Gems are the way to extend the Editor.
+
+o3de#19954
+Templates can inherit from other registered templates. The shared engine-finder CMake lives in its own template that project templates inherit.
+
+o3de#19978
+The node palette used by Script Canvas and Material Canvas no longer crashes when opened or filtered under Qt6, and two out-of-bounds reads are fixed.
+
+o3de#19979
+Ctrl+S in Script Canvas saves in place again instead of opening Save As every time.
+
+o3de#19981
+Fixed a debug assert in LyShine when an asset picker's autocompleter was destroyed before its signal was disconnected.
+
+o3de#19984
+Remaining #ifndef include guards are replaced with #pragma once.
+
+o3de#19995
+The ground plane loads again after the folder rename changed its asset ID.
+
+o3de#19998
+FetchContent packages are patched with patch-ng rather than git, which works the same whether the source came from an archive or a clone.
+
+o3de#20013
+UI canvases block only navigation input events over interactables unless the canvas consumes all input, so Escape works while the pointer hovers a button.
+
+o3de#20021
+Gamepads connected while the Windows Editor is outside Game Mode are detected.
+
+o3de#20022
+The LyShine Preview Action Log has a dark background so its text stays readable.
+
+o3de#20075
+Class Wizard fixes: the new template directories are deployed with the install, PySide and shiboken bootstrap works on every platform, and console logging is cleaner.
+
+o3de#20099
+Instantiating a prefab whose file cannot be loaded returns a failure instead of crashing the Editor.
+
+o3de#20112
+Non-unity builds compile again after a missing include in the read-only entity interface.
+
+o3de#20117
+The Class Wizard finds PySide6 under a custom third-party package path and reports clearly when it cannot.
+
+o3de#20126
+Unfiltered asset database product queries no longer read an uninitialised job status.
+
+o3de#20138
+The Class Wizard's Add Editor Component output compiles; a misplaced declaration is removed.
