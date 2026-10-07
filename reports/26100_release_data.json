@@ -315,7 +315,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Configuration files for the Emscripten compiler lay the groundwork for a WebAssembly target; configuring still stops at the third-party packages that are being added separately."
     },
     {
       "files_truncated": false,
@@ -736,7 +736,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The engine compiles with a C++23 toolchain, mainly by completing types that were forward-declared inside unique_ptr."
     },
     {
       "files_truncated": false,
@@ -817,7 +817,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Initial Wayland support for the game launcher on Linux, switchable between X11 and Wayland at build or run time. Editor support waited for Qt6."
     },
     {
       "files_truncated": false,
@@ -1019,7 +1019,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Automated review gains a macOS build workflow and an iOS build workflow, the latter disabled until MiniAudio builds there."
     },
     {
       "files_truncated": true,
@@ -1292,7 +1292,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Android automated review builds on Linux runners with Clang instead of Windows, with its profile, asset and Gradle jobs running in sequence like the other platforms."
     },
     {
       "files_truncated": false,
@@ -1579,7 +1579,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Gradle job summary no longer crowds the automated review summary page; it appears only when the step fails."
     },
     {
       "files_truncated": false,
@@ -1630,7 +1630,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The bundled CMake is 4.2.3, carried over from the 26.05 stabilization branch."
     },
     {
       "files_truncated": false,
@@ -1742,7 +1742,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The chardet package is dropped; requests uses charset-normalizer instead."
     },
     {
       "files_truncated": false,
@@ -1765,7 +1765,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "O3DE builds on macOS with a standard LLVM Clang, not only AppleClang; the SDK sysroot is detected through xcrun for non-Apple compilers."
     },
     {
       "files_truncated": true,
@@ -1924,7 +1924,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "RecastNavigation's third-party integration follows the same FetchContent pattern as every other dependency."
     },
     {
       "files_truncated": false,
@@ -2034,7 +2034,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "GoogleTest always builds as a static library; another package was switching shared libraries on globally, which broke the second configure."
     },
     {
       "files_truncated": false,
@@ -2058,7 +2058,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "A Linux-only failing test runs serially so that several Asset Processors are not launched at once; it now takes 5 seconds rather than 90."
     },
     {
       "files_truncated": false,
@@ -2100,7 +2100,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "FetchContent third-party dependencies download archives into a cache shared across build configurations instead of cloning each one per configuration, and patch with patch-ng."
     },
     {
       "files_truncated": false,
@@ -2147,7 +2147,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Assimp compiles with MSVC again; its always-true expression warning is disabled for that target."
     },
     {
       "files_truncated": false,
@@ -2295,7 +2295,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The GEM_SHARED linking option works again in ly_add_target, and a wrong number of linking options produces a clearer error."
     },
     {
       "files_truncated": false,
@@ -2394,7 +2394,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "RecastNavigation's include directories use the upstream capitalisation, so the engine builds on case-sensitive file systems."
     },
     {
       "files_truncated": false,
@@ -2990,7 +2990,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Linux automated review builds with Clang 18 and GCC 13, and a nightly canary workflow tests upcoming compilers and runner images across every platform before they break the main review."
     },
     {
       "files_truncated": false,
@@ -3417,7 +3417,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Two warnings that Clang 21 promotes to errors, deprecated volatile and character conversion, no longer fail the build, so the engine compiles with the Clang shipped by current Linux distributions."
     },
     {
       "files_truncated": false,
@@ -3794,7 +3794,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Open Export Settings window no longer depends on the deprecated and often missing tkinter.tix package."
     },
     {
       "files_truncated": false,
@@ -3844,7 +3844,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Linux .deb and Snap packages declare the Tk runtime and other system packages that the Project Manager's per-project tools need, so those tools work on a clean install."
     },
     {
       "files_truncated": false,
@@ -4091,7 +4091,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "A duplicated no-fast-math flag that leaked a stray PRIVATE token into GCC's command line is removed."
     },
     {
       "files_truncated": false,
@@ -4420,7 +4420,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "PySide6 moves to 6.10.2."
     },
     {
       "files_truncated": false,
@@ -4503,7 +4503,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Editing an AutoComponent XML or Jinja file triggers only the autogen step at build time, not a full CMake regenerate."
     },
     {
       "files_truncated": false,
@@ -4637,7 +4637,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Android NDK moves from r25 to r27d, bringing Clang 18 and a newer libc++ that the AZStd modernisation needs."
     },
     {
       "files_truncated": false,
@@ -4706,7 +4706,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "CMake configuration with Qt6 on Windows no longer fails on mismatched drive letter casing in paths read from configuration files."
     },
     {
       "files_truncated": false,
@@ -5357,7 +5357,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "An engine named in a project's user settings is used as given, instead of being re-validated by engine discovery and failing in surprising ways."
     },
     {
       "files_truncated": false,
@@ -5595,7 +5595,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "expat moves to 2.7.3, restoring the missing Mac package."
     },
     {
       "files_truncated": false,
@@ -5616,7 +5616,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "PySide6 stays an editable install on installed engines; a plain copy install left out its native modules and imports failed."
     },
     {
       "files_truncated": true,
@@ -5768,7 +5768,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The engine builds under C++23 and C++26 as well as the default standard."
     },
     {
       "files_truncated": false,
@@ -6088,7 +6088,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Asset Processor no longer scans a custom build directory whose name does not match its built-in pattern, which made it slow and noisy under CLion."
     },
     {
       "files_truncated": false,
@@ -6109,7 +6109,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "FetchContent downloads keep their file extension in the cache so CMake knows how to extract them."
     },
     {
       "files_truncated": false,
@@ -6278,7 +6278,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "GitPython and urllib3 in the Python requirements move to versions without known vulnerabilities."
     },
     {
       "files_truncated": false,
@@ -6320,7 +6320,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "o3de.sh forwards its arguments with their quoting intact, so paths containing spaces or a tilde reach o3de.py correctly."
     },
     {
       "files_truncated": true,
@@ -6514,7 +6514,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The nightly schedule is removed from the canary workflow so the workflow can run in forks; nightly runs are triggered separately."
     },
     {
       "files_truncated": false,
@@ -6662,7 +6662,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Mac and iOS automated review no longer fail on too many environment variables."
     },
     {
       "files_truncated": false,
@@ -6757,7 +6757,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "DirectXShaderCompiler moves to 1.8.2505.1."
     },
     {
       "files_truncated": false,
@@ -6778,7 +6778,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Editor.app and AssetProcessor.app launched outside Xcode no longer hit duplicate Qt library conflicts."
     },
     {
       "files_truncated": false,
@@ -7224,7 +7224,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "FreeType moves to 2.11.1."
     },
     {
       "files_truncated": false,
@@ -7278,7 +7278,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "macOS runners free disk space by removing unused Xcode installations and trimming the compiler cache, so Mac and iOS builds stop running out of space while restoring caches.",
       "recovered_from_container": 20102
     },
     {
@@ -7340,7 +7340,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The installed SDK no longer tries to copy a missing egg-link file, links assimp statically, and includes the motion blur asset."
     },
     {
       "files_truncated": false,
@@ -7742,7 +7742,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The shader builder launches the engine-built azslc from the binary directory instead of a duplicate copy that could not find its shared libraries.",
       "recovered_from_container": 20123
     },
     {
@@ -7769,7 +7769,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Monolithic builds link again; meshoptimizer was missing from them."
     },
     {
       "files_truncated": false,
@@ -7796,7 +7796,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Mac automated review fails at the real error when Xcode's post-build step fails, instead of a misleading \"AssetProcessorBatch not found\" later on.",
       "recovered_from_container": 20102
     },
     {
@@ -8015,7 +8015,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Keyboard shortcuts in the Action Manager are handled as shortcut events rather than key events, which could swallow a shortcut, and CI artifact caches are hardened.",
       "recovered_from_container": 20102
     },
     {
@@ -8421,7 +8421,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The macOS workflow no longer uploads its asset cache after a failed build, which had carried a broken cache into every following run."
     },
     {
       "files_truncated": false,
@@ -8448,7 +8448,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Third-party packages and LFS objects are fetched from o3debinaries.org endpoints in place of the previous CloudFront URLs."
     },
     {
       "files_truncated": false,
@@ -9764,7 +9764,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "A workflow builds and tests the simulation Gems on every pull request that touches them, against the engine at the matching branch.",
       "recovered_from_container": 1095
     },
     {
