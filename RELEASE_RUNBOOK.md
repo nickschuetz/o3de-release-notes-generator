@@ -251,6 +251,25 @@ Both survive re-runs and take effect on the next `render` or `generate`. **Editi
 `sig_category` or `description` directly does not survive**: a PR that later disappears from `git log` is dropped unless it
 carries a `manual_override_*` field, and the drop is logged as a WARNING.
 
+## 5a. Bullet wording
+
+The automatic description is the PR body's first paragraph, which reads as a
+note to reviewers. For 26.10.0 every rendered entry carries a hand-written
+sentence saying what changed for the user, kept per SIG under
+`reports/overrides/26100_<sig>.txt` and applied with:
+
+```bash
+python reports/overrides/apply.py reports/26100_release_data.json reports/overrides/26100_*.txt
+python release_notes.py render --input-json reports/26100_release_data.json \
+  --output-md reports/26100_release_notes.md --release-version 26.10.0
+```
+
+The script writes each entry into `manual_override_description`, so the JSON
+stays the source of truth and the text survives re-runs; the files are the
+editing log and are easy to review as a diff. An entry is `<repo>#<number>` on
+one line and the sentence on the next, blocks separated by a blank line. State
+only what the pull request supports.
+
 ## 6. Narrative summary
 
 ```bash
