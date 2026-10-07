@@ -247,8 +247,8 @@ picks it up, and so does every future report. Otherwise fix categorization in
 - `manual_override_sig` to reassign the SIG
 - `manual_override_description` to rewrite the bullet
 
-Both survive re-runs. **Editing `sig_category` or `description` directly does
-not survive**: a PR that later disappears from `git log` is dropped unless it
+Both survive re-runs and take effect on the next `render` or `generate`. **Editing
+`sig_category` or `description` directly does not survive**: a PR that later disappears from `git log` is dropped unless it
 carries a `manual_override_*` field, and the drop is logged as a WARNING.
 
 ## 6. Narrative summary

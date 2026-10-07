@@ -1,6 +1,6 @@
 # SIG placement review for 26.10.0
 
-97 of 254 entries in the report were placed under a SIG by a guess rather than by a `sig/*` label on the pull request. Measured against labelled pull requests, roughly three guesses in four agree with the label, so some of these are under the wrong heading.
+97 of 255 entries in the report were placed under a SIG by a guess rather than by a `sig/*` label on the pull request. Measured against labelled pull requests, roughly three guesses in four agree with the label, so some of these are under the wrong heading.
 
 To correct one, either:
 
