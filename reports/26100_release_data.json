@@ -694,7 +694,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Assimp is built alongside the engine through FetchContent instead of arriving as a prebuilt package, and moves from 5.4.3 to 6.0.2."
     },
     {
       "files_truncated": false,
@@ -757,7 +757,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Scene import checks Assimp's incomplete-scene flag correctly; the test had been reverted to an always-true expression."
     },
     {
       "files_truncated": false,
@@ -991,7 +991,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Drag and drop in the EMotionFX parameter window inserts at the right index under Qt6, without private APIs."
     },
     {
       "files_truncated": false,
@@ -1264,7 +1264,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Native Mac ARM64 builds: multi-architecture detection, arm64-specific CMake files, and the Qt and moc fixes the platform needed."
     },
     {
       "files_truncated": false,
@@ -1513,7 +1513,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Cancelling the Lua Editor's settings dialog no longer applies stray values; settings change only when you made changes and confirmed them."
     },
     {
       "files_truncated": false,
@@ -1556,7 +1556,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed ignored-attribute warnings from EBus instantiation macros in the component mode code."
     },
     {
       "files_truncated": false,
@@ -1718,7 +1718,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Objects far from the origin can be picked for translate, rotate and scale again."
     },
     {
       "files_truncated": false,
@@ -2011,7 +2011,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Assimp no longer configures ccache on its own; the engine's compiler launcher handles it, which avoids breakage when ccache lives in a path with spaces."
     },
     {
       "files_truncated": false,
@@ -2122,7 +2122,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Assimp is patched for a missing include in its tinyusdz code that broke some Linux builds."
     },
     {
       "files_truncated": false,
@@ -2172,7 +2172,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Opening the Material Editor no longer shows a spurious dialog."
     },
     {
       "files_truncated": false,
@@ -2531,7 +2531,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Asset types registered with a group appear in nested New menus, with slashes in the group name creating deeper levels."
     },
     {
       "files_truncated": false,
@@ -2556,7 +2556,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Editor tool windows on Windows Alt-Tab as individual windows instead of all together."
     },
     {
       "files_truncated": false,
@@ -2598,7 +2598,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Asset Browser fixes: the project folder is the top folder, thumbnail search no longer stops at the first result, favourites persist, the default destination is sensible, and folders support Open in Seconds."
     },
     {
       "files_truncated": false,
@@ -2620,7 +2620,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Focusing the Asset Browser clears the Outliner's selection, so re-selecting an entity in the Outliner no longer starts a rename."
     },
     {
       "files_truncated": false,
@@ -2671,7 +2671,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Entity Inspector fields behave consistently: Escape and undo restore the previous value, the mouse wheel is no longer swallowed while scrubbing, mouse editing requires selecting the field first, and Tab skips non-interactive elements."
     },
     {
       "files_truncated": false,
@@ -2718,7 +2718,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Cut, copy, paste, duplicate and save shortcuts behave the same across the Inspector, Outliner, LyShine Inspector, LyShine editor and Asset Editor."
     },
     {
       "files_truncated": false,
@@ -2743,7 +2743,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Asset Editor fixes: Open Recent lists each file once and the asset picker accepts wrapped types."
     },
     {
       "files_truncated": false,
@@ -2811,7 +2811,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The LyShine editor gains the component menu from the main Editor, filtered for UI and canvas components, grouped by category, with Script Canvas available for UI canvases."
     },
     {
       "files_truncated": false,
@@ -2925,7 +2925,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Assimp moves to 6.0.4."
     },
     {
       "files_truncated": false,
@@ -2961,7 +2961,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "A new colour gradient primitive with its own field editor. Undo of marker position changes is still incomplete."
     },
     {
       "files_truncated": false,
@@ -3228,7 +3228,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The TIFF loaders use C99 integer types instead of libtiff's deprecated typedefs, which modern Linux distributions reject."
     },
     {
       "files_truncated": false,
@@ -3264,7 +3264,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Levels can be loaded from and saved to Gem asset directories, not only the project; the Welcome screen, Open Recent, Open Level, Save As and New Level all understand Gem-based levels."
     },
     {
       "files_truncated": false,
@@ -3315,7 +3315,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a buffer overflow when the Editor generated a thumbnail for a 3D texture; the depth dimension was not accounted for."
     },
     {
       "files_truncated": false,
@@ -3393,7 +3393,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Asset Builder processes shut themselves down when the Asset Processor dies, instead of lingering at 300 MB each across restarts."
     },
     {
       "files_truncated": false,
@@ -3440,7 +3440,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Wrapped tool windows on Linux and Mac show the guest's initial title."
     },
     {
       "files_truncated": false,
@@ -3613,7 +3613,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Typo fixes: \"an empty\" rather than \"a empty\" in several messages."
     },
     {
       "files_truncated": false,
@@ -3869,7 +3869,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Creating an entity from a tool or Python with no level loaded fails cleanly instead of crashing the Editor."
     },
     {
       "files_truncated": false,
@@ -3895,7 +3895,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed an intermittent Editor crash when assigning a Lua script that exposes properties to a Lua Script component."
     },
     {
       "files_truncated": false,
@@ -4070,7 +4070,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Particle Editor fixes: no crash when toggling View menu actions after closing every tab, and emitters re-dock correctly."
     },
     {
       "files_truncated": false,
@@ -4112,7 +4112,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Editor transform component notifies when a child is added or removed, as the runtime component already did."
     },
     {
       "files_truncated": false,
@@ -4137,7 +4137,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Generated Python stubs include argument names for EBus events, not only their types."
     },
     {
       "files_truncated": false,
@@ -4187,7 +4187,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a crash in Track View on a click without mouse movement."
     },
     {
       "files_truncated": false,
@@ -4261,7 +4261,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Tests for entity activation behaviour, written alongside the multiplayer initialisation fixes."
     },
     {
       "files_truncated": false,
@@ -4311,7 +4311,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Asset Editor supports undo."
     },
     {
       "files_truncated": false,
@@ -4347,7 +4347,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Asset Processor no longer freezes or crashes when a job fails or is cancelled while its builder is already defunct, and logs more about builder state."
     },
     {
       "files_truncated": false,
@@ -4371,7 +4371,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Graph Canvas search returns only real matches; it had treated every valid regular expression match object as a hit."
     },
     {
       "files_truncated": false,
@@ -4482,7 +4482,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "WhiteBox's Draw Shape tool shows live dimension readouts while dragging, adds sphere and staircase shapes, and supports boolean operations."
     },
     {
       "files_truncated": false,
@@ -4528,7 +4528,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Cancelling Script Canvas's Save As dialog closes it instead of reopening it in a loop."
     },
     {
       "files_truncated": false,
@@ -4662,7 +4662,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Title bars highlight correctly on hover under Qt6."
     },
     {
       "files_truncated": false,
@@ -4731,7 +4731,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Scroll bars are styled correctly under Qt6."
     },
     {
       "files_truncated": false,
@@ -4756,7 +4756,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Document Property Editor hides properties marked hidden; it had compared the visibility attribute against the wrong type."
     },
     {
       "files_truncated": false,
@@ -4804,7 +4804,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Builds on Ubuntu 24.04 with Clang 18: a header Qt6 no longer includes transitively is added, and AUTOMOC and AUTORCC warnings are removed."
     },
     {
       "files_truncated": false,
@@ -4836,7 +4836,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Qt6 fixes for the New Level dialog's icon tinting, the Welcome screen's recent level names, and the Entity Inspector."
     },
     {
       "files_truncated": false,
@@ -4867,7 +4867,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Mouse wheel scrolling works in the components tree; a Qt5 workaround that forwarded scroll events was now consuming them."
     },
     {
       "files_truncated": false,
@@ -4892,7 +4892,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Drop-down indicators on tool buttons are aligned correctly under Qt6."
     },
     {
       "files_truncated": false,
@@ -4920,7 +4920,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Combo box drawing in the open state moves fully into a delegate, with dead code removed."
     },
     {
       "files_truncated": false,
@@ -4977,7 +4977,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Several undo and redo problems in the Inspector are fixed, including crashes and a state where edits silently stopped saving."
     },
     {
       "files_truncated": false,
@@ -5027,7 +5027,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Inspector has a Collapse All button."
     },
     {
       "files_truncated": false,
@@ -5058,7 +5058,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Menu item spacing, icon alignment and hover behaviour are restored under Qt6 for every kind of menu."
     },
     {
       "files_truncated": true,
@@ -5235,7 +5235,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Tab widgets render correctly under Qt6."
     },
     {
       "files_truncated": false,
@@ -5287,7 +5287,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Three further low-priority Qt6 regressions in widget styling are fixed."
     },
     {
       "files_truncated": false,
@@ -5313,7 +5313,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "LuaIDE no longer crashes on exit from a double free of its style object."
     },
     {
       "files_truncated": false,
@@ -5380,7 +5380,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Asset Processor's PAK rule uses a plain file pattern; the previous negative-lookahead expression cost over a thousand regex steps per path and slowed startup."
     },
     {
       "files_truncated": false,
@@ -5553,7 +5553,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ImGui toggle moves from Home to the tilde key, which no longer conflicts with text input."
     },
     {
       "files_truncated": false,
@@ -5574,7 +5574,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The File menu opens faster; the Recent Files submenu is populated only when it is about to show."
     },
     {
       "files_truncated": false,
@@ -5842,7 +5842,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Undo is no longer left open between frames in the Inspector, which could crash the Editor or leave it unable to save edits, and an unused Cry \"super undo\" API is removed."
     },
     {
       "files_truncated": false,
@@ -5866,7 +5866,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Saving no longer leaves the Ctrl key stuck in the viewport; a focus guard added for committing Inspector edits failed to return focus."
     },
     {
       "files_truncated": false,
@@ -5965,7 +5965,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Inspector queues model resets instead of rebuilding on every change, improving performance with large components."
     },
     {
       "files_truncated": false,
@@ -5991,7 +5991,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Non-unity builds compile again after missing includes and forward declarations were added."
     },
     {
       "files_truncated": false,
@@ -6038,7 +6038,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "SmoothCriticallyDamped and a new SmoothStep are available to Lua and Script Canvas for numbers, Vector2, Vector3 and Quaternion."
     },
     {
       "files_truncated": false,
@@ -6257,7 +6257,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a crash when entering prefab focus mode from the Outliner, and the flicker and inconsistent Outliner state that came with it."
     },
     {
       "files_truncated": false,
@@ -6443,7 +6443,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Sandbox IPlugin system inherited from CryEngine, with its four Editor plugin DLLs, is removed; Gems are the way to extend the Editor."
     },
     {
       "files_truncated": false,
@@ -6547,7 +6547,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Templates can inherit from other registered templates. The shared engine-finder CMake lives in its own template that project templates inherit."
     },
     {
       "files_truncated": false,
@@ -6849,7 +6849,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The node palette used by Script Canvas and Material Canvas no longer crashes when opened or filtered under Qt6, and two out-of-bounds reads are fixed."
     },
     {
       "files_truncated": false,
@@ -6874,7 +6874,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Ctrl+S in Script Canvas saves in place again instead of opening Save As every time."
     },
     {
       "files_truncated": false,
@@ -6901,7 +6901,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a debug assert in LyShine when an asset picker's autocompleter was destroyed before its signal was disconnected."
     },
     {
       "files_truncated": true,
@@ -7021,7 +7021,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Remaining #ifndef include guards are replaced with #pragma once."
     },
     {
       "files_truncated": false,
@@ -7203,7 +7203,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ground plane loads again after the folder rename changed its asset ID."
     },
     {
       "files_truncated": false,
@@ -7252,7 +7252,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "FetchContent packages are patched with patch-ng rather than git, which works the same whether the source came from an archive or a clone."
     },
     {
       "files_truncated": false,
@@ -7364,7 +7364,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "UI canvases block only navigation input events over interactables unless the canvas consumes all input, so Escape works while the pointer hovers a button."
     },
     {
       "files_truncated": true,
@@ -7515,7 +7515,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Gamepads connected while the Windows Editor is outside Game Mode are detected."
     },
     {
       "files_truncated": false,
@@ -7539,7 +7539,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The LyShine Preview Action Log has a dark background so its text stays readable."
     },
     {
       "files_truncated": false,
@@ -7824,7 +7824,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Class Wizard fixes: the new template directories are deployed with the install, PySide and shiboken bootstrap works on every platform, and console logging is cleaner.",
       "recovered_from_container": 20102
     },
     {
@@ -8043,7 +8043,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Instantiating a prefab whose file cannot be loaded returns a failure instead of crashing the Editor.",
       "recovered_from_container": 20102
     },
     {
@@ -8117,7 +8117,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Non-unity builds compile again after a missing include in the read-only entity interface."
     },
     {
       "files_truncated": false,
@@ -8166,7 +8166,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Class Wizard finds PySide6 under a custom third-party package path and reports clearly when it cannot."
     },
     {
       "files_truncated": false,
@@ -8346,7 +8346,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Unfiltered asset database product queries no longer read an uninitialised job status."
     },
     {
       "files_truncated": false,
@@ -8490,7 +8490,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Class Wizard's Add Editor Component output compiles; a misplaced declaration is removed."
     },
     {
       "files_truncated": false,
