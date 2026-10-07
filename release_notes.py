@@ -2064,6 +2064,31 @@ def _format_pr_reference(repo_slug: str, pr_number: int, url: str = '') -> str:
     return f'[{label}](https://github.com/{repo_slug}/pull/{pr_number})'
 
 
+def apply_manual_overrides(pr_list: list[dict[str, Any]]) -> int:
+    """Make `manual_override_sig` and `manual_override_description` win
+    wherever the list came from. Returns how many PRs were adjusted.
+
+    They used to take effect only when `generate` merged a previous JSON, so a
+    `render` straight after editing the file showed the old SIG and bullet,
+    and the runbook's triage step did not do what it said.
+    """
+    adjusted = 0
+    for pr in pr_list:
+        changed = False
+        sig = pr.get('manual_override_sig')
+        if sig and (pr.get('sig_category') != sig
+                    or pr.get('categorization_source') != 'manual_override'):
+            pr['sig_category'] = sig
+            pr['categorization_source'] = 'manual_override'
+            changed = True
+        description = pr.get('manual_override_description')
+        if description and pr.get('description') != description:
+            pr['description'] = description
+            changed = True
+        adjusted += changed
+    return adjusted
+
+
 def merge_with_existing(
     new_prs: list[dict[str, Any]],
     existing_json_path: pathlib.Path | None,
@@ -3069,6 +3094,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
 
     existing_path = output_json if output_json.exists() else None
     merged = merge_with_existing(all_prs, existing_path)
+    apply_manual_overrides(merged)
 
     # A previous run's output may still hold PRs that are now excluded. Filter
     # after the merge too, so the exclusion holds regardless of how a PR got in.
@@ -3561,6 +3587,9 @@ def _run_render(args: argparse.Namespace) -> int:
     if data is None:
         logger.error('Failed to load valid JSON from %s', input_json)
         return 1
+    adjusted = apply_manual_overrides(data.get('pull_requests', []))
+    if adjusted:
+        logger.info('Applied manual overrides on %d PR(s)', adjusted)
 
     include_release_machinery = getattr(args, 'include_release_machinery', False)
     summary = None

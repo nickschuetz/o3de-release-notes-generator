@@ -3929,3 +3929,54 @@ class TestUnreferencedMergeLookup:
         args = parser.parse_args(['--from-ref', 'a', '--to-ref', 'b',
                                   '--output-json', 'x.json', '--no-merge-lookup'])
         assert args.no_merge_lookup is True
+
+
+class TestManualOverridesOnRender:
+    def test_overrides_win_on_a_plain_list(self):
+        prs = [
+            {'number': 1, 'sig_category': 'sig/content', 'categorization_source': 'label',
+             'description': 'auto', 'manual_override_sig': 'sig/build',
+             'manual_override_description': 'by hand'},
+            {'number': 2, 'sig_category': 'sig/core', 'categorization_source': 'label',
+             'description': 'auto', 'manual_override_sig': None,
+             'manual_override_description': None},
+        ]
+        assert release_notes.apply_manual_overrides(prs) == 1
+        assert prs[0]['sig_category'] == 'sig/build'
+        assert prs[0]['categorization_source'] == 'manual_override'
+        assert prs[0]['description'] == 'by hand'
+        assert prs[1]['sig_category'] == 'sig/core' and prs[1]['description'] == 'auto'
+
+    def test_already_applied_counts_as_no_change(self):
+        prs = [{'number': 1, 'sig_category': 'sig/build',
+                'categorization_source': 'manual_override', 'description': 'by hand',
+                'manual_override_sig': 'sig/build', 'manual_override_description': 'by hand'}]
+        assert release_notes.apply_manual_overrides(prs) == 0
+
+    def test_render_applies_an_override_set_after_the_fetch(self, tmp_path):
+        # The runbook's triage step: edit the JSON, re-render, see the change.
+        data = {
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION},
+            'pull_requests': [{
+                'repo': 'o3de/o3de', 'number': 19567, 'title': 'Build against Qt6.10.2',
+                'body': '', 'url': '', 'author': 'x', 'merged_at': '2026-06-15T00:00:00Z',
+                'labels': ['sig/content'], 'files': ['a'], 'flags': [],
+                'sig_category': 'sig/content', 'categorization_source': 'label',
+                'description': 'Build against Qt6.10.2: Close issue 19081.',
+                'release_machinery': False, 'manual_override_sig': None,
+                'manual_override_description': 'The Editor now builds on Qt 6.10.2.',
+            }],
+        }
+        src = tmp_path / 'in.json'
+        src.write_text(json.dumps(data))
+        out = tmp_path / 'out.md'
+        import argparse
+        args = argparse.Namespace(input_json=str(src), output_md=str(out),
+                                  release_version='26.10.0', generate_summary=False,
+                                  summary_command=None, summary_hint=None,
+                                  summary_timeout=300, include_uncategorized=False,
+                                  include_release_machinery=False, include_duplicates=False)
+        assert release_notes._run_render(args) == 0
+        content = out.read_text()
+        assert 'The Editor now builds on Qt 6.10.2.' in content
+        assert 'Close issue 19081' not in content

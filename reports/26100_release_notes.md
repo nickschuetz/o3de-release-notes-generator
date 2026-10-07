@@ -59,6 +59,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Build the Assimp library alongside o3de instead of depending on already-built 3p-package-source. This PR is a rebase of :. [o3de#19365](https://github.com/o3de/o3de/pull/19365)
 - Fix incorrect flag check in Assimp scene importing. [o3de#19429](https://github.com/o3de/o3de/pull/19429)
 - Fixes the TODO in qt6 for the EmotionFX ParameterWindow: This code was commented out with a TODO because it was incompatible with QT6. [o3de#19523](https://github.com/o3de/o3de/pull/19523)
+- The Editor and its tools now build on a standard Qt 6.10.2, replacing the custom Qt 5.15.2 build that O3DE had carried for years. [o3de#19567](https://github.com/o3de/o3de/pull/19567)
 - Mac ARM64 integration. [o3de#19571](https://github.com/o3de/o3de/pull/19571)
 - This is happening. When opening the LUA Editor, going the Options/Settings then just press the cancel button, it will reset to some strange values even though no changes where made. [o3de#19590](https://github.com/o3de/o3de/pull/19590)
 - Fix Wignored-attributes warnings. [o3de#19593](https://github.com/o3de/o3de/pull/19593)
