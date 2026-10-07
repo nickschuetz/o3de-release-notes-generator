@@ -3980,3 +3980,26 @@ class TestManualOverridesOnRender:
         content = out.read_text()
         assert 'The Editor now builds on Qt 6.10.2.' in content
         assert 'Close issue 19081' not in content
+
+
+class TestDedupeIgnoresTrailingPrNumber:
+    def test_a_carried_change_collapses_onto_the_original(self):
+        files = ['Templates/Multiplayer/template.json', 'repo.json']
+        prs = [
+            {'repo': 'o3de/o3de-extras', 'number': 1055, 'files': files, 'flags': [],
+             'sig_category': 'sig/network',
+             'title': 'Update multiplayer template to fix compile issue with floats.'},
+            {'repo': 'o3de/o3de-extras', 'number': 1057, 'files': files, 'flags': [],
+             'sig_category': 'sig/network',
+             'title': 'Update multiplayer template to fix compile issue with floats. (#1055)'},
+        ]
+        assert release_notes.classify_reasons(prs) == [None, 'duplicate']
+
+    def test_different_files_still_keep_both(self):
+        prs = [
+            {'repo': 'o3de/o3de', 'number': 1, 'files': ['a'], 'flags': [],
+             'sig_category': 'sig/core', 'title': 'Fix X'},
+            {'repo': 'o3de/o3de', 'number': 2, 'files': ['b'], 'flags': [],
+             'sig_category': 'sig/core', 'title': 'Fix X (#1)'},
+        ]
+        assert release_notes.classify_reasons(prs) == [None, None]

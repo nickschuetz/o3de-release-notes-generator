@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **A merge commit whose subject names no pull request is looked up on GitHub.** The Qt6 upgrade, `o3de/o3de#19567`, was merged with the hand-written subject "Upgrade O3DE from Qt5 to Qt6 by merging the Qt6 Branch into `development`". It carries neither `(#N)` nor `Merge pull request #N`, so the git scan never linked the commit to a pull request, and the headline change of 26.10.0 was absent from every draft since August. GitHub records which pull request a commit belongs to; every such merge commit in the window now costs one API call, and a merged pull request found that way joins the report marked `linked_from_commit`. Two such commits exist in the whole window. Capped at 50 with a warning; a failed lookup is logged naming the commit. `--dry-run` lists the commits it would ask about. `--no-merge-lookup` disables it.
-- 16 new tests (516 -> 532).
+- A title's trailing `(#N)` is ignored when looking for duplicates. `o3de-extras#1057` is `#1055` carried from `main` to `development`, same title plus the original's number, same files, and rendered as a second bullet beside it.
+- 18 new tests (516 -> 534).
 
 ### Fixed
 - **`render` now applies `manual_override_sig` and `manual_override_description`.** They took effect only when `generate` merged the previous JSON, so editing the file and re-rendering, which is what the runbook's triage step says to do, showed the old SIG and bullet until the next fetch. Overrides are applied on every load, in both paths.
