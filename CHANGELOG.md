@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`render` now applies `manual_override_sig` and `manual_override_description`.** They took effect only when `generate` merged the previous JSON, so editing the file and re-rendering, which is what the runbook's triage step says to do, showed the old SIG and bullet until the next fetch. Overrides are applied on every load, in both paths.
 
 ### Changed
+- **Every rendered entry in the 26.10.0 draft has a hand-written one-sentence bullet** (254 entries), kept under `reports/overrides/` and applied with `reports/overrides/apply.py`. Runbook §5a describes the workflow. A first narrative draft is under `reports/hints/26100_summary_draft.md`.
 - Schema 7 -> 8: per-PR `linked_from_commit`, `metadata.linked_from_commits`. Schema 7 files still load.
 
 ## [0.13.1-beta] - 2026-10-05
