@@ -1,0 +1,25 @@
+# SIG-Network and SIG-UI-UX, 26.10.0
+
+o3de#19677
+The server now validates the component input count in client input packets, closing an out-of-memory denial of service that a malicious client could trigger.
+
+o3de#19879
+Multiplayer AutoComponents with vector network properties compile again; narrowing conversions in the generated code no longer fail the build.
+
+o3de#19944
+Fixed a server crash during level load or unload when the level contains a Network Rigid Body component.
+
+o3de#20146
+A failed DTLS handshake now fails the connection instead of crashing the process.
+
+o3de#20147
+Encrypted connections are established one to two seconds faster: the server now processes the ClientHello carried in the initial connection packet instead of waiting for the client's retransmission.
+
+o3de#20148
+Packets near the MTU are no longer truncated after DTLS encryption, which dropped both the packet and the one after it. The default SSL inflation overhead is now 64 bytes.
+
+o3de-extras#1055
+The Multiplayer project template compiles again; float literals in the generated camera component now carry the required suffix.
+
+o3de#19938
+Spin boxes no longer repaint themselves endlessly. The suffix dimming was changing the input-method state during painting, which also interfered with Chinese, Japanese and Korean text input.

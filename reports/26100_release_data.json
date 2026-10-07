@@ -661,7 +661,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Component Creation Class Wizard can now target a project or any Gem, choose the build target, infer the namespace, and generate basic, level, system and LyShine components as well as data assets."
     },
     {
       "files_truncated": false,
@@ -968,7 +968,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "First pass of removing duplicate and unused CryEngine code, including the Linux and Mac Win32 wrapper types and the legacy memory-status helpers."
     },
     {
       "files_truncated": false,
@@ -1367,7 +1367,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZStd::array and AZStd::span are now std::array and std::span."
     },
     {
       "files_truncated": true,
@@ -1490,7 +1490,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZStd::move is now std::move, which lets the compiler's own diagnostics see moves and surfaced several real bugs that are fixed alongside."
     },
     {
       "files_truncated": false,
@@ -1697,7 +1697,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZStd::pair is now std::pair, so standard algorithms, C++20 ranges and third-party libraries that expect the real type work without conversion."
     },
     {
       "files_truncated": false,
@@ -1988,7 +1988,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZStd allocators are reworked to C++20 conventions. The implicit allocator(const char*) constructor is gone; it silently turned a string literal into an allocator and produced empty containers."
     },
     {
       "files_truncated": false,
@@ -2248,7 +2248,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The project export script's error for engine asset bundling now says \"engine\" rather than \"game\"."
     },
     {
       "files_truncated": false,
@@ -2431,7 +2431,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZ::Curve is now a core math type with its own property editor, moved out of the OpenParticleSystem Gem."
     },
     {
       "files_truncated": false,
@@ -2508,7 +2508,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The server now validates the component input count in client input packets, closing an out-of-memory denial of service that a malicious client could trigger."
     },
     {
       "files_truncated": false,
@@ -3206,7 +3206,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "ScriptContext no longer includes an internal Lua header; the alignment macro it needed is part of Lua's public API."
     },
     {
       "files_truncated": false,
@@ -3370,7 +3370,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "ProcessWatcher documents that tethering a child process's lifetime binds it to the launching thread, not the parent process, so launching from a short-lived thread kills the child immediately."
     },
     {
       "files_truncated": false,
@@ -3463,7 +3463,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The o3de Python package honours the O3DE_ENGINE_PATH environment variable when resolving the engine root, so packaged installs where the package lives in a virtual environment find the right engine."
     },
     {
       "files_truncated": false,
@@ -3486,7 +3486,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Configuring a project against a read-only, system-installed engine no longer fails: the engine's Python packages install from a source distribution instead of in editable mode."
     },
     {
       "files_truncated": false,
@@ -3544,7 +3544,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZ::Transform shrinks from 48 to 32 bytes, with translation and uniform scale packed into one SIMD lane."
     },
     {
       "files_truncated": false,
@@ -3660,7 +3660,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "EditorComponentAPI get, set and compare property calls work on components that do not derive from EditorComponentBase, such as Input Configuration, instead of reading the wrapper's memory."
     },
     {
       "files_truncated": false,
@@ -3918,7 +3918,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Gamepads work on Linux systems that have only the libevdev runtime package installed; the loader now tries the versioned library name."
     },
     {
       "files_truncated": false,
@@ -3971,7 +3971,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a crash on quit when a scripted entity was deactivated after the script system had already shut down."
     },
     {
       "files_truncated": false,
@@ -4022,7 +4022,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZStd compiles with GCC again after a declval issue in the vendored standard library code."
     },
     {
       "files_truncated": false,
@@ -4163,7 +4163,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Gameplay scripts can read and set the absolute system cursor position and cursor state, making cursor-aimed top-down controls possible from script."
     },
     {
       "files_truncated": false,
@@ -4551,7 +4551,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Translation assets build again on Linux: the Qt6 merge had dropped the rpath fix for lrelease, so libQt6Core was not found."
     },
     {
       "files_truncated": false,
@@ -4577,7 +4577,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Console commands can supply a callback that autocompletes their arguments on Tab."
     },
     {
       "files_truncated": false,
@@ -4604,7 +4604,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed crashes in network-related entity initialisation and in child entities left dangling by the 26.05 transform behaviour change."
     },
     {
       "files_truncated": false,
@@ -4779,7 +4779,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Translation assets build on Mac after the same lrelease rpath fix as Linux."
     },
     {
       "files_truncated": false,
@@ -4941,7 +4941,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Multiplayer AutoComponents with vector network properties compile again; narrowing conversions in the generated code no longer fail the build."
     },
     {
       "files_truncated": false,
@@ -4999,7 +4999,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ImGui console no longer collects stray text while the ImGui layer is hidden; input is queued and delivered only when it is visible."
     },
     {
       "files_truncated": false,
@@ -5181,7 +5181,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "AZStd replaces its SFINAE machinery with C++20 concepts and drops the type traits, atomic aliases and iterator helpers that the standard library now covers."
     },
     {
       "files_truncated": false,
@@ -5260,7 +5260,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a crash in the Inspector when modifying values, caused by a callback type mismatch in the Document Property Editor that had gone unnoticed for years."
     },
     {
       "files_truncated": false,
@@ -5401,7 +5401,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Engine registration no longer consults the engines_path field deprecated in 22.10, which fixes a silent failure when registering an engine whose name already existed at a different path."
     },
     {
       "files_truncated": true,
@@ -5919,7 +5919,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Inspector refreshes when a property's ChangeNotify attribute says it should."
     },
     {
       "files_truncated": false,
@@ -6063,7 +6063,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Spin boxes no longer repaint themselves endlessly. The suffix dimming was changing the input-method state during painting, which also interfered with Chinese, Japanese and Korean text input."
     },
     {
       "files_truncated": false,
@@ -6192,7 +6192,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "A new GameplayGem template scaffolds C++ gameplay components in a controller architecture, with EBus interfaces, serialisation and Editor reflection, visual scripting reflection, unit test skeletons and platform abstraction files."
     },
     {
       "files_truncated": false,
@@ -6213,7 +6213,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a server crash during level load or unload when the level contains a Network Rigid Body component."
     },
     {
       "files_truncated": false,
@@ -6493,7 +6493,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Groundplane asset folder is spelled correctly, and the 28 prefabs, levels and templates that referenced the misspelled path are updated."
     },
     {
       "files_truncated": false,
@@ -6715,7 +6715,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "LuaIDE works with the Editor on Linux: inter-process communication now has a Linux implementation, and two bugs in document invalidation and file lookup are fixed."
     },
     {
       "files_truncated": false,
@@ -7044,7 +7044,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "dlmalloc and nedmalloc are removed from AzCore; they are unmaintained upstream and slower than native allocators on modern platforms."
     },
     {
       "files_truncated": false,
@@ -7129,7 +7129,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a crash when detaching a prefab, and an ImGui crash."
     },
     {
       "files_truncated": false,
@@ -7566,7 +7566,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Lua scripts can construct an InputDeviceId with a name and index, so they can address a specific device such as the second gamepad."
     },
     {
       "files_truncated": false,
@@ -7691,7 +7691,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a crash in Restore Default Layout when no Console view pane exists."
     },
     {
       "files_truncated": false,
@@ -8141,7 +8141,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "SystemFile reads and writes larger than 2 GB are chunked on Linux and Mac instead of failing or truncating.",
       "recovered_from_container": 20123
     },
     {
@@ -8545,7 +8545,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "A failed DTLS handshake now fails the connection instead of crashing the process."
     },
     {
       "files_truncated": false,
@@ -8569,7 +8569,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Encrypted connections are established one to two seconds faster: the server now processes the ClientHello carried in the initial connection packet instead of waiting for the client's retransmission."
     },
     {
       "files_truncated": false,
@@ -8594,7 +8594,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Packets near the MTU are no longer truncated after DTLS encryption, which dropped both the packet and the one after it. The default SSL inflation overhead is now 64 bytes."
     },
     {
       "files_truncated": false,
@@ -9054,7 +9054,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Multiplayer project template compiles again; float literals in the generated camera component now carry the required suffix."
     },
     {
       "files_truncated": false,
@@ -9199,7 +9199,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ROS 2 project template no longer enables unused automoc and autorcc."
     },
     {
       "files_truncated": false,
@@ -9738,7 +9738,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Fixed a wrong AZ::IO::Path construction in the Robot Importer's asset lookup that could produce a bad lookup key.",
       "recovered_from_container": 1093
     },
     {
