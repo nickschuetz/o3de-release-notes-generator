@@ -1,0 +1,139 @@
+# SIG-Graphics-Audio, 26.10.0
+
+o3de#17169
+Vulkan result assertions are now a macro, so a failure is reported at the line of the call rather than inside a helper.
+
+o3de#19123
+Per-mesh and per-material info move from the ray tracing feature processor into the general mesh feature processor, so shaders other than ray tracing hit shaders can read scene geometry and material data.
+
+o3de#19167
+Ground Truth Ambient Occlusion is available as an alternative to SSAO, following the SIG-Graphics-Audio RFC, with the spatial filter and multi-bounce approximation and without a temporal filter.
+
+o3de#19201
+Atom hair renders again: the PPLL fill fragment shader returns a colour instead of void, which the shader builder rejected.
+
+o3de#19224
+Vertex and index buffers can be stored compressed with meshoptimizer, as a proof of concept.
+
+o3de#19509
+Unused TressFX source files that no target built are removed from the AtomTressFX Gem.
+
+o3de#19598
+The ImGui pass tree view can hide disabled passes and shows each pass's draw list name.
+
+o3de#19629
+Unlit materials gain cutout and blended opacity modes, double-sided rendering, optional shadow casting and an optional billboard mode.
+
+o3de#19630
+imgui.ini files are ignored by git.
+
+o3de#19645
+The RPI Python tooling works on Python 3.14, which removed sqlite3.version.
+
+o3de#19654
+The Stars component's exposure, radius factor and twinkle rate can be read and set from the EBus and from scripts.
+
+o3de#19656
+Opaque Unlit materials render through their own shader path, which removes the white edge artifacts the shared path produced.
+
+o3de#19659
+The Stars component rejects negative values passed to its new setters.
+
+o3de#19709
+FlyCameraInputComponent accumulates mouse deltas across a frame, which removes choppy movement at high polling rates, and no longer uses Cry math types.
+
+o3de#19725
+UV transforms on Vulkan work correctly: material parameters store the matrix as float4 rows instead of a float3x3, and shaders rebuild it.
+
+o3de#19729
+Editor tools built with Wayland enabled can force the XCB platform plugin through a CVar instead of crashing.
+
+o3de#19737
+The Microphone Gem depends on libsamplerate only on platforms whose implementation uses it.
+
+o3de#19756
+Particle assets declare their material dependency by path, so on a cold cache the Asset Processor builds the material before the particle.
+
+o3de#19786
+Particles no longer crash the GPU on the low-end render pipeline, and mesh particles render per instance through a structured buffer.
+
+o3de#19789
+The Material component gains a secondary variable list keyed by the mesh's material slot labels, so generated prefabs can bind materials without knowing slot order.
+
+o3de#19795
+Sampler state material property values serialise to and from JSON; the case had been missing since the type was added.
+
+o3de#19807
+Ribbon particles no longer overflow their vertex and index buffers, and a stopped particle can be played again.
+
+o3de#19810
+Fixed a dangling string pointer that GCC warned about.
+
+o3de#19825
+The engine builds against system libtiff 4.5 and newer, whose legacy typedefs collided with CryCommon's.
+
+o3de#19831
+Fixed a reference to a dangling temporary iterator that GCC warned about.
+
+o3de#19865
+Particle systems preload their material asset so it is ready when the system activates on level load.
+
+o3de#19891
+meshoptimizer moves to 1.2; the sparse and lock-border LOD options meant for meshlets are removed.
+
+o3de#19927
+Tidied an import and an unreachable return in the RPI Python utilities.
+
+o3de#19949
+Track View no longer deletes keyframe 1 when keyframe 0 is selected for removal on a compound spline track.
+
+o3de#19961
+Unlit shader inputs are refactored; tiled UVs behave correctly again and the shader uses the standard fallback draw SRG.
+
+o3de#19964
+The LyShine editor no longer crashes at startup when Qt lays out a zero-size viewport, which made Vulkan swapchain creation fail.
+
+o3de#19975
+Fixed an assert and undefined behaviour in the Audio Controls writer, which modified set elements in place.
+
+o3de#19976
+Changing the audio language no longer leaves a dangling pointer in the file cache that broke subsequent loads, and the Audio Controls Editor shows custom connection property widgets.
+
+o3de#19992
+D3D12MemoryAllocator is fetched with FetchContent instead of shipped as a package.
+
+o3de#19994
+Cutout Unlit materials are no longer darkened by SSAO, and blended Unlit materials no longer cast fully opaque shadows.
+
+o3de#20018
+The AZSL shader compiler now lives in the engine source tree and builds as a host tool, instead of arriving as a prebuilt package per platform.
+
+o3de#20031
+A pass with nothing to submit no longer produces zero command lists on DX12, Vulkan and Metal, which violated the execution group's minimum.
+
+o3de#20034
+Metal no longer corrupts output when a render scope has no draw items but must still clear or resolve a colour attachment.
+
+o3de#20036
+The screen-space subsurface scattering shader no longer deadlocks the GPU on hardware such as Intel Iris Xe; its group barrier now runs before any thread exits early.
+
+o3de#20049
+Terrain detail layers blend correctly at their falloff edges when there is no macro material, instead of switching hard between materials.
+
+o3de#20090
+Decals render on metallic surfaces, the decal texture array cap rises from 5 to 16, decals gain a maximum draw distance, and the diffuse probe grid shaders are recompiled.
+
+o3de#20119
+Fixed random Editor crashes on macOS when opening a level, caused by a Metal command buffer completion handler writing into a freed frame object.
+
+o3de#20127
+Shader compilation works on macOS again: azslc is staged inside the Asset Processor bundle where the shader builder looks for it.
+
+o3de#20130
+The viewport no longer turns green with the motion blur component at ultra sampling quality.
+
+o3de#20158
+MiniAudio works in unified launcher builds.
+
+o3de-extras#1090
+The Tracy profiler Gem moves to Tracy 1.14.1 and marks the frame end at the RHI's end-of-frame event for more accurate frame times.
