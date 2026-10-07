@@ -1260,12 +1260,11 @@ class TestNormalizePrDataTruncation:
 
 
 class TestSchemaVersion:
-    def test_schema_version_is_7(self):
-        # 6 -> 7 when container recovery added per-PR `bundled_prs`, `base_ref`
-        # and `recovered_from_container`, plus metadata.recovered_from_containers.
-        # Schema 6 files still load (load_existing_json accepts SCHEMA_VERSION
-        # and SCHEMA_VERSION - 1).
-        assert release_notes.SCHEMA_VERSION == 7
+    def test_schema_version_is_8(self):
+        # 7 -> 8 when merge-commit lookup added per-PR `linked_from_commit`
+        # and metadata.linked_from_commits. Schema 7 files still load
+        # (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
+        assert release_notes.SCHEMA_VERSION == 8
 
     def test_metadata_records_tool_version(self):
         assert release_notes.__version__.endswith('-beta')
@@ -2185,7 +2184,7 @@ class TestSbomIntegrity:
 
 class TestSchemaVersionProvenance:
     def test_schema_version_is_current(self):
-        assert release_notes.SCHEMA_VERSION == 7
+        assert release_notes.SCHEMA_VERSION == 8
 
     def test_previous_schema_still_loads(self, tmp_path):
         path = tmp_path / 'old.json'
@@ -3829,3 +3828,104 @@ class TestSigReview:
         args = parser.parse_args(['--from-ref', 'a', '--to-ref', 'b',
                                   '--output-json', 'x.json', '--no-sig-review'])
         assert args.no_sig_review is True
+
+
+class TestUnreferencedMergeLookup:
+    """A merge commit with a hand-written subject names no pull request, so
+    the git scan cannot see it. The Qt6 upgrade (o3de/o3de#19567) landed as
+    "Upgrade O3DE from Qt5 to Qt6 by merging the Qt6 Branch into
+    `development`" and was absent from the 26.10.0 draft for four months."""
+
+    SHA = '6c5a96d10f3b8a0d2a6c1a3e0b7e4d3c2b1a0f9e'
+    LOG = (
+        f'{SHA}\x1fUpgrade O3DE from Qt5 to Qt6 by merging the Qt6 Branch into `development`\n'
+        'e8804c92b8c3f5a6b7c8d9e0f1a2b3c4d5e6f7a8\x1fMerge pull request #20006 from x/y\n'
+        '0ee74a7ae1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6\x1fMerge branch stabilization (#19672)\n'
+        'not-a-sha\x1fjunk\n'
+    )
+
+    def test_only_merges_naming_no_pull_request_are_listed(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run') as run:
+            run.return_value = mock.MagicMock(returncode=0, stdout=self.LOG, stderr='')
+            merges = release_notes.unreferenced_merge_commits(tmp_path, '2605.0', 'main')
+        assert merges == [(self.SHA, 'Upgrade O3DE from Qt5 to Qt6 by merging the Qt6 '
+                                     'Branch into `development`')]
+        assert '--merges' in run.call_args[0][0]
+
+    def test_git_failure_yields_nothing(self, tmp_path):
+        with mock.patch('release_notes.subprocess.run',
+                        side_effect=subprocess.TimeoutExpired('git', 60)):
+            assert release_notes.unreferenced_merge_commits(tmp_path, '2605.0', 'main') == []
+
+    def test_hostile_ref_is_rejected(self, tmp_path):
+        with pytest.raises(ValueError):
+            release_notes.unreferenced_merge_commits(tmp_path, '--output=x', 'main')
+
+    def test_fetch_keeps_only_merged_pull_requests(self):
+        payload = [
+            {'number': 19567, 'merged_at': '2026-06-15T00:00:00Z'},
+            {'number': 19999, 'merged_at': None},
+            {'number': 19567, 'merged_at': '2026-06-15T00:00:00Z'},
+            'garbage',
+        ]
+        with mock.patch('release_notes._run_gh_json', return_value=payload) as run:
+            assert release_notes.fetch_prs_for_commit('o3de/o3de', self.SHA) == [19567]
+        assert run.call_args[0][0] == ['gh', 'api', f'repos/o3de/o3de/commits/{self.SHA}/pulls']
+
+    def test_fetch_tolerates_a_non_list_response(self):
+        with mock.patch('release_notes._run_gh_json', return_value={'message': 'nope'}):
+            assert release_notes.fetch_prs_for_commit('o3de/o3de', self.SHA) == []
+
+    def test_fetch_rejects_a_bad_sha(self):
+        with pytest.raises(ValueError):
+            release_notes.fetch_prs_for_commit('o3de/o3de', '../../x')
+
+    def _link(self, merges, lookup, window=(), prior=()):
+        with mock.patch('release_notes.unreferenced_merge_commits', return_value=merges), \
+                mock.patch('release_notes.fetch_prs_for_commit', side_effect=lookup) as fetch:
+            linked = release_notes.link_unreferenced_merges(
+                'o3de/o3de', pathlib.Path('.'), '2605.0', 'main', set(window), set(prior))
+        return linked, fetch
+
+    def test_the_qt6_upgrade_is_linked(self):
+        linked, _ = self._link([(self.SHA, 'Upgrade O3DE from Qt5 to Qt6')],
+                               lambda slug, sha: [19567])
+        assert linked == {19567: self.SHA}
+
+    def test_already_known_and_prior_release_numbers_are_not_added(self):
+        linked, _ = self._link([(self.SHA, 'x')], lambda slug, sha: [19567, 19500, 19400],
+                               window=[19500], prior=[19400])
+        assert linked == {19567: self.SHA}
+
+    def test_a_merge_that_is_no_pull_request_is_skipped(self, caplog):
+        with caplog.at_level('INFO', logger='o3de.release_notes'):
+            linked, _ = self._link([(self.SHA, 'Merge branch x')], lambda slug, sha: [])
+        assert linked == {}
+        assert any('is not a pull request' in r.message for r in caplog.records)
+
+    def test_api_failure_is_loud_and_not_fatal(self, caplog):
+        error = release_notes.GhCommandError('gh failed', 'boom')
+        with caplog.at_level('WARNING', logger='o3de.release_notes'):
+            linked, _ = self._link([(self.SHA, 'x')], mock.Mock(side_effect=error))
+        assert linked == {}
+        assert any('MISSING' in r.message for r in caplog.records)
+
+    def test_no_merges_makes_no_request(self):
+        linked, fetch = self._link([], lambda slug, sha: [1])
+        assert linked == {}
+        fetch.assert_not_called()
+
+    def test_lookups_are_capped(self, caplog):
+        merges = [(f'{i:040x}', f'm{i}') for i in range(release_notes.MAX_UNREFERENCED_MERGES + 5)]
+        with caplog.at_level('WARNING', logger='o3de.release_notes'):
+            linked, fetch = self._link(merges, lambda slug, sha: [])
+        assert fetch.call_count == release_notes.MAX_UNREFERENCED_MERGES
+        assert any('only the newest' in r.message for r in caplog.records)
+
+    def test_flag_is_exposed_on_the_cli(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        release_notes._add_fetch_args(parser)
+        args = parser.parse_args(['--from-ref', 'a', '--to-ref', 'b',
+                                  '--output-json', 'x.json', '--no-merge-lookup'])
+        assert args.no_merge_lookup is True

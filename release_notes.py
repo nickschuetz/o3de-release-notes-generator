@@ -27,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.13.1-beta'
+__version__ = '0.14.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -37,7 +37,7 @@ __version__ = '0.13.1-beta'
 #    and descriptions are no longer truncated mid-sentence, so data written by
 #    <=0.5.0-beta is structurally readable but semantically stale. Version 3
 #    files still load (renderer ignores the legacy flag); re-fetch for accuracy.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
@@ -1091,6 +1091,10 @@ def _backoff_seconds(attempt: int) -> float:
 
 
 def _run_gh_command(args: list[str], timeout: int = 30) -> dict[str, Any]:
+    return cast(dict[str, Any], _run_gh_json(args, timeout))
+
+
+def _run_gh_json(args: list[str], timeout: int = 30) -> Any:
     # A timeout or a missing binary must surface as RuntimeError like any other
     # gh failure. Letting TimeoutExpired escape aborted the whole run with a
     # traceback and discarded every batch already fetched.
@@ -1116,7 +1120,7 @@ def _run_gh_command(args: list[str], timeout: int = 30) -> dict[str, Any]:
         raise GhCommandError(f'gh command failed with exit code {result.returncode}', stderr)
 
     try:
-        return cast(dict[str, Any], json.loads(result.stdout))
+        return json.loads(result.stdout)
     except json.JSONDecodeError as e:
         raise GhCommandError(f'gh returned non-JSON output: {e}', str(e)) from e
 
@@ -1258,6 +1262,116 @@ def fetch_pr_metadata_batch(
                 logger.warning('PR #%d not found in %s', num, repo_slug)
 
     return all_prs
+
+
+# A merge commit whose subject names no pull request. GitHub writes
+# `Merge pull request #N` by default, but the message is editable, and the Qt6
+# upgrade (o3de/o3de#19567) landed as "Upgrade O3DE from Qt5 to Qt6 by merging
+# the Qt6 Branch into `development`": the headline change of 26.10.0, invisible
+# to a git log scan. GitHub still knows which pull request a commit belongs to.
+MAX_UNREFERENCED_MERGES = 50
+COMMIT_SHA_PATTERN = re.compile(r'^[0-9a-f]{7,40}$')
+
+
+def unreferenced_merge_commits(
+    repo_path: pathlib.Path,
+    from_ref: str,
+    to_ref: str,
+) -> list[tuple[str, str]]:
+    """Merge commits in the window whose subject carries neither `(#N)` nor
+    `Merge pull request #N`, as (sha, subject), newest first."""
+    from_ref = validate_git_ref(from_ref)
+    to_ref = validate_git_ref(to_ref)
+    try:
+        result = subprocess.run(
+            ['git', 'log', '--merges', '--format=%H%x1f%s', f'{from_ref}..{to_ref}'],
+            cwd=str(repo_path.resolve()),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=60,
+        )
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning('Could not list merge commits in %s: %s', repo_path, e)
+        return []
+    if result.returncode != 0:
+        logger.warning('git log --merges %s..%s in %s returned %d',
+                       from_ref, to_ref, repo_path, result.returncode)
+        return []
+    found = []
+    for line in result.stdout.splitlines():
+        sha, _, subject = line.partition('\x1f')
+        if not sha or not COMMIT_SHA_PATTERN.match(sha):
+            continue
+        if PR_NUMBER_PATTERN.search(subject) or MERGE_COMMIT_PR_PATTERN.match(subject):
+            continue
+        found.append((sha, subject.strip()))
+    return found
+
+
+def fetch_prs_for_commit(repo_slug: str, sha: str) -> list[int]:
+    """The merged pull requests GitHub associates with a commit."""
+    repo_slug = validate_repo_slug(repo_slug)
+    if not COMMIT_SHA_PATTERN.match(sha):
+        raise ValueError(f'Invalid commit sha: {sha!r}')
+    data = _run_gh_json(['gh', 'api', f'repos/{repo_slug}/commits/{sha}/pulls'], timeout=30)
+    numbers = []
+    for pr in data if isinstance(data, list) else []:
+        if not isinstance(pr, dict) or not pr.get('merged_at'):
+            continue
+        number = pr.get('number')
+        if isinstance(number, int) and 0 < number <= MAX_PR_NUMBER and number not in numbers:
+            numbers.append(number)
+    return numbers
+
+
+def link_unreferenced_merges(
+    repo_slug: str,
+    repo_path: pathlib.Path,
+    from_ref: str,
+    to_ref: str,
+    window_numbers: set[int],
+    prior_numbers: set[int],
+) -> dict[int, str]:
+    """Resolve merge commits that name no pull request to the pull requests
+    GitHub associates with them. Returns {pr_number: sha} for the ones that are
+    in neither the window nor a prior release."""
+    merges = unreferenced_merge_commits(repo_path, from_ref, to_ref)
+    if not merges:
+        return {}
+    if len(merges) > MAX_UNREFERENCED_MERGES:
+        logger.warning(
+            '%s: %d merge commits name no pull request; only the newest %d are '
+            'looked up on GitHub. The rest, if they were pull requests, are '
+            'missing from this report.',
+            repo_slug, len(merges), MAX_UNREFERENCED_MERGES,
+        )
+        merges = merges[:MAX_UNREFERENCED_MERGES]
+    linked: dict[int, str] = {}
+    for sha, subject in merges:
+        try:
+            numbers = fetch_prs_for_commit(repo_slug, sha)
+        except GhCommandError as e:
+            logger.warning(
+                '%s: could not ask GitHub which pull request merge commit %s '
+                '("%s") belongs to (%s). If it was one, it is MISSING from this '
+                'report; re-run to retry.',
+                repo_slug, sha[:9], subject[:60], e,
+            )
+            continue
+        new = [n for n in numbers if n not in window_numbers and n not in prior_numbers]
+        if not numbers:
+            logger.info('%s: merge commit %s ("%s") is not a pull request',
+                        repo_slug, sha[:9], subject[:60])
+        for number in new:
+            if number not in linked:
+                linked[number] = sha
+                logger.info(
+                    '%s: merge commit %s ("%s") is pull request #%d; adding it',
+                    repo_slug, sha[:9], subject[:60], number,
+                )
+    return linked
 
 
 # A commit subject ends with the number of the PR that produced it. Only the
@@ -2842,6 +2956,15 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 '[dry-run] PRs bundled in squashed cherry-pick containers are found '
                 'through the GitHub API and are not counted above.'
             )
+        for repo_slug in args.repos:
+            merges = unreferenced_merge_commits(
+                repo_path_map[repo_slug], from_ref_map[repo_slug], to_ref_map[repo_slug])
+            for sha, subject in merges:
+                logger.info(
+                    '[dry-run] %s: merge commit %s ("%s") names no pull request; the '
+                    'real run asks GitHub which one it is',
+                    repo_slug, sha[:9], subject[:60],
+                )
         logger.info('[dry-run] No GitHub API calls made; no files written.')
         return 0
 
@@ -2861,6 +2984,7 @@ def _run_fetch(args: argparse.Namespace) -> int:
     reused_per_repo: dict[str, int] = {}
     recovered_per_repo: dict[str, dict[str, list[int]]] = {}
     codeowners_by_repo: dict[str, CodeownersRules] = {}
+    linked_per_repo: dict[str, dict[str, str]] = {}
     for repo_slug in args.repos:
         try:
             validate_repo_slug(repo_slug)
@@ -2894,6 +3018,15 @@ def _run_fetch(args: argparse.Namespace) -> int:
                            repo_slug, repo_from_ref, repo_to_ref)
             continue
 
+        linked: dict[int, str] = {}
+        if not getattr(args, 'no_merge_lookup', False):
+            linked = link_unreferenced_merges(
+                repo_slug, local_path, repo_from_ref, repo_to_ref, set(pr_numbers),
+                {n for (repo, n) in prior_keys if repo == repo_slug},
+            )
+            if linked:
+                pr_numbers = sorted(set(pr_numbers) | set(linked))
+                linked_per_repo[repo_slug] = {str(n): sha for n, sha in sorted(linked.items())}
         window_numbers = set(pr_numbers)
         repo_prs: list[dict[str, Any]] = []
         codeowners = load_codeowners(local_path, repo_to_ref)
@@ -2918,6 +3051,10 @@ def _run_fetch(args: argparse.Namespace) -> int:
                 _derive_fetched_fields(pr, codeowners)
                 for pr in fetch_pr_metadata_batch(repo_slug, pr_numbers)
             )
+
+        for pr in repo_prs:
+            if pr.get('number', 0) in linked:
+                pr['linked_from_commit'] = linked[pr['number']]
 
         release_branch = release_branch_name(repo_to_ref)
         if release_branch and not getattr(args, 'no_container_recovery', False):
@@ -3019,6 +3156,13 @@ def _run_fetch(args: argparse.Namespace) -> int:
             'per_repo': reused_per_repo,
             'total': sum(reused_per_repo.values()),
             'policy': 'label-categorised PRs only; all others re-fetched',
+        }
+
+    if linked_per_repo:
+        metadata['linked_from_commits'] = {
+            'per_repo': linked_per_repo,
+            'total': sum(len(v) for v in linked_per_repo.values()),
+            'source': 'GitHub: pull requests associated with merge commits that name none',
         }
 
     if recovered_per_repo:
@@ -3528,6 +3672,11 @@ def _add_fetch_args(parser: argparse.ArgumentParser) -> None:
                              'because a release tag on the main line shares only an ancient '
                              'merge-base with development, so the raw window spans two '
                              'cycles. (repeatable)')
+    parser.add_argument('--no-merge-lookup', action='store_true',
+                        help='Do not ask GitHub which pull request a merge commit belongs '
+                             'to when its subject names none. By default each such commit '
+                             'in the window costs one API call and the pull request it '
+                             'merged, if any, is added to the report.')
     parser.add_argument('--no-container-recovery', action='store_true',
                         help='Do not recover PRs bundled in squashed cherry-pick containers. '
                              'By default, when --to-ref names a stabilization/NNNNN branch, '
