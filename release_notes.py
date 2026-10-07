@@ -27,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.14.0-beta'
+__version__ = '0.15.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -2274,6 +2274,34 @@ def _resolve_hint(hint: str) -> str:
     return hint
 
 
+MAX_SUMMARY_FILE_BYTES = 65536
+
+
+def load_summary_file(path: str) -> str | None:
+    """A narrative written by hand, kept in a file so it survives every
+    regenerate. Gets the same tag escaping as model output: the file is
+    trusted, but the notes are published as HTML and a stray `<` in prose
+    should not become markup."""
+    filepath = pathlib.Path(path).resolve()
+    if not filepath.is_file():
+        logger.error('Summary file not found: %s', filepath)
+        return None
+    try:
+        raw = filepath.read_bytes()
+    except OSError as e:
+        logger.error('Failed to read summary file: %s', e)
+        return None
+    if len(raw) > MAX_SUMMARY_FILE_BYTES:
+        logger.error('Summary file %s is %d bytes; the limit is %d',
+                     filepath, len(raw), MAX_SUMMARY_FILE_BYTES)
+        return None
+    text = HTML_TAG_OPENER_PATTERN.sub('\\<', raw.decode('utf-8', errors='replace')).strip()
+    if not text:
+        logger.error('Summary file %s is empty', filepath)
+        return None
+    return text
+
+
 DEFAULT_SUMMARY_TIMEOUT = 300
 MIN_SUMMARY_TIMEOUT = 10
 MAX_SUMMARY_TIMEOUT = 3600
@@ -3598,7 +3626,14 @@ def _run_render(args: argparse.Namespace) -> int:
 
     include_release_machinery = getattr(args, 'include_release_machinery', False)
     summary = None
-    if getattr(args, 'generate_summary', False):
+    summary_file = getattr(args, 'summary_file', None)
+    if summary_file:
+        summary = load_summary_file(summary_file)
+        if summary:
+            logger.info('Using narrative summary from %s (%d chars)', summary_file, len(summary))
+        else:
+            logger.warning('Summary file unusable, using placeholder')
+    elif getattr(args, 'generate_summary', False):
         summary_cmd = getattr(args, 'summary_cmd', DEFAULT_SUMMARY_CMD)
         summary_hint = getattr(args, 'summary_hint', '') or ''
         summary_timeout = getattr(args, 'summary_timeout', DEFAULT_SUMMARY_TIMEOUT)
@@ -3736,6 +3771,10 @@ def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool =
                         help='Release version string (e.g. 26.05.0)')
     parser.add_argument('--include-uncategorized', action='store_true',
                         help='Include uncategorized PRs in output')
+    parser.add_argument('--summary-file',
+                        help='Markdown file whose text becomes the narrative summary at the top '
+                             'of the report. Takes precedence over --generate-summary, so an '
+                             'approved narrative survives every regenerate.')
     parser.add_argument('--generate-summary', action='store_true', default=False,
                         help='Generate a narrative summary using an LLM (default: off)')
     parser.add_argument('--summary-cmd', default=DEFAULT_SUMMARY_CMD,

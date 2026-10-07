@@ -272,6 +272,20 @@ only what the pull request supports.
 
 ## 6. Narrative summary
 
+The approved narrative for 26.10.0 lives in
+`reports/hints/26100_summary_draft.md` and goes in with `--summary-file`:
+
+```bash
+python release_notes.py render \
+  --input-json reports/26100_release_data.json \
+  --output-md reports/26100_release_notes.md \
+  --release-version 26.10.0 \
+  --summary-file reports/hints/26100_summary_draft.md
+```
+
+Edit the file, re-render, and the report follows; nothing is lost on the next
+regenerate. For a first draft from a model instead:
+
 ```bash
 python release_notes.py render \
   --input-json reports/26100_release_data.json \

@@ -4003,3 +4003,72 @@ class TestDedupeIgnoresTrailingPrNumber:
              'sig_category': 'sig/core', 'title': 'Fix X (#1)'},
         ]
         assert release_notes.classify_reasons(prs) == [None, None]
+
+
+class TestSummaryFile:
+    def test_text_is_used_and_tags_are_escaped(self, tmp_path):
+        f = tmp_path / 's.md'
+        f.write_text('O3DE **26.10.0** ships <b>bold</b> changes.\n', encoding='utf-8')
+        assert release_notes.load_summary_file(str(f)) == \
+            'O3DE **26.10.0** ships \\<b>bold\\</b> changes.'
+
+    def test_missing_empty_and_oversized_files_are_refused(self, tmp_path):
+        assert release_notes.load_summary_file(str(tmp_path / 'nope.md')) is None
+        empty = tmp_path / 'e.md'
+        empty.write_text('  \n')
+        assert release_notes.load_summary_file(str(empty)) is None
+        big = tmp_path / 'b.md'
+        big.write_bytes(b'x' * (release_notes.MAX_SUMMARY_FILE_BYTES + 1))
+        assert release_notes.load_summary_file(str(big)) is None
+
+    @staticmethod
+    def _args(tmp_path, **extra):
+        import argparse
+        data = {'metadata': {'schema_version': release_notes.SCHEMA_VERSION},
+                'pull_requests': [{
+                    'repo': 'o3de/o3de', 'number': 1, 'title': 'Fix X', 'body': '',
+                    'url': '', 'author': 'a', 'merged_at': '2026-06-15T00:00:00Z',
+                    'labels': ['sig/core'], 'files': ['a'], 'flags': [],
+                    'sig_category': 'sig/core', 'categorization_source': 'label',
+                    'description': 'Fix X.', 'release_machinery': False,
+                    'manual_override_sig': None, 'manual_override_description': None}]}
+        src = tmp_path / 'in.json'
+        src.write_text(json.dumps(data))
+        base = dict(input_json=str(src), output_md=str(tmp_path / 'out.md'),
+                    release_version='26.10.0', generate_summary=False, summary_cmd=None,
+                    summary_hint=None, summary_timeout=300, include_uncategorized=False,
+                    include_release_machinery=False, include_duplicates=False,
+                    summary_file=None)
+        base.update(extra)
+        return argparse.Namespace(**base)
+
+    def test_render_puts_the_file_at_the_top_of_the_report(self, tmp_path):
+        narrative = tmp_path / 'n.md'
+        narrative.write_text('The headline paragraph.\n\nThank you, contributors.\n')
+        args = self._args(tmp_path, summary_file=str(narrative))
+        assert release_notes._run_render(args) == 0
+        content = (tmp_path / 'out.md').read_text()
+        assert content.startswith('# 26.10.0 Release Notes\n\nThe headline paragraph.\n\n'
+                                  'Thank you, contributors.\n\n# Full list of changes')
+        assert 'TODO' not in content
+
+    def test_file_wins_over_the_llm_and_a_bad_file_falls_back(self, tmp_path):
+        narrative = tmp_path / 'n.md'
+        narrative.write_text('From the file.')
+        with mock.patch('release_notes.generate_summary') as llm:
+            args = self._args(tmp_path, summary_file=str(narrative), generate_summary=True)
+            assert release_notes._run_render(args) == 0
+            llm.assert_not_called()
+        assert 'From the file.' in (tmp_path / 'out.md').read_text()
+        args = self._args(tmp_path, summary_file=str(tmp_path / 'missing.md'))
+        assert release_notes._run_render(args) == 0
+        assert 'TODO: Write a narrative summary' in (tmp_path / 'out.md').read_text()
+
+    def test_flag_is_exposed_on_render_and_generate(self):
+        import argparse
+        for add in (release_notes._add_render_args,):
+            parser = argparse.ArgumentParser()
+            add(parser)
+            assert parser.parse_args(['--input-json', 'a', '--output-md', 'b',
+                                      '--release-version', '1', '--summary-file', 's.md'
+                                      ]).summary_file == 's.md'
