@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-10-05T23:33:14.677423+00:00",
+    "generated_at": "2026-10-07T18:25:23.332041+00:00",
     "from_ref": "2605.0",
     "to_ref": "upstream/stabilization/26100",
     "repos": [
@@ -13,10 +13,10 @@
     },
     "schema_version": 7,
     "tool_version": "0.13.1-beta",
-    "pr_count": 268,
+    "pr_count": 279,
     "categorization_summary": {
-      "label": 158,
-      "heuristic_files": 92,
+      "label": 164,
+      "heuristic_files": 97,
       "heuristic_title": 6,
       "uncategorized": 1,
       "manual_override": 2,
@@ -49,10 +49,10 @@
     },
     "reused_from_cache": {
       "per_repo": {
-        "o3de/o3de": 131,
+        "o3de/o3de": 132,
         "o3de/o3de-extras": 9
       },
-      "total": 140,
+      "total": 141,
       "policy": "label-categorised PRs only; all others re-fetched"
     },
     "recovered_from_containers": {
@@ -125,7 +125,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-10-05T23:33:14.677423+00:00"
+      "end": "2026-10-07T18:25:23.332041+00:00"
     }
   },
   "pull_requests": [
@@ -8034,6 +8034,31 @@
       "manual_override_description": null
     },
     {
+      "files_truncated": false,
+      "number": 20119,
+      "repo": "o3de/o3de",
+      "title": "Metal RHI: fix use-after-free in command buffer completion handler",
+      "body": "## What does this PR do?\r\n\r\nFixes random Editor crashes on macOS (Metal) when opening a level, in profile and debug builds.\r\n\r\n`CommandQueueCommandBuffer::AcquireMTLCommandBuffer` installs an `addCompletedHandler` block that writes `buffer.status` into `m_statusAfterExecution`. The block runs on the Metal completion queue once the GPU is done, which can be after the owning per-frame `FrameGraphExecuteGroupHandler` has already been destroyed, so the write lands in freed memory. Typical symptom is a crash in `intrusive_ptr::release` on a bogus pointer (e.g. `0x4` = `MTLCommandBufferStatusCompleted`) from View SRG compilation or `ArgumentBuffer::Shutdown`; it is timing dependent and disappears when the main thread is slowed down.\r\n\r\nThe block now reads the status into a local and only caches it in the member when `RHI::ForceCpuGpuInSync` is enabled, the one case where the CPU is guaranteed to wait for completion before the object can go away. The member is also default-initialized.\r\n\r\n## How was this PR tested?\r\n\r\nmacOS (Apple Silicon), profile Editor build. Before the change, opening a level crashed roughly every other attempt with the signature above; after the change, no crashes over many level open / close cycles. Verified with lldb that the corrupted slot held the command buffer status value.",
+      "url": "https://github.com/o3de/o3de/pull/20119",
+      "author": "weaveloop",
+      "merged_at": "2026-09-19T02:30:19Z",
+      "labels": [
+        "sig/graphics-audio",
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/CommandQueueCommandBuffer.cpp",
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/CommandQueueCommandBuffer.h"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "label",
+      "description": "Metal RHI: fix use-after-free in command buffer completion handler: Fixes random Editor crashes on macOS (Metal) when opening a level, in profile and debug builds.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
       "files_truncated": true,
       "number": 20123,
       "repo": "o3de/o3de",
@@ -8167,6 +8192,104 @@
     },
     {
       "files_truncated": false,
+      "number": 20126,
+      "repo": "o3de/o3de",
+      "title": "AzToolsFramework: initialize savedJobStatus in unfiltered product queries",
+      "body": "## What does this PR do?\n\nIn `AssetDatabaseConnection.cpp`, `GetProductResult` declares `int savedJobStatus;` and only fetches `Jobs.Status` into it when the query is filtered by status (`status != JobStatus::Any`). For unfiltered queries the value is never written, yet every row still passes `static_cast<JobStatus>(savedJobStatus)` to `ResultMatchesJobCriteria`. Reading and casting the indeterminate `int` is undefined behaviour (and trips `-Wuninitialized` / sanitizers), even though the function ignores the value for `JobStatus::Any`.\n\nThis initializes it to `JobStatus::Any`. One line, no behaviour change for well-formed queries.\n\n## How was this PR tested?\n\nmacOS (Apple Silicon) profile build of Editor and Asset Processor; asset browser, product lookups and AP processing work as before.",
+      "url": "https://github.com/o3de/o3de/pull/20126",
+      "author": "weaveloop",
+      "merged_at": "2026-09-20T01:20:53Z",
+      "labels": [
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Framework/AzToolsFramework/AzToolsFramework/AssetDatabase/AssetDatabaseConnection.cpp"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_files",
+      "description": "AzToolsFramework: initialize savedJobStatus in unfiltered product queries.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20127,
+      "repo": "o3de/o3de",
+      "title": "Atom: stage azslc inside the AssetProcessor bundle on macOS",
+      "body": "## What does this PR do?\r\n\r\nFixes shader compilation on macOS: every shader job fails with `Executable not found: .../AssetProcessor.app/Contents/MacOS/azslc` since #20069.\r\n\r\nThat change made the shader builder launch the AZSL compiler through a path relative to the executable directory, relying on `azslc` being staged there as a runtime dependency of `Atom_Asset_Shader.Builders`. That holds on Windows and Linux where every binary lives in the same bin folder, but on macOS executable runtime dependencies are staged **next to** a bundle, not inside it (`runtime_dependencies_mac.cmake.in`, \"non-dylib target dependencies go alongside the bundle\"): `azslc` ends up as `bin/<config>/azslc` while `AssetBuilder` resolves the relative path from `AssetProcessor.app/Contents/MacOS`.\r\n\r\nThis copies `azslc` into the bundle explicitly with `ly_add_target_files` in the Mac platform file of the shader builders gem, the same way `AssetProcessor` stages `AssetBuilder` next to itself. `azslc` already carries an `@loader_path/../Frameworks` rpath, so it finds `libAzCore.dylib` inside the bundle. Mac-only change.\r\n\r\n## How was this PR tested?\r\n\r\nmacOS (Apple Silicon), Xcode generator, profile: after a reconfigure and build, `AssetProcessor.app/Contents/MacOS/azslc` is present and the Asset Processor compiles shaders again (previously required copying the binary in by hand after every build).",
+      "url": "https://github.com/o3de/o3de/pull/20127",
+      "author": "weaveloop",
+      "merged_at": "2026-09-20T21:40:37Z",
+      "labels": [
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/Atom/Asset/Shader/Code/Source/Platform/Mac/platform_builders_mac.cmake"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_files",
+      "description": "Fixes shader compilation on macOS: every shader job fails with \\`Executable not found: .../AssetProcessor.app/Contents/MacOS/azslc\\` since #20069.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20130,
+      "repo": "o3de/o3de",
+      "title": "Fix green viewport/screen when using motion blur component",
+      "body": "When using the motion blur component and set the sampling quality to ultra you can see how the viewport turns into green. Also makes sense when looking at the shader code.  Maybe someone knows more about this? I assume this is a accidentally committed debugging part.\r\n\r\nI tested this on my computer on a Kubuntu 26.04, KDE Plasma Version 6.6.6, Ryzen 9 5950X and AMD AI PRO R9700\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20130",
+      "author": "yaakuro",
+      "merged_at": "2026-09-25T16:49:02Z",
+      "labels": [
+        "sig/graphics-audio",
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/Atom/Feature/Common/Assets/Shaders/PostProcessing/MotionBlur.azsl"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "label",
+      "description": "When using the motion blur component and set the sampling quality to ultra you can see how the viewport turns into green. Also makes sense when looking at the shader code.  Maybe someone knows more about this? I assume this is a accidentally committed debugging part.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20131,
+      "repo": "o3de/o3de",
+      "title": "CI: stop a broken macOS asset cache from propagating between runs",
+      "body": "## What does this PR do?\r\n\r\nThe Mac workflow uploads the `AutomatedTesting/Cache` artifact at the end of every run and the next run restores it, regardless of whether the build step succeeded. If AssetProcessor fails half-way (or its database is left inconsistent), the broken cache is carried into every following run and Mac-Asset stays red until someone clears it by hand. This is exactly what happened with the duplicate `Products` rows fixed in #20126: the cache was poisoned once and every later run inherited it.\r\n\r\nThe Linux and Windows workflows already avoid this; this brings `mac-build.yml` in line:\r\n\r\n- the build step gets an `id` so its outcome can be checked;\r\n- in the compress step, if the build did not succeed, `AutomatedTesting/Cache` is deleted before the artifact is packed, so a failed run uploads the build outputs but not the asset cache and the next run starts from a clean one;\r\n- after extracting the restored artifact, a short summary of the cache (whether the asset database exists and its size) is printed to make it easier to see what a run started from.\r\n\r\nNo change to what a successful run uploads.\r\n\r\n## How was this PR tested?\r\n\r\nWorkflow-only change. The step logic was checked on the failing Mac-Asset runs from last week, where the cache carried over from run to run; with this change those runs would have dropped the cache instead of re-uploading it.",
+      "url": "https://github.com/o3de/o3de/pull/20131",
+      "author": "weaveloop",
+      "merged_at": "2026-09-20T21:41:17Z",
+      "labels": [
+        "sig/build",
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        ".github/workflows/android-build.yml",
+        ".github/workflows/ios-build.yml",
+        ".github/workflows/linux-build.yml",
+        ".github/workflows/mac-build.yml",
+        ".github/workflows/windows-build.yml"
+      ],
+      "sig_category": "sig/build",
+      "categorization_source": "label",
+      "description": "CI: stop a broken macOS asset cache from propagating between runs.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
       "number": 20135,
       "repo": "o3de/o3de",
       "title": "Update lfs, package, and AR package urls",
@@ -8187,6 +8310,48 @@
       "sig_category": "sig/build",
       "categorization_source": "heuristic_files",
       "description": "Updates the package server URLs used for fetching third-party dependencies and LFS objects across multiple build workflows and configuration files.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20138,
+      "repo": "o3de/o3de",
+      "title": "Class wizard editor template fix sept 2026",
+      "body": "## What does this PR do?\r\n\r\nFixes a compile error in \"Add Editor Component\" file outputs. There was a misplaced `Component_Impl` declaration in the .cpp of the editor .cpp. It is now cleared, and a small comment is left there to describe that this is different behaviour from the base component, which DOES declare the component_impl.\r\n\r\nNow compiles fine.\r\n\r\n---\r\n\r\n### Some additional issues cropped up in testing:\r\n- The file registration command which puts the files in their respective `projectname_shared_files.cmake` file lists was using a lazy \"detect ) \" to find the closing bracket of the `setFiles()` command. When a comment has `( )` brackets inside of it, it ends up cropping all the files after it and breaking the file.\r\n- The \"add_gem_dependency\" command used to ensure editor targets have the correct AzToolsFramework dependency was actually firing on the non-.Editor. targets. This meant that the dependency was simply failing to apply.\r\n  - The Added Dependency would also tack on a PRIVATE below the dependencies, even if there was a PRIVATE higher in the dependency block. It now ammends wherever that PRIVATE is. No-Private behaviour remains the same: Adding a new PRIVATE block automatically.\r\n\r\n### The Fixes\r\nRegistration:\r\n- A new utility function was created at a higher level to provide a better function to find the end-bracket to a target block, ignoring nested and commented characters of the same type.\r\n- Updating a few commands that were all using that lazy form of checking for closing brackets of the code.\r\n\r\nEditor Dependencies:\r\n- A new \"add_editor_gem_dependency\" was made that matches the target to it's target.editor. pair.\r\n  - It has an added check for INTERFACE type packages, and adds the dependency to the INTERFACE block instead of PRIVATE.\r\n- The PRIVATE block label now properly ammends if already present.\r\n- Added some common functions between the gem_dep and editor_gem_dep commands.\r\n\r\n# How was this PR tested?\r\n\r\nGenerated Basic Components with dependencies absent from the build targets, with brackets in the comments, and requiring editor components.\r\n\r\nFile Registration Scoping Detection fix successful:\r\n<img width=\"568\" height=\"272\" alt=\"image\" src=\"https://github.com/user-attachments/assets/e073eee8-b7d1-4ce4-8760-8bdafaa86585\" />\r\n\r\nINTERFACE and PRIVATE label detection successfully appends:\r\n<img width=\"427\" height=\"148\" alt=\"image\" src=\"https://github.com/user-attachments/assets/2af05f1a-bc21-41f3-bdbe-c81d27cde8d4\" />\r\n\r\nOther Injections still work. Like Data Assets.\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20138",
+      "author": "GaianHelmers",
+      "merged_at": "2026-09-25T03:32:13Z",
+      "labels": [
+        "sig/content",
+        "do-not-merge/in-review",
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Templates/DefaultComponent/Template/Source/Editor${Name}Component.cpp",
+        "Templates/DefaultComponent/Template/Source/Editor${Name}Component.h",
+        "Templates/DefaultComponent/Template/Source/Tools/Editor${Name}Component.cpp",
+        "Templates/DefaultComponent/template.json",
+        "Templates/LevelComponent/Template/Source/Tools/Editor${Name}LevelComponent.cpp",
+        "Templates/LevelComponent/template.json",
+        "Templates/LyShineComponent/Template/Source/Tools/Editor${Name}Component.cpp",
+        "Templates/LyShineComponent/template.json",
+        "Templates/SystemComponent/Template/Source/Tools/Editor${Name}SystemComponent.cpp",
+        "Templates/SystemComponent/Template/Source/Tools/Editor${Name}SystemComponent.h",
+        "Templates/SystemComponent/template.json",
+        "Tools/ClassCreationWizard/cmake_text.py",
+        "Tools/ClassCreationWizard/command_plugin.py",
+        "Tools/ClassCreationWizard/commands/add_editor_gem_dependency.py",
+        "Tools/ClassCreationWizard/commands/add_gem_dependency.py",
+        "Tools/ClassCreationWizard/commands/register_file_list.py",
+        "Tools/ClassCreationWizard/commands/register_interface_header.py",
+        "Tools/ClassCreationWizard/gem_dependency.py"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "label",
+      "description": "Class wizard editor template fix sept 2026.",
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
@@ -8222,6 +8387,171 @@
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         20053
+      ]
+    },
+    {
+      "files_truncated": false,
+      "number": 20146,
+      "repo": "o3de/o3de",
+      "title": "Fix crash when a DTLS handshake fails (DtlsEndpoint::PerformHandshakeInternal)",
+      "body": "## What does this PR do?\r\n\r\nFixes #7536: any failed DTLS handshake crashes the process.\r\n\r\nOn a failed `SSL_do_handshake` (anything but WANT_READ / WANT_WRITE), `DtlsEndpoint::PerformHandshakeInternal` calls `Close(m_sslSocket)`. `Close` takes `SSL*&` and sets the pointer to `nullptr` (Utilities/EncryptionCommon.h). The code then fell through to `SSL_is_init_finished(m_sslSocket)` and `BIO_ctrl_pending(m_writeBio)`: an access violation (reading 0x100 in `statem.c:77`) instead of a failed connection.\r\n\r\nThe fix returns `ConnectResult::Failed` right after the close. `UdpConnection::ProcessHandshakeData` already disconnects on `Failed`, so the connection now ends with `DisconnectReason::NetworkError` and the process keeps running.\r\n\r\n## How was this PR tested?\r\n\r\n- Built AzFramework from the 2605.0 source with this change and ran it under a project on the 26.05 SDK (two region servers, DTLS on, bot clients migrating between them).\r\n- A client that trusts a different certificate than the one the server presents (the steps in #7536):\r\n  - stock 26.05: \"Certificate validation failed\", \"SSL handshake negotiation failed (1), terminating connection\", then a crash with 0xc0000005 in `SSL_is_init_finished` ← `PerformHandshakeInternal` (DtlsEndpoint.cpp:188).\r\n  - with this change: the same two log lines, then \"Disconnecting from remote address ... due to NetworkError\". No crash.\r\n- A server whose certificate the clients do not trust, 4 clients migrating to it for 120 s: 18 failed handshakes, no crash, every client continued on the other server.\r\n- A normal 6-client run with migrations: no regressions.\r\n\r\nThe `development` branch has the same code as 2605.0 here.\r\n\r\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "url": "https://github.com/o3de/o3de/pull/20146",
+      "author": "michaeltrabalka-tech",
+      "merged_at": "2026-09-27T21:26:01Z",
+      "labels": [
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/DtlsEndpoint.cpp"
+      ],
+      "sig_category": "sig/network",
+      "categorization_source": "heuristic_files",
+      "description": "Fixes #7536: any failed DTLS handshake crashes the process.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20147,
+      "repo": "o3de/o3de",
+      "title": "DTLS: process the ClientHello carried in the InitiateConnectionPacket (~1.3-2.3 s off every encrypted connect)",
+      "body": "## What does this PR do?\r\n\r\nFixes #20144.\r\n\r\n`UdpNetworkInterface::Connect` sends the client's first DTLS flight (its ClientHello) inside the `InitiateConnectionPacket` (`connectPacket.SetHandshakeBuffer(dtlsData)`). `UdpNetworkInterface::AcceptConnection` deserializes that packet and creates the connection and its `DtlsEndpoint`, but never passed `packet.GetHandshakeBuffer()` to the endpoint. The server then answered only the client's OpenSSL retransmission. That comes after OpenSSL's 1 s timer, which O3DE drives from the heartbeat timeout (`net_UdpDefaultTimeoutMs / net_UdpUnackedHeartbeats`, 2 s by default). Every encrypted connect was therefore 1.3-2.3 s slower than needed.\r\n\r\nThe change hands the buffer to the accepted connection right after it is added, so the server answers the first ClientHello at once.\r\n\r\n## How was this PR tested?\r\n\r\n- Built AzFramework from the 2605.0 source with this change and ran it under a project on the 26.05 SDK (two region servers, DTLS on, bot clients migrating between them with `CompleteClientMigration`).\r\n- Median time from a migration's start to input back, 6 clients, 150 s per run, runs alternated:\r\n\r\n  | Game connection | Run 1 | Run 2 |\r\n  |---|---|---|\r\n  | no encryption | 201 ms | 201 ms |\r\n  | DTLS, stock 26.05 (`net_UdpUnackedHeartbeats 50`) | 1,467 ms | 1,501 ms |\r\n  | DTLS, this change (`net_UdpUnackedHeartbeats 50`) | 434 ms | 434 ms |\r\n\r\n- No failed migrations in those runs.\r\n\r\nOne note for reviewers. With this change in place, we have seen 2 DTLS handshake failures across several hundred encrypted migrations. OpenSSL rejected the server's key-exchange signature, `RSA_verify_PKCS1_PSS_mgf1: bad signature`, 1-2 s after a migration. We have not found a mechanism that ties them to this change, and have not seen them without it, but the sample is small. Those failures are also what crashed clients through #7536 (fixed in #20146).\r\n\r\nThe `development` branch has the same code as 2605.0 here.\r\n\r\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "url": "https://github.com/o3de/o3de/pull/20147",
+      "author": "michaeltrabalka-tech",
+      "merged_at": "2026-09-26T17:30:31Z",
+      "labels": [
+        "sig/network",
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/UdpNetworkInterface.cpp"
+      ],
+      "sig_category": "sig/network",
+      "categorization_source": "label",
+      "description": "DTLS: process the ClientHello carried in the InitiateConnectionPacket (~1.3-2.3 s off every encrypted connect).",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20148,
+      "repo": "o3de/o3de",
+      "title": "DTLS: never send an encrypted record cut; default net_SslInflationOverhead 64",
+      "body": "## What does this PR do?\r\n\r\nFixes #20145.\r\n\r\nWith the default cipher (`ECDHE-RSA-AES256-GCM-SHA384`), each DTLS 1.2 record adds 37 bytes: 13 for the header, 8 for the explicit nonce and 16 for the GCM tag. But `UdpNetworkInterface::SendPacket` only fragments packets larger than `GetConnectionMtu() - net_SslInflationOverhead` = 1024 - 32. So a 988-992 byte packet was sent whole and encrypted to 1025-1029 bytes. `DtlsSocket::SendInternal` then read it with a single `BIO_read` into a 1024-byte buffer, which caused three problems:\r\n- The datagram went out cut.\r\n- The record's tail stayed in the memory BIO and became the head of the next datagram, so the receiver dropped both.\r\n- A reliable packet of that size was resent at the same size and cut again every time, so the connection stalled.\r\n\r\nChanges:\r\n- **`net_SslInflationOverhead` defaults to 64**, with a description of what it must cover. That is enough for the default AES-GCM cipher.\r\n- **`DtlsSocket::SendInternal`** now checks `SSL_write`, and never sends a record larger than a datagram. It logs an error naming the cvar, drops that packet and resets the write BIO, so the next datagram starts aligned. A misconfiguration, such as a smaller overhead or a cipher with more overhead, now shows up as a clear error instead of a silently dead connection.\r\n\r\nA fuller fix could derive the overhead from the negotiated cipher, for example with `DTLS_set_link_mtu` / `DTLS_get_data_mtu`. This PR keeps to the smaller change.\r\n\r\n## How was this PR tested?\r\n\r\n- Built AzFramework from the 2605.0 source with this change and ran it under a project on the 26.05 SDK: two region servers, DTLS on, 8 bot clients migrating between them for 150 s. Their player entities replicate ~80 extra values, which puts some entity updates in the 988-992 byte window.\r\n- Before (stock 26.05, overhead 32): 5-6 failed migrations per run, where the client gets nothing at all from the new server. Setting `net_SslInflationOverhead 64` brought that to 0 of 27.\r\n- With this change and the overhead forced back to 32: the new check fired, logging `DTLS: a 989 byte packet encrypts to 1026 bytes, more than a 1024 byte datagram; it is dropped (net_SslInflationOverhead is too small for this cipher)`. 0 failed migrations out of 27.\r\n- With this change and the new default: 27 of 27 migrations, no drops, no errors.\r\n\r\nThe `development` branch has the same code as 2605.0 here.\r\n\r\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "url": "https://github.com/o3de/o3de/pull/20148",
+      "author": "michaeltrabalka-tech",
+      "merged_at": "2026-09-26T21:17:59Z",
+      "labels": [
+        "sig/network",
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/DtlsSocket.cpp",
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/UdpNetworkInterface.cpp"
+      ],
+      "sig_category": "sig/network",
+      "categorization_source": "label",
+      "description": "DTLS: never send an encrypted record cut; default net_SslInflationOverhead 64.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20158,
+      "repo": "o3de/o3de",
+      "title": "Include MiniAudio in unified launcher builds",
+      "body": "## What does this PR do?\r\n\r\nMakes MiniAudio work in `.UnifiedLauncher` builds.\r\n\r\n## How was this PR tested?\r\n\r\nBy modifying MiniAudio's `CMakeLists.txt` as found in this PR, rebuilding my project, testing my project using `ProjectName.UnifiedLauncher -host` and seeing that the audio works and it doesn't have this error in the console as it does without this PR:\r\n```\r\n<19:05:57> [Warning] (Script) - Access to undeclared global variable 'MiniAudioPlaybackRequestBus'\r\n ---------- START STACK TRACE ---------- \r\n=[C](-1): index\r\n=?(-1): ?\r\n\r\n ---------- END STACK TRACE ---------- \r\n\r\n<19:05:57> [Error] (Script) - ?:-1: attempt to index a nil value (field 'MiniAudioPlaybackRequestBus')\r\n ---------- START STACK TRACE ---------- \r\n=[C](-1): index\r\n=?(-1): ?\r\n\r\n ---------- END STACK TRACE ---------- \r\n ```",
+      "url": "https://github.com/o3de/o3de/pull/20158",
+      "author": "gralco",
+      "merged_at": "2026-09-29T05:24:58Z",
+      "labels": [
+        "need-sync/to-stabilization"
+      ],
+      "files": [
+        "Gems/MiniAudio/Code/CMakeLists.txt"
+      ],
+      "sig_category": "sig/graphics-audio",
+      "categorization_source": "heuristic_files",
+      "description": "Makes MiniAudio work in \\`.UnifiedLauncher\\` builds.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null
+    },
+    {
+      "files_truncated": false,
+      "number": 20180,
+      "repo": "o3de/o3de",
+      "title": "Cherrypick from development to stabilization (04)",
+      "body": "## What does this PR do?\r\n\r\nCherry-picks already-merged PRs from `development` that were marked with `need-sync/to-stabilization` into the `stabilization/26100` branch.\r\n\r\n* #20119 \r\n* #20126\r\n* #20127 \r\n* #20130 \r\n* #20131\r\n* #20138\r\n* #20146\r\n* #20147 \r\n* #20148\r\n* #20158\r\n\r\n## How was this PR tested?\r\n\r\nAutomated tests locally\r\n\r\nSmoke testing locally (loading sponza, nav test, etc in editor, entering/leaving game mode, launching material editor)\r\n",
+      "url": "https://github.com/o3de/o3de/pull/20180",
+      "author": "nick-l-o3de",
+      "merged_at": "2026-10-07T15:28:34Z",
+      "labels": [
+        "sig/release",
+        "sync/to-stabilization"
+      ],
+      "files": [
+        ".github/workflows/android-build.yml",
+        ".github/workflows/ios-build.yml",
+        ".github/workflows/linux-build.yml",
+        ".github/workflows/mac-build.yml",
+        ".github/workflows/windows-build.yml",
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/DtlsEndpoint.cpp",
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/DtlsSocket.cpp",
+        "Code/Framework/AzNetworking/AzNetworking/UdpTransport/UdpNetworkInterface.cpp",
+        "Code/Framework/AzToolsFramework/AzToolsFramework/AssetDatabase/AssetDatabaseConnection.cpp",
+        "Gems/Atom/Asset/Shader/Code/Source/Platform/Mac/platform_builders_mac.cmake",
+        "Gems/Atom/Feature/Common/Assets/Shaders/PostProcessing/MotionBlur.azsl",
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/CommandQueueCommandBuffer.cpp",
+        "Gems/Atom/RHI/Metal/Code/Source/RHI/CommandQueueCommandBuffer.h",
+        "Gems/MiniAudio/Code/CMakeLists.txt",
+        "Templates/DefaultComponent/Template/Source/Editor${Name}Component.cpp",
+        "Templates/DefaultComponent/Template/Source/Editor${Name}Component.h",
+        "Templates/DefaultComponent/Template/Source/Tools/Editor${Name}Component.cpp",
+        "Templates/DefaultComponent/template.json",
+        "Templates/LevelComponent/Template/Source/Tools/Editor${Name}LevelComponent.cpp",
+        "Templates/LevelComponent/template.json",
+        "Templates/LyShineComponent/Template/Source/Tools/Editor${Name}Component.cpp",
+        "Templates/LyShineComponent/template.json",
+        "Templates/SystemComponent/Template/Source/Tools/Editor${Name}SystemComponent.cpp",
+        "Templates/SystemComponent/Template/Source/Tools/Editor${Name}SystemComponent.h",
+        "Templates/SystemComponent/template.json",
+        "Tools/ClassCreationWizard/cmake_text.py",
+        "Tools/ClassCreationWizard/command_plugin.py",
+        "Tools/ClassCreationWizard/commands/add_editor_gem_dependency.py",
+        "Tools/ClassCreationWizard/commands/add_gem_dependency.py",
+        "Tools/ClassCreationWizard/commands/register_file_list.py",
+        "Tools/ClassCreationWizard/commands/register_interface_header.py",
+        "Tools/ClassCreationWizard/gem_dependency.py"
+      ],
+      "sig_category": "sig/core",
+      "categorization_source": "heuristic_files",
+      "description": "Cherry-picks already-merged PRs from \\`development\\` that were marked with \\`need-sync/to-stabilization\\` into the \\`stabilization/26100\\` branch.",
+      "flags": [
+        "cherry-pick"
+      ],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null,
+      "base_ref": "stabilization/26100",
+      "bundled_prs": [
+        20119,
+        20126,
+        20127,
+        20130,
+        20131,
+        20138,
+        20146,
+        20147,
+        20148,
+        20158
       ]
     },
     {

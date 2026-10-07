@@ -32,6 +32,17 @@ never see.
 
 - **#20140**: Support automatic inertia calculation in ArticulationLink (#20053) _(bundled PRs read from the PR's commit list on GitHub)_
   - ✓ #20053: present in the rendered report, recovered from this container
+- **#20180**: Cherrypicks from development to stabilization _(merge commit: each picked commit keeps its own PR number)_
+  - ✓ #20119: present in the rendered report
+  - ✓ #20126: present in the rendered report
+  - ✓ #20127: present in the rendered report
+  - ✓ #20130: present in the rendered report
+  - ✓ #20131: present in the rendered report
+  - ✓ #20138: present in the rendered report
+  - ✓ #20146: present in the rendered report
+  - ✓ #20147: present in the rendered report
+  - ✓ #20148: present in the rendered report
+  - ✓ #20158: present in the rendered report
 - **#20123**: Cherry-pick from `development` to `stabilization/26100` (#20123) _(bundled PRs read from the PR's commit list on GitHub)_
   - ✓ #20018: present in the rendered report, recovered from this container
   - ✓ #20049: present in the rendered report, recovered from this container
@@ -145,4 +156,4 @@ never see.
 
 ---
 
-**Summary:** 21 container(s) checked, 85 bundled PR reference(s) parsed: 38 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
+**Summary:** 22 container(s) checked, 95 bundled PR reference(s) parsed: 48 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
