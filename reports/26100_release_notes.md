@@ -225,7 +225,6 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 
 ## SIG-Network
 - Update multiplayer template to fix compile issue with floats. [o3de-extras#1055](https://github.com/o3de/o3de-extras/pull/1055)
-- There was a decision to push a fix to Multiplayer template right after the release of 2605.0. The fix was  in the \`main\` branch, it should be also available in \`development\`. [o3de-extras#1057](https://github.com/o3de/o3de-extras/pull/1057)
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)
 - Fix AutoComponent jinja narrowing conversions for vector properties. [o3de#19879](https://github.com/o3de/o3de/pull/19879)
 - Fixes a server crash when running a level containing a Network Rigid Body Component. [o3de#19944](https://github.com/o3de/o3de/pull/19944)

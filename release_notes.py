@@ -2352,8 +2352,13 @@ DEFAULT_SUMMARY_CMD = 'ollama run --nowordwrap qwen2.5:14b'
 
 
 def _normalize_title_for_dedupe(title: str) -> str:
-    """Fold a title to a comparison key: whitespace-collapsed and case-insensitive."""
-    return ' '.join((title or '').split()).casefold()
+    """Fold a title to a comparison key: whitespace-collapsed, case-insensitive,
+    and without a trailing `(#N)`. A change carried from one branch to another
+    keeps its title and gains the original's number: o3de-extras#1057 is
+    "<title of #1055> (#1055)", with the same files. The suffix is provenance,
+    not a different title."""
+    title = TRAILING_PR_NUMBER_PATTERN.sub('', title or '')
+    return ' '.join(title.split()).casefold()
 
 
 def _duplicate_index_groups(pr_list: list[dict[str, Any]]) -> list[list[int]]:
