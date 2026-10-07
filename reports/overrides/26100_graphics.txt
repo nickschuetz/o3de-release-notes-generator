@@ -7,7 +7,7 @@ o3de#19123
 Per-mesh and per-material info move from the ray tracing feature processor into the general mesh feature processor, so shaders other than ray tracing hit shaders can read scene geometry and material data.
 
 o3de#19167
-Ground Truth Ambient Occlusion is available as an alternative to SSAO, following the SIG-Graphics-Audio RFC, with the spatial filter and multi-bounce approximation and without a temporal filter.
+Ground Truth Ambient Occlusion is available as an alternative to SSAO, following the [SIG-Graphics-Audio RFC](https://github.com/o3de/sig-graphics-audio/blob/main/rfcs/GTAOIntegration/Proposed%20RFC%20Feature%20GTAO%20%28Ground-Truth%20based%20Ambient%20Occlusion%29.md), with the spatial filter and multi-bounce approximation and without a temporal filter.
 
 o3de#19201
 Atom hair renders again: the PPLL fill fragment shader returns a colour instead of void, which the shader builder rejected.

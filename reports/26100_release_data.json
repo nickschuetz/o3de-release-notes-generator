@@ -486,7 +486,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Ground Truth Ambient Occlusion is available as an alternative to SSAO, following the SIG-Graphics-Audio RFC, with the spatial filter and multi-bounce approximation and without a temporal filter."
+      "manual_override_description": "Ground Truth Ambient Occlusion is available as an alternative to SSAO, following the [SIG-Graphics-Audio RFC](https://github.com/o3de/sig-graphics-audio/blob/main/rfcs/GTAOIntegration/Proposed%20RFC%20Feature%20GTAO%20%28Ground-Truth%20based%20Ambient%20Occlusion%29.md), with the spatial filter and multi-bounce approximation and without a temporal filter."
     },
     {
       "files_truncated": false,
