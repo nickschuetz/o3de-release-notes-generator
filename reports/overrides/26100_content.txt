@@ -10,7 +10,7 @@ o3de#19523
 Drag and drop in the EMotionFX parameter window inserts at the right index under Qt6, without private APIs.
 
 o3de#19567
-The Editor and its tools now build on a standard Qt 6.10.2, replacing the custom Qt 5.15.2 build that O3DE had carried for years.
+The Editor and its tools now build on a standard Qt 6.10.2, replacing the custom Qt 5.15.2 build that O3DE had carried for years. Qt 5 is no longer maintained upstream, so this keeps the Editor on a toolkit that still receives security fixes.
 
 o3de#19571
 Native Mac ARM64 builds: multi-architecture detection, arm64-specific CMake files, and the Qt and moc fixes the platform needed.
