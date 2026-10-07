@@ -103,6 +103,7 @@ python release_notes.py fetch \
   [--reuse-existing] \
   [--exclude-json prior_release.json ...] \
   [--dry-run] \
+  [--no-merge-lookup] \
   [--no-container-recovery] \
   [--no-sig-review] \
   [--no-pointrelease-audit] \
@@ -123,6 +124,7 @@ python release_notes.py fetch \
 | `--output-json` | Yes | - | Output JSON file path |
 | `--repos` | No | `o3de/o3de` | GitHub repos in `owner/repo` format (where PRs live) |
 | `--dry-run` | No | off | Print which PRs would be fetched (from git log) without calling the GitHub API or writing files |
+| `--no-merge-lookup` | No | off | Do not ask GitHub which pull request a merge commit belongs to when its subject names none. By default each such commit costs one API call and the pull request it merged, if any, joins the report. See [Merge commits that name no pull request](#merge-commits-that-name-no-pull-request) |
 | `--no-container-recovery` | No | off | Do not recover PRs bundled in squashed cherry-pick containers. By default, when `--to-ref` names a `stabilization/NNNNN` branch, each cherry-pick PR merged into that branch is asked for its commit list, and any bundled PR missing from the window is fetched and reported under its own number. See [Squashed cherry-picks](#squashed-cherry-picks) |
 | `--no-sig-review` | No | off | Skip the [SIG review sheet](#sig-review-sheet), a sidecar listing every entry whose SIG was guessed rather than taken from a single `sig/*` label |
 | `--no-pointrelease-audit` | No | off | Skip the point-release audit sidecar even when `--from-ref` looks like a point-release tag (`MAJOR.PATCH` with a non-zero patch) |
@@ -490,8 +492,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
-    "schema_version": 7,
-    "tool_version": "0.13.1-beta",
+    "schema_version": 8,
+    "tool_version": "0.14.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -577,6 +579,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `metadata.reused_from_cache` | Per-repo count of PRs served from the previous report rather than re-fetched, and the policy used. |
 | `metadata.file_list_truncated` | Roll-up of the above: how many PRs were capped, which ones, and the subset whose SIG was decided by the file heuristic from a partial list. Verify those before publishing. |
 | `metadata.excluded_prior_releases` | Which prior reports were used as exclusion sources and how many PRs each repo dropped because of them. |
+| `linked_from_commit` | SHA of the merge commit this PR was resolved from, present only when the commit's subject named no pull request and GitHub was asked. |
+| `metadata.linked_from_commits` | Per-repo map of PR number to merge commit SHA for those resolutions, plus the total. Absent when there were none. |
 | `recovered_from_container` | Number of the squashed cherry-pick PR this PR was recovered from. Present only on PRs that reached the release branch inside such a container and so have no commit of their own in the window. |
 | `bundled_prs` | On a cherry-pick container merged into the release branch: the PR numbers it carries, read from the container PR's commit list on GitHub. |
 | `base_ref` | On the same containers: the branch GitHub reports the container was merged into. |
@@ -596,6 +600,12 @@ Both are required. O3DE `development` uses merge commits for a large minority of
 PRs, whose constituent commits carry no PR reference at all; matching only the
 squash form (and passing `--no-merges`) missed 19 PRs in the 26.05.0 → 26.10.0
 window. The count found via merge commits is logged on each run.
+
+### Merge commits that name no pull request
+
+GitHub writes `Merge pull request #N` by default, but the message is editable. The Qt6 upgrade, `o3de/o3de#19567`, landed as "Upgrade O3DE from Qt5 to Qt6 by merging the Qt6 Branch into `development`": the headline change of 26.10.0, invisible to a git log scan and absent from the draft for four months.
+
+Every merge commit in the window whose subject carries neither `(#N)` nor `Merge pull request #N` is looked up on GitHub, which records the pull request each commit belongs to. A merged pull request found that way joins the window like any other and is marked `linked_from_commit`. A merge that was never a pull request is logged and skipped. Such commits are rare (two in the whole 26.10.0 window), so this costs one API call each; lookups stop at 50 with a warning. `--dry-run` names the commits it would ask about. Disable with `--no-merge-lookup`.
 
 ### Squashed cherry-picks
 
