@@ -48,11 +48,14 @@ exclusion source it depends on.
 **Retention:** keep the previous cycle's `*_release_data.json` checked in. It is
 the `--exclude-json` source for the next cycle, and deleting it does not fail
 loudly: the run succeeds and silently re-publishes the previous release's
-content. The rendered `*_release_notes.md` and `*_pointrelease_audit.md` from
-closed cycles are outputs, not inputs, and can be pruned once the notes are
-published to docs.o3de.org, which is their canonical home. Narrative drafts and hint files under
-`reports/hints/` are reused across cycles for continuity; keep them. The
-hand-written bullets under `reports/overrides/` are this cycle's editing log.
+content. Keep the rendered `*_release_notes.md` and the audit and review
+sidecars of closed cycles as well. They were pruned once, on the reasoning that
+docs.o3de.org is their canonical home, and the 26.05.0 notes were missed two
+months later while editing the next draft: the previous cycle's rendered notes
+are the reference for tone, bullet style and narrative length, and the data
+JSON is no substitute. `reports/` only grows. Narrative drafts and hint files
+under `reports/hints/` are reused across cycles for continuity; the
+hand-written bullets under `reports/overrides/` are each cycle's editing log.
 
 Spring releases (`xx.05.0`) are gaming-themed; fall releases (`xx.10.0`) are
 robotics-themed. That shapes the narrative summary, not the tooling.

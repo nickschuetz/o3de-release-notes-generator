@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.15.1-beta] - 2026-10-07
 
 ### Changed
+- The 26.05.0 rendered notes and point-release audit are restored from history, and the runbook's retention rule now says to keep every cycle's reports. They were pruned in 0.7.1 as outputs with a canonical home elsewhere; the rendered notes turned out to be the reference for tone and style when editing the next draft.
 - Documentation for `--summary-file` across the README (usage, project tree, narrative section, sample-output note), ARCHITECTURE (render stage, security table), AGENTS and the runbook. No behaviour change.
 
 ## [0.15.0-beta] - 2026-10-07
