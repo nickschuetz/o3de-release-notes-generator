@@ -1,0 +1,142 @@
+# SIG-Build, 26.10.0
+
+o3de#19109
+Configuration files for the Emscripten compiler lay the groundwork for a WebAssembly target; configuring still stops at the third-party packages that are being added separately.
+
+o3de#19425
+The engine compiles with a C++23 toolchain, mainly by completing types that were forward-declared inside unique_ptr.
+
+o3de#19477
+Initial Wayland support for the game launcher on Linux, switchable between X11 and Wayland at build or run time. Editor support waited for Qt6.
+
+o3de#19552
+Automated review gains a macOS build workflow and an iOS build workflow, the latter disabled until MiniAudio builds there.
+
+o3de#19573
+The Android automated review builds on Linux runners with Clang instead of Windows, with its profile, asset and Gradle jobs running in sequence like the other platforms.
+
+o3de#19597
+The Gradle job summary no longer crowds the automated review summary page; it appears only when the step fails.
+
+o3de#19599
+The bundled CMake is 4.2.3, carried over from the 26.05 stabilization branch.
+
+o3de#19606
+The chardet package is dropped; requests uses charset-normalizer instead.
+
+o3de#19607
+O3DE builds on macOS with a standard LLVM Clang, not only AppleClang; the SDK sysroot is detected through xcrun for non-Apple compilers.
+
+o3de#19610
+RecastNavigation's third-party integration follows the same FetchContent pattern as every other dependency.
+
+o3de#19618
+GoogleTest always builds as a static library; another package was switching shared libraries on globally, which broke the second configure.
+
+o3de#19620
+A Linux-only failing test runs serially so that several Asset Processors are not launched at once; it now takes 5 seconds rather than 90.
+
+o3de#19622
+FetchContent third-party dependencies download archives into a cache shared across build configurations instead of cloning each one per configuration, and patch with patch-ng.
+
+o3de#19626
+Assimp compiles with MSVC again; its always-true expression warning is disabled for that target.
+
+o3de#19649
+The GEM_SHARED linking option works again in ly_add_target, and a wrong number of linking options produces a clearer error.
+
+o3de#19666
+RecastNavigation's include directories use the upstream capitalisation, so the engine builds on case-sensitive file systems.
+
+o3de#19716
+Linux automated review builds with Clang 18 and GCC 13, and a nightly canary workflow tests upcoming compilers and runner images across every platform before they break the main review.
+
+o3de#19748
+Two warnings that Clang 21 promotes to errors, deprecated volatile and character conversion, no longer fail the build, so the engine compiles with the Clang shipped by current Linux distributions.
+
+o3de#19794
+The Open Export Settings window no longer depends on the deprecated and often missing tkinter.tix package.
+
+o3de#19796
+The Linux .deb and Snap packages declare the Tk runtime and other system packages that the Project Manager's per-project tools need, so those tools work on a clean install.
+
+o3de#19812
+A duplicated no-fast-math flag that leaked a stray PRIVATE token into GCC's command line is removed.
+
+o3de#19847
+PySide6 moves to 6.10.2.
+
+o3de#19849
+Editing an AutoComponent XML or Jinja file triggers only the autogen step at build time, not a full CMake regenerate.
+
+o3de#19857
+The Android NDK moves from r25 to r27d, bringing Clang 18 and a newer libc++ that the AZStd modernisation needs.
+
+o3de#19867
+CMake configuration with Qt6 on Windows no longer fails on mismatched drive letter casing in paths read from configuration files.
+
+o3de#19903
+An engine named in a project's user settings is used as given, instead of being re-validated by engine discovery and failing in surprising ways.
+
+o3de#19914
+expat moves to 2.7.3, restoring the missing Mac package.
+
+o3de#19915
+PySide6 stays an editable install on installed engines; a plain copy install left out its native modules and imports failed.
+
+o3de#19924
+The engine builds under C++23 and C++26 as well as the default standard.
+
+o3de#19940
+The Asset Processor no longer scans a custom build directory whose name does not match its built-in pattern, which made it slow and noisy under CLion.
+
+o3de#19941
+FetchContent downloads keep their file extension in the cache so CMake knows how to extract them.
+
+o3de#19948
+GitPython and urllib3 in the Python requirements move to versions without known vulnerabilities.
+
+o3de#19950
+o3de.sh forwards its arguments with their quoting intact, so paths containing spaces or a tilde reach o3de.py correctly.
+
+o3de#19953
+The nightly schedule is removed from the canary workflow so the workflow can run in forks; nightly runs are triggered separately.
+
+o3de#19959
+Mac and iOS automated review no longer fail on too many environment variables.
+
+o3de#19967
+DirectXShaderCompiler moves to 1.8.2505.1.
+
+o3de#19970
+Editor.app and AssetProcessor.app launched outside Xcode no longer hit duplicate Qt library conflicts.
+
+o3de#19997
+FreeType moves to 2.11.1.
+
+o3de#20004
+macOS runners free disk space by removing unused Xcode installations and trimming the compiler cache, so Mac and iOS builds stop running out of space while restoring caches.
+
+o3de#20009
+The installed SDK no longer tries to copy a missing egg-link file, links assimp statically, and includes the motion blur asset.
+
+o3de#20069
+The shader builder launches the engine-built azslc from the binary directory instead of a duplicate copy that could not find its shared libraries.
+
+o3de#20070
+Monolithic builds link again; meshoptimizer was missing from them.
+
+o3de#20071
+Mac automated review fails at the real error when Xcode's post-build step fails, instead of a misleading "AssetProcessorBatch not found" later on.
+
+o3de#20093
+Keyboard shortcuts in the Action Manager are handled as shortcut events rather than key events, which could swallow a shortcut, and CI artifact caches are hardened.
+
+o3de#20131
+The macOS workflow no longer uploads its asset cache after a failed build, which had carried a broken cache into every following run.
+
+o3de#20135
+Third-party packages and LFS objects are fetched from o3debinaries.org endpoints in place of the previous CloudFront URLs.
+
+o3de-extras#1089
+A workflow builds and tests the simulation Gems on every pull request that touches them, against the engine at the matching branch.
