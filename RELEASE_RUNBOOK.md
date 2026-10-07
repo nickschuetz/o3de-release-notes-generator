@@ -334,9 +334,8 @@ gh api --paginate 'repos/o3de/o3de/issues?labels=need-sync/to-stabilization&stat
 
 The dangerous state is **merged but not yet cherry-picked**. Such a PR is in
 `development`, flagged as release content, and absent from the notes. As of
-2026-10-01 that is ten PRs, all merged after the Sep 16 freeze and so needing an
-exception: `#20119`, `#20126`, `#20127`, `#20130`, `#20131`, `#20138`, `#20146`,
-`#20147`, `#20148`, `#20158`. When a cherry-pick lands, the label is swapped for
+2026-10-07 that is nothing: the fourth pass `#20180` landed the last ten that
+morning, on the day of the Critical-and-below freeze. When a cherry-pick lands, the label is swapped for
 `sync/to-stabilization`: 44 closed PRs carry that one, none carry both, so a
 merged PR still wearing `need-sync/to-stabilization` after its cherry-pick
 merged is a labelling miss, not a missing fix. Compare the two windows by PR

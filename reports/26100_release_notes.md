@@ -52,6 +52,7 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Fixes broken monolithic compile for meshoptimizer: Fixes issue https://github.com/o3de/o3de/issues/19962. [o3de#20070](https://github.com/o3de/o3de/pull/20070)
 - Fix intermittent Mac asset build staging failures: macOS asset jobs intermittently report:. [o3de#20071](https://github.com/o3de/o3de/pull/20071)
 - Fix shortcut event handling and harden CI artifact caches: Improves CI reliability in two places identified while investigating intermittent test failures. [o3de#20093](https://github.com/o3de/o3de/pull/20093)
+- CI: stop a broken macOS asset cache from propagating between runs. [o3de#20131](https://github.com/o3de/o3de/pull/20131)
 - Updates the package server URLs used for fetching third-party dependencies and LFS objects across multiple build workflows and configuration files. [o3de#20135](https://github.com/o3de/o3de/pull/20135)
 
 ## SIG-Content
@@ -131,6 +132,8 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Prefab: return a failure instead of crashing when InstantiatePrefab cannot load the file: Fixes #7957. Related to #2331. [o3de#20099](https://github.com/o3de/o3de/pull/20099)
 - Fix non-unity build: \`ReadOnlyEntityQueryInterface::RefreshReadOnlyState\` takes an \`AzToolsFramework::EntityIdList\` but the header never includes \`AzToolsFramework/Entity/EntityTypes.h\` that declares it. [o3de#20112](https://github.com/o3de/o3de/pull/20112)
 - Accounting for non-default 3p paths. Stronger bootstrapping, and clearer error reporting. -D 3P paths is not detectable as the only source of pyside, error describes clearly. [o3de#20117](https://github.com/o3de/o3de/pull/20117)
+- AzToolsFramework: initialize savedJobStatus in unfiltered product queries. [o3de#20126](https://github.com/o3de/o3de/pull/20126)
+- Class wizard editor template fix sept 2026. [o3de#20138](https://github.com/o3de/o3de/pull/20138)
 
 ## SIG-Core
 - Very similar to https://github.com/o3de/o3de-extras/pull/1062 - but for cmake in project template. [o3de-extras#1064](https://github.com/o3de/o3de-extras/pull/1064)
@@ -214,6 +217,10 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - fix(atom): move group barrier before early exit in SSS shader to prevent GPU deadlock: **_Summery:_** Relocates \`GroupMemoryBarrierWithGroupSync()\` in **\`ScreenSpaceSubsurfaceScatteringCS.azsl\`** so it executes before thread termination checks. [o3de#20036](https://github.com/o3de/o3de/pull/20036)
 - Fix hard edges at terrain detail layer boundaries with no macro material. [o3de#20049](https://github.com/o3de/o3de/pull/20049)
 - continuation of the effort from @wdstudiosma https://github.com/o3de/o3de/pull/20050. [o3de#20090](https://github.com/o3de/o3de/pull/20090)
+- Metal RHI: fix use-after-free in command buffer completion handler: Fixes random Editor crashes on macOS (Metal) when opening a level, in profile and debug builds. [o3de#20119](https://github.com/o3de/o3de/pull/20119)
+- Fixes shader compilation on macOS: every shader job fails with \`Executable not found: .../AssetProcessor.app/Contents/MacOS/azslc\` since #20069. [o3de#20127](https://github.com/o3de/o3de/pull/20127)
+- When using the motion blur component and set the sampling quality to ultra you can see how the viewport turns into green. Also makes sense when looking at the shader code.  Maybe someone knows more about this? I assume this is a accidentally committed debugging part. [o3de#20130](https://github.com/o3de/o3de/pull/20130)
+- Makes MiniAudio work in \`.UnifiedLauncher\` builds. [o3de#20158](https://github.com/o3de/o3de/pull/20158)
 
 ## SIG-Network
 - Update multiplayer template to fix compile issue with floats. [o3de-extras#1055](https://github.com/o3de/o3de-extras/pull/1055)
@@ -221,6 +228,9 @@ The O3DE 26.10.0 release includes bug fixes, performance enhancements, and new f
 - Security: Add bounds check on componentInputCount to prevent OOM DoS. [o3de#19677](https://github.com/o3de/o3de/pull/19677)
 - Fix AutoComponent jinja narrowing conversions for vector properties. [o3de#19879](https://github.com/o3de/o3de/pull/19879)
 - Fixes a server crash when running a level containing a Network Rigid Body Component. [o3de#19944](https://github.com/o3de/o3de/pull/19944)
+- Fixes #7536: any failed DTLS handshake crashes the process. [o3de#20146](https://github.com/o3de/o3de/pull/20146)
+- DTLS: process the ClientHello carried in the InitiateConnectionPacket (~1.3-2.3 s off every encrypted connect). [o3de#20147](https://github.com/o3de/o3de/pull/20147)
+- DTLS: never send an encrypted record cut; default net_SslInflationOverhead 64. [o3de#20148](https://github.com/o3de/o3de/pull/20148)
 
 ## SIG-Simulation
 - Bump libsdformat 13.5.0->16.0.1. [o3de-extras#1024](https://github.com/o3de/o3de-extras/pull/1024)
