@@ -50,8 +50,9 @@ the `--exclude-json` source for the next cycle, and deleting it does not fail
 loudly: the run succeeds and silently re-publishes the previous release's
 content. The rendered `*_release_notes.md` and `*_pointrelease_audit.md` from
 closed cycles are outputs, not inputs, and can be pruned once the notes are
-published to docs.o3de.org, which is their canonical home. Hint files under
-`reports/hints/` are reused across cycles for narrative continuity; keep them.
+published to docs.o3de.org, which is their canonical home. Narrative drafts and hint files under
+`reports/hints/` are reused across cycles for continuity; keep them. The
+hand-written bullets under `reports/overrides/` are this cycle's editing log.
 
 Spring releases (`xx.05.0`) are gaming-themed; fall releases (`xx.10.0`) are
 robotics-themed. That shapes the narrative summary, not the tooling.
@@ -298,9 +299,10 @@ python release_notes.py render \
 Keep a hint file per cycle under `reports/hints/` so the theme and tone stay
 stable across mid-cycle re-runs. 26.10.0 is a robotics-themed fall release.
 
-Always read the generated narrative before publishing. It is model output
+Always read a generated narrative before publishing. It is model output
 derived from untrusted PR titles; tag-like `<` is escaped so it cannot inject
-raw HTML, but nothing validates the claims it makes.
+raw HTML, but nothing validates the claims it makes. Once it is edited and
+approved, save it as a file and switch to `--summary-file`.
 
 ## 7. Cherry-pick audit
 

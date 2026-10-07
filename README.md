@@ -69,7 +69,9 @@ o3de-release-notes-generator/
 │   ├── 26100_release_data.json     # 26.10.0 working draft
 │   ├── 26100_release_notes.md      # 26.10.0 rendered draft
 │   ├── 26100_release_notes_cherrypick_audit.md
-│   └── hints/                      # Reusable --summary-hint files
+│   ├── 26100_release_notes_sig_review.md
+│   ├── overrides/                  # Hand-written bullets per SIG, applied by apply.py
+│   └── hints/                      # Narrative drafts (--summary-file) and LLM hints (--summary-hint)
 ├── .github/
 │   └── workflows/
 │       ├── sbom.yml                # Auto-regenerates SBOM on push
@@ -244,6 +246,20 @@ Each repo runs `git log` against its own local clone. The `--default-repo-path` 
 
 **Not every repo is tagged on every release line.** `o3de/o3de` carries `2605.0`, but `o3de/o3de-extras` does not, so a single global `--from-ref 2605.0` cannot resolve there. Use `--repo-from-ref owner/repo=REF` to give that repo its own starting point (`--repo-to-ref` does the same for the end of the range). A preflight check resolves every `(repo, ref)` pair before any work starts and fails with an actionable message rather than aborting part-way through a run.
 
+### Render with a hand-written narrative
+
+The narrative at the top of the report is best written by a person. Keep it in a Markdown file and name it with `--summary-file`:
+
+```bash
+python release_notes.py render \
+  --input-json reports/26100_release_data.json \
+  --output-md reports/26100_release_notes.md \
+  --release-version 26.10.0 \
+  --summary-file reports/hints/26100_summary_draft.md
+```
+
+The file's text replaces the `<!-- TODO -->` placeholder, and because it is read on every run, editing the file and re-rendering is all it takes to change the narrative; nothing is lost when the data is regenerated. `--summary-file` works on `generate` too and takes precedence over `--generate-summary`. The file is capped at 64 KB and gets the same tag escaping as model output, so a `<` in prose cannot become HTML on the published page.
+
 ### Generate with automated narrative summary
 
 ```bash
@@ -395,7 +411,7 @@ and new features across the engine.
 - ...
 ```
 
-The `<!-- TODO -->` placeholder is replaced with a real narrative when `--generate-summary` is used. A complete sample run is checked in under [`reports/`](reports/) (one full release; refresh manually as desired).
+The `<!-- TODO -->` placeholder is replaced with a real narrative when `--summary-file` or `--generate-summary` is used. A complete sample run is checked in under [`reports/`](reports/) (one full release; refresh manually as desired).
 
 ## Excluding the Previous Release
 
@@ -495,7 +511,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 8,
-    "tool_version": "0.15.0-beta",
+    "tool_version": "0.15.1-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -696,6 +712,8 @@ To **adjust** an existing SIG's heuristics, edit `SIG_TITLE_KEYWORDS` and/or `SI
 > **Determinism note:** When a PR has multiple SIG labels, or its title hits keywords in multiple SIGs, the SIG that comes earliest in `SIG_CANONICAL_ORDER` wins. This guarantees the same PR is categorized the same way on every run, regardless of label order from the GitHub API or dict iteration order.
 
 ## Narrative Summary Generation
+
+There are two ways to fill the narrative slot. `--summary-file` takes a Markdown file written by a person, which is how the 26.10.0 notes are produced. `--generate-summary` asks an LLM for a draft, which is useful as a starting point. When both are given, the file wins.
 
 When `--generate-summary` is enabled, the tool builds a structured prompt from the categorized PR data and sends it to a configurable LLM command.
 
