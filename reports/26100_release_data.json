@@ -190,7 +190,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Vulkan result assertions are now a macro, so a failure is reported at the line of the call rather than inside a helper."
     },
     {
       "files_truncated": true,
@@ -397,7 +397,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Per-mesh and per-material info move from the ray tracing feature processor into the general mesh feature processor, so shaders other than ray tracing hit shaders can read scene geometry and material data."
     },
     {
       "files_truncated": false,
@@ -486,7 +486,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Ground Truth Ambient Occlusion is available as an alternative to SSAO, following the SIG-Graphics-Audio RFC, with the spatial filter and multi-bounce approximation and without a temporal filter."
     },
     {
       "files_truncated": false,
@@ -510,7 +510,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Atom hair renders again: the PPLL fill fragment shader returns a colour instead of void, which the shader builder rejected."
     },
     {
       "files_truncated": false,
@@ -539,7 +539,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Vertex and index buffers can be stored compressed with meshoptimizer, as a proof of concept."
     },
     {
       "files_truncated": true,
@@ -898,7 +898,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Unused TressFX source files that no target built are removed from the AtomTressFX Gem."
     },
     {
       "files_truncated": false,
@@ -1534,7 +1534,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "MotionMatching debug drawing is off by default; it cost a great deal of performance and can be switched on when needed."
     },
     {
       "files_truncated": false,
@@ -1603,7 +1603,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ImGui pass tree view can hide disabled passes and shows each pass's draw list name."
     },
     {
       "files_truncated": false,
@@ -1947,7 +1947,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The MotionMatching Script Canvas demo files are migrated to current node types and open again."
     },
     {
       "files_truncated": false,
@@ -2204,7 +2204,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Unlit materials gain cutout and blended opacity modes, double-sided rendering, optional shadow casting and an optional billboard mode."
     },
     {
       "files_truncated": false,
@@ -2225,7 +2225,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "imgui.ini files are ignored by git."
     },
     {
       "files_truncated": false,
@@ -2271,7 +2271,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The RPI Python tooling works on Python 3.14, which removed sqlite3.version."
     },
     {
       "files_truncated": false,
@@ -2325,7 +2325,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Stars component's exposure, radius factor and twinkle rate can be read and set from the EBus and from scripts."
     },
     {
       "files_truncated": false,
@@ -2349,7 +2349,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Opaque Unlit materials render through their own shader path, which removes the white edge artifacts the shared path produced."
     },
     {
       "files_truncated": false,
@@ -2370,7 +2370,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Stars component rejects negative values passed to its new setters."
     },
     {
       "files_truncated": false,
@@ -2881,7 +2881,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "DetourCrowd from Recast Navigation is now available: a component that steers agents with collision avoidance between them and smooth movement, usable from C++ and Script Canvas."
     },
     {
       "files_truncated": false,
@@ -2903,7 +2903,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "FlyCameraInputComponent accumulates mouse deltas across a frame, which removes choppy movement at high polling rates, and no longer uses Cry math types."
     },
     {
       "files_truncated": false,
@@ -3078,7 +3078,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "UV transforms on Vulkan work correctly: material parameters store the matrix as float4 rows instead of a float3x3, and shaders rebuild it."
     },
     {
       "files_truncated": false,
@@ -3129,7 +3129,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The PhysX 4 deprecation is complete. Projects that reference the Gem by its old name resolve to PhysX 5 through a gem alias."
     },
     {
       "files_truncated": false,
@@ -3164,7 +3164,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Editor tools built with Wayland enabled can force the XCB platform plugin through a CVar instead of crashing."
     },
     {
       "files_truncated": false,
@@ -3185,7 +3185,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "MotionMatching Gem initialisation uses parallel_for, avoiding a deadlock in the Jobs-based path on machines with few worker threads."
     },
     {
       "files_truncated": false,
@@ -3290,7 +3290,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Microphone Gem depends on libsamplerate only on platforms whose implementation uses it."
     },
     {
       "files_truncated": false,
@@ -3347,7 +3347,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The remaining PhysX 4 debug code, references and the upgrade script are removed."
     },
     {
       "files_truncated": false,
@@ -3508,7 +3508,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Particle assets declare their material dependency by path, so on a cold cache the Asset Processor builds the material before the particle."
     },
     {
       "files_truncated": false,
@@ -3635,7 +3635,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Every reflected field of the physics ColliderConfiguration can now have its Editor visibility set, including Tag and the rest and contact offsets, so other physics engines can hide what they do not use."
     },
     {
       "files_truncated": false,
@@ -3722,7 +3722,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Particles no longer crash the GPU on the low-end render pipeline, and mesh particles render per instance through a structured buffer."
     },
     {
       "files_truncated": false,
@@ -3769,7 +3769,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Material component gains a secondary variable list keyed by the mesh's material slot labels, so generated prefabs can bind materials without knowing slot order."
     },
     {
       "files_truncated": false,
@@ -3818,7 +3818,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Sampler state material property values serialise to and from JSON; the case had been missing since the type was added."
     },
     {
       "files_truncated": false,
@@ -3999,7 +3999,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Ribbon particles no longer overflow their vertex and index buffers, and a stopped particle can be played again."
     },
     {
       "files_truncated": false,
@@ -4045,7 +4045,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a dangling string pointer that GCC warned about."
     },
     {
       "files_truncated": false,
@@ -4210,7 +4210,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The engine builds against system libtiff 4.5 and newer, whose legacy typedefs collided with CryCommon's."
     },
     {
       "files_truncated": false,
@@ -4233,7 +4233,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "PhysX enhanced determinism can be enabled per scene, through SceneConfiguration or the Editor's PhysX configuration. It is off by default."
     },
     {
       "files_truncated": false,
@@ -4284,7 +4284,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed a reference to a dangling temporary iterator that GCC warned about."
     },
     {
       "files_truncated": false,
@@ -4683,7 +4683,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Particle systems preload their material asset so it is ready when the system activates on level load."
     },
     {
       "files_truncated": false,
@@ -5206,7 +5206,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "meshoptimizer moves to 1.2; the sparse and lock-border LOD options meant for meshlets are removed."
     },
     {
       "files_truncated": false,
@@ -5887,7 +5887,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Tidied an import and an unreachable return in the RPI Python utilities."
     },
     {
       "files_truncated": false,
@@ -6299,7 +6299,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": "sig/graphics-audio",
-      "manual_override_description": null
+      "manual_override_description": "Track View no longer deletes keyframe 1 when keyframe 0 is selected for removal on a compound spline track."
     },
     {
       "files_truncated": false,
@@ -6690,7 +6690,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Unlit shader inputs are refactored; tiled UVs behave correctly again and the shader uses the standard fallback draw SRG."
     },
     {
       "files_truncated": false,
@@ -6736,7 +6736,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The LyShine editor no longer crashes at startup when Qt lays out a zero-size viewport, which made Vulkan swapchain creation fail."
     },
     {
       "files_truncated": false,
@@ -6802,7 +6802,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed an assert and undefined behaviour in the Audio Controls writer, which modified set elements in place."
     },
     {
       "files_truncated": false,
@@ -6824,7 +6824,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Changing the audio language no longer leaves a dangling pointer in the file cache that broke subsequent loads, and the Audio Controls Editor shows custom connection property widgets."
     },
     {
       "files_truncated": false,
@@ -7075,7 +7075,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "D3D12MemoryAllocator is fetched with FetchContent instead of shipped as a package."
     },
     {
       "files_truncated": false,
@@ -7154,7 +7154,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Cutout Unlit materials are no longer darkened by SSAO, and blended Unlit materials no longer cast fully opaque shadows."
     },
     {
       "files_truncated": false,
@@ -7489,7 +7489,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The AZSL shader compiler now lives in the engine source tree and builds as a host tool, instead of arriving as a prebuilt package per platform.",
       "recovered_from_container": 20123
     },
     {
@@ -7594,7 +7594,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "A pass with nothing to submit no longer produces zero command lists on DX12, Vulkan and Metal, which violated the execution group's minimum."
     },
     {
       "files_truncated": false,
@@ -7617,7 +7617,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Metal no longer corrupts output when a render scope has no draw items but must still clear or resolve a colour attachment."
     },
     {
       "files_truncated": false,
@@ -7641,7 +7641,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The screen-space subsurface scattering shader no longer deadlocks the GPU on hardware such as Intel Iris Xe; its group barrier now runs before any thread exits early."
     },
     {
       "files_truncated": false,
@@ -7666,7 +7666,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Terrain detail layers blend correctly at their falloff edges when there is no macro material, instead of switching hard between materials.",
       "recovered_from_container": 20123
     },
     {
@@ -7715,7 +7715,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "ArticulationLink computes its inertia tensor automatically from mass and shape, removing a large discrepancy in joint-chain behaviour between O3DE and Isaac Sim.",
       "recovered_from_container": 20140
     },
     {
@@ -7901,7 +7901,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Decals render on metallic surfaces, the decal texture array cap rises from 5 to 16, decals gain a maximum draw distance, and the diffuse probe grid shaders are recompiled.",
       "recovered_from_container": 20123
     },
     {
@@ -8191,7 +8191,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Fixed random Editor crashes on macOS when opening a level, caused by a Metal command buffer completion handler writing into a freed frame object."
     },
     {
       "files_truncated": true,
@@ -8369,7 +8369,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Shader compilation works on macOS again: azslc is staged inside the Asset Processor bundle where the shader builder looks for it."
     },
     {
       "files_truncated": false,
@@ -8393,7 +8393,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The viewport no longer turns green with the motion blur component at ultra sampling quality."
     },
     {
       "files_truncated": false,
@@ -8617,7 +8617,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "MiniAudio works in unified launcher builds."
     },
     {
       "files_truncated": false,
@@ -8714,7 +8714,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "libsdformat moves from 13.5.0 to 16.0.1.",
       "recovered_from_container": 1093
     },
     {
@@ -8738,7 +8738,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Panda robot prefab spawns at rest instead of rocking, by starting its articulation in the initial pose."
     },
     {
       "files_truncated": false,
@@ -8765,7 +8765,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "ROS 2 manipulation components and controllers use fully namespaced joint names throughout, with better joint configuration and import fixes."
     },
     {
       "files_truncated": false,
@@ -8786,7 +8786,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "ROS2FrameComponent again normalises a namespace name when needed; the call had been lost in a refactor."
     },
     {
       "files_truncated": false,
@@ -8812,7 +8812,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "SimulationInterfaces supports the SpawnEntities service, spawning several entities in one call."
     },
     {
       "files_truncated": false,
@@ -8842,7 +8842,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "SimulationInterfaces rejects an invalid pose in spawn requests instead of producing undefined results such as a scaled object."
     },
     {
       "files_truncated": false,
@@ -8871,7 +8871,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "SimulationInterfaces supports the 2.1.0 package that ships with ROS 2 Lyrical Luth, alongside 1.4.0, 1.5.0 and 1.6.0, selected at configure time."
     },
     {
       "files_truncated": false,
@@ -8895,7 +8895,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ROS 2 Gems build and test again against the engine's AZStd::move and AZStd::span changes."
     },
     {
       "files_truncated": false,
@@ -8918,7 +8918,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The Tracy profiler Gem moves to Tracy 0.13.1, fixing a compile error on Windows."
     },
     {
       "files_truncated": false,
@@ -8983,7 +8983,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "SimulationInterfaces runtime tests no longer link AzToolsFramework and Qt, which crashed them at load time in Conda environments carrying their own Qt."
     },
     {
       "files_truncated": false,
@@ -9075,7 +9075,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "SimulationInterfaces compiles against older simulation_interfaces packages that lack the INVALID_POSE result."
     },
     {
       "files_truncated": false,
@@ -9121,7 +9121,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Linking against the SimulationInterfaces API target no longer fails on a missing physics header."
     },
     {
       "files_truncated": false,
@@ -9147,7 +9147,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ROS 2 Gems build on ROS 2 Lyrical Luth, where TF broadcaster initialisation changed."
     },
     {
       "files_truncated": false,
@@ -9178,7 +9178,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The ROS 2 Editor targets no longer emit AUTOMOC warnings about missing Q_OBJECT macros."
     },
     {
       "files_truncated": false,
@@ -9223,7 +9223,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "GetFrameTransform is back on the public ROS2Frame EBus."
     },
     {
       "files_truncated": false,
@@ -9249,7 +9249,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "ROS 2 package dependencies are declared through O3DE's third-party convention, so they survive packaging a Gem for distribution.",
       "recovered_from_container": 1095
     },
     {
@@ -9293,7 +9293,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The ROS 2 camera can publish compressed images. The encoding conversion component lets you choose the conversion, converts 32-bit depth to mono16 or mono8, and the compression component falls back to a conversion at runtime when none is configured.",
       "recovered_from_container": 1095
     },
     {
@@ -9357,7 +9357,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "Files and functions in the Robot Importer named for URDF are renamed; the Gem has parsed SDF for some time."
     },
     {
       "files_truncated": false,
@@ -9379,7 +9379,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": "The extras Editor test targets build again after the engine removed the Legacy EditorCommon target."
     },
     {
       "files_truncated": false,
@@ -9451,7 +9451,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The Robot Importer's utility code is split into focused files for SDF queries, plugin queries and visitors, with unused functions and dependencies removed.",
       "recovered_from_container": 1093
     },
     {
@@ -9477,7 +9477,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "A notification bus reports entities spawned through the SimulationInterfaces services, so additional child entities can be registered without replacing the spawn handler.",
       "recovered_from_container": 1094
     },
     {
@@ -9527,7 +9527,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "All of the Robot Importer's parsing code, for SDF, URDF fixes and Xacro, lives in one Parsing folder, and each maker includes only the headers it uses.",
       "recovered_from_container": 1093
     },
     {
@@ -9572,7 +9572,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The Robot Importer's prefab-building code moves from a folder named URDF to Building, with the makers in their own subfolder.",
       "recovered_from_container": 1093
     },
     {
@@ -9596,7 +9596,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Entities spawned through SimulationInterfaces are removed explicitly before a level unloads; on 26.05 they survived a level restart.",
       "recovered_from_container": 1094
     },
     {
@@ -9639,7 +9639,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The Robot Importer tracks referenced assets and prefab build status through two new EBuses handled by an import session, instead of passing a map down through every layer.",
       "recovered_from_container": 1093
     },
     {
@@ -9661,7 +9661,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "SimulationInterfaces tests build with newer googletest, which rejects the deprecated Invoke wrapper.",
       "recovered_from_container": 1094
     },
     {
@@ -9684,7 +9684,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The ResetSimulation service treats its scope argument as a bitmask, so combinations of scopes reset correctly.",
       "recovered_from_container": 1094
     },
     {
@@ -9714,7 +9714,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "Duplicate asset detection and copying code in the Robot Importer's import paths is consolidated, and the wizard checks whether a source asset is already in the project before searching by content.",
       "recovered_from_container": 1093
     },
     {
@@ -9788,7 +9788,7 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null,
+      "manual_override_description": "The Tracy profiler Gem moves to Tracy 1.14.1 and marks the frame end at the RHI's end-of-frame event for more accurate frame times.",
       "recovered_from_container": 1095
     },
     {

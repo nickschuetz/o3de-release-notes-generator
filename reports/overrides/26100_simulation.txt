@@ -1,0 +1,112 @@
+# SIG-Simulation, 26.10.0
+
+o3de#19591
+MotionMatching debug drawing is off by default; it cost a great deal of performance and can be switched on when needed.
+
+o3de#19613
+The MotionMatching Script Canvas demo files are migrated to current node types and open again.
+
+o3de#19707
+DetourCrowd from Recast Navigation is now available: a component that steers agents with collision avoidance between them and smooth movement, usable from C++ and Script Canvas.
+
+o3de#19726
+The PhysX 4 deprecation is complete. Projects that reference the Gem by its old name resolve to PhysX 5 through a gem alias.
+
+o3de#19732
+MotionMatching Gem initialisation uses parallel_for, avoiding a deadlock in the Jobs-based path on machines with few worker threads.
+
+o3de#19742
+The remaining PhysX 4 debug code, references and the upgrade script are removed.
+
+o3de#19769
+Every reflected field of the physics ColliderConfiguration can now have its Editor visibility set, including Tag and the rest and contact offsets, so other physics engines can hide what they do not use.
+
+o3de#19826
+PhysX enhanced determinism can be enabled per scene, through SceneConfiguration or the Editor's PhysX configuration. It is off by default.
+
+o3de#20053
+ArticulationLink computes its inertia tensor automatically from mass and shape, removing a large discrepancy in joint-chain behaviour between O3DE and Isaac Sim.
+
+o3de-extras#1024
+libsdformat moves from 13.5.0 to 16.0.1.
+
+o3de-extras#1025
+The Panda robot prefab spawns at rest instead of rocking, by starting its articulation in the initial pose.
+
+o3de-extras#1034
+ROS 2 manipulation components and controllers use fully namespaced joint names throughout, with better joint configuration and import fixes.
+
+o3de-extras#1037
+ROS2FrameComponent again normalises a namespace name when needed; the call had been lost in a refactor.
+
+o3de-extras#1039
+SimulationInterfaces supports the SpawnEntities service, spawning several entities in one call.
+
+o3de-extras#1040
+SimulationInterfaces rejects an invalid pose in spawn requests instead of producing undefined results such as a scaled object.
+
+o3de-extras#1044
+SimulationInterfaces supports the 2.1.0 package that ships with ROS 2 Lyrical Luth, alongside 1.4.0, 1.5.0 and 1.6.0, selected at configure time.
+
+o3de-extras#1045
+The ROS 2 Gems build and test again against the engine's AZStd::move and AZStd::span changes.
+
+o3de-extras#1046
+The Tracy profiler Gem moves to Tracy 0.13.1, fixing a compile error on Windows.
+
+o3de-extras#1051
+SimulationInterfaces runtime tests no longer link AzToolsFramework and Qt, which crashed them at load time in Conda environments carrying their own Qt.
+
+o3de-extras#1056
+SimulationInterfaces compiles against older simulation_interfaces packages that lack the INVALID_POSE result.
+
+o3de-extras#1059
+Linking against the SimulationInterfaces API target no longer fails on a missing physics header.
+
+o3de-extras#1061
+The ROS 2 Gems build on ROS 2 Lyrical Luth, where TF broadcaster initialisation changed.
+
+o3de-extras#1062
+The ROS 2 Editor targets no longer emit AUTOMOC warnings about missing Q_OBJECT macros.
+
+o3de-extras#1065
+GetFrameTransform is back on the public ROS2Frame EBus.
+
+o3de-extras#1066
+ROS 2 package dependencies are declared through O3DE's third-party convention, so they survive packaging a Gem for distribution.
+
+o3de-extras#1067
+The ROS 2 camera can publish compressed images. The encoding conversion component lets you choose the conversion, converts 32-bit depth to mono16 or mono8, and the compression component falls back to a conversion at runtime when none is configured.
+
+o3de-extras#1068
+Files and functions in the Robot Importer named for URDF are renamed; the Gem has parsed SDF for some time.
+
+o3de-extras#1069
+The extras Editor test targets build again after the engine removed the Legacy EditorCommon target.
+
+o3de-extras#1070
+The Robot Importer's utility code is split into focused files for SDF queries, plugin queries and visitors, with unused functions and dependencies removed.
+
+o3de-extras#1071
+A notification bus reports entities spawned through the SimulationInterfaces services, so additional child entities can be registered without replacing the spawn handler.
+
+o3de-extras#1072
+All of the Robot Importer's parsing code, for SDF, URDF fixes and Xacro, lives in one Parsing folder, and each maker includes only the headers it uses.
+
+o3de-extras#1073
+The Robot Importer's prefab-building code moves from a folder named URDF to Building, with the makers in their own subfolder.
+
+o3de-extras#1074
+Entities spawned through SimulationInterfaces are removed explicitly before a level unloads; on 26.05 they survived a level restart.
+
+o3de-extras#1075
+The Robot Importer tracks referenced assets and prefab build status through two new EBuses handled by an import session, instead of passing a map down through every layer.
+
+o3de-extras#1076
+SimulationInterfaces tests build with newer googletest, which rejects the deprecated Invoke wrapper.
+
+o3de-extras#1078
+The ResetSimulation service treats its scope argument as a bitmask, so combinations of scopes reset correctly.
+
+o3de-extras#1085
+Duplicate asset detection and copying code in the Robot Importer's import paths is consolidated, and the wizard checks whether a source asset is already in the project before searching by content.
