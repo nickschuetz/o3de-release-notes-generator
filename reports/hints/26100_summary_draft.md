@@ -6,4 +6,12 @@ Rendering picks up **Ground Truth Ambient Occlusion** as an alternative to SSAO,
 
 Under the hood, the engine keeps trading custom code for the standard library: `AZStd::move`, `array`, `span` and `pair` now alias their `std` counterparts, SFINAE gives way to C++20 concepts across AZStd, the allocators are refactored and dlmalloc and nedmalloc are gone, and `AZ::Transform` shrinks from 48 to 32 bytes with SIMD-packed translation and scale. The Sandbox `IPlugin` system inherited from CryEngine is removed in favour of Gems, and the first pass of legacy Cry cleanup lands. The **Class Wizard** can target any project or Gem and build target, templates can inherit from one another, and a new **GameplayGem** template scaffolds component controllers. Builds move to CMake 4.2.3, Android NDK r27d with Clang 18, and FetchContent-based third-party dependencies that cache across configurations and patch with patch-ng. Automated review now covers iOS and Mac, runs Android on Linux, and a nightly canary tests upcoming compilers before they break anyone. Networking fixes a crash on failed DTLS handshakes, trims one to two seconds off every encrypted connect, and closes an out-of-memory denial of service from malformed client input.
 
+## Known issues
+
+- **The Editor can crash at startup under native Wayland on NVIDIA**, in the Vulkan surface-format query ([o3de#19835](https://github.com/o3de/o3de/issues/19835)). Running the Editor through XCB, which is the default, avoids it.
+- **DX12 can crash on shutdown** from a descriptor heap being released twice. Fixed in `development` ([o3de#20141](https://github.com/o3de/o3de/pull/20141)).
+- **Terrain can flicker on Vulkan** from bindless texture indexing; DX12 is not affected. A fix is in review for `development` ([o3de#20161](https://github.com/o3de/o3de/pull/20161)).
+
+## Thanks
+
 Thank you to everyone who contributed code, reviews, issues, testing and discussion to 26.10.0. The full list of changes, grouped by SIG, follows below.
