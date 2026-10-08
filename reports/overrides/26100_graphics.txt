@@ -137,3 +137,6 @@ MiniAudio works in unified launcher builds.
 
 o3de-extras#1090
 The Tracy profiler Gem moves to Tracy 1.14.1 and marks the frame end at the RHI's end-of-frame event for more accurate frame times.
+
+o3de#20179
+Spawning and despawning entities no longer freezes the simulation at random; streaming-image upload callbacks notify their owner through a per-image notification instead of holding a pointer that could deadlock against texture release.
