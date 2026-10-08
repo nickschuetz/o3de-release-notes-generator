@@ -30,6 +30,8 @@ never see.
 
 ## o3de/o3de
 
+- **#20199**: Cherrypick #20179 (Streaming Image Intrusive Ptr) to Stabilization/26100 _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #20179: present in the rendered report
 - **#20140**: Support automatic inertia calculation in ArticulationLink (#20053) _(bundled PRs read from the PR's commit list on GitHub)_
   - ✓ #20053: present in the rendered report, recovered from this container
 - **#20180**: Cherrypicks from development to stabilization _(merge commit: each picked commit keeps its own PR number)_
@@ -156,4 +158,4 @@ never see.
 
 ---
 
-**Summary:** 22 container(s) checked, 95 bundled PR reference(s) parsed: 48 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
+**Summary:** 23 container(s) checked, 96 bundled PR reference(s) parsed: 49 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
