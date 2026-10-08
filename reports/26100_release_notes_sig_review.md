@@ -1,6 +1,6 @@
 # SIG placement review for 26.10.0
 
-97 of 255 entries in the report were placed under a SIG by a guess rather than by a `sig/*` label on the pull request. Measured against labelled pull requests, roughly three guesses in four agree with the label, so some of these are under the wrong heading.
+94 of 255 entries in the report were placed under a SIG by a guess rather than by a `sig/*` label on the pull request. Measured against labelled pull requests, roughly three guesses in four agree with the label, so some of these are under the wrong heading.
 
 To correct one, either:
 
@@ -13,7 +13,7 @@ Nothing in this file is published. It is regenerated on every run.
 
 _None._
 
-## Check these first (23)
+## Check these first (22)
 
 The evidence is thin: a tie, a title keyword with no file to back it, a winner that owns under 60% of the files that matched anything, or a title that points to a different SIG than the files do.
 
@@ -25,7 +25,6 @@ The evidence is thin: a tie, a title keyword with no file to back it, a winner t
 | [o3de#19593](https://github.com/o3de/o3de/pull/19593) | Fix Wignored-attributes warnings | SIG-Content | file map: 1 of 2 files (also core 1); tie, settled alphabetically |
 | [o3de#19734](https://github.com/o3de/o3de/pull/19734) | libtiff: migrate legacy typedefs to C99 standard types | SIG-Content | file map: 1 of 2 files (also graphics-audio 1); tie, settled alphabetically |
 | [o3de#19934](https://github.com/o3de/o3de/pull/19934) | Reflect SmoothCriticallyDamped function for scripting and add SmoothStep | SIG-Content | file map: 16 of 27 files (also simulation 11); the title suggests core |
-| [o3de#20126](https://github.com/o3de/o3de/pull/20126) | AzToolsFramework: initialize savedJobStatus in unfiltered product queries | SIG-Content | file map: 1 of 1 files; the title suggests core |
 | [o3de#19801](https://github.com/o3de/o3de/pull/19801) | Fix Linux gamepad support when only the libevdev runtime is installed | SIG-Core | file map: 1 of 1 files; the title suggests platform |
 | [o3de#19856](https://github.com/o3de/o3de/pull/19856) | Fixes network-related crashes during Init of entities and dangling child entities | SIG-Core | file map: 4 of 7 files (also content 2, network 1); the title suggests network |
 | [o3de#19870](https://github.com/o3de/o3de/pull/19870) | Mac fix lrelease rpath | SIG-Core | file map: 1 of 1 files; the title suggests platform |
@@ -43,7 +42,7 @@ The evidence is thin: a tie, a title keyword with no file to back it, a winner t
 | [o3de-extras#1076](https://github.com/o3de/o3de-extras/pull/1076) | Fix deprecated gmock Invoke() usage in SimulationInterfaces tests | SIG-Simulation | file map: 1 of 1 files; the title suggests testing |
 | [o3de-extras#1085](https://github.com/o3de/o3de-extras/pull/1085) | Refactor of RobotImporter asset detection and copying - deduplication across diffrent import method. | SIG-Simulation | title keyword only ("robot"); no changed file is owned by a SIG |
 
-## Placed by file ownership (74)
+## Placed by file ownership (72)
 
 One SIG clearly owns most of the changed files. Usually right; wrong when the change belongs to a different SIG than the code it touches, such as a build fix inside editor code.
 
@@ -101,13 +100,11 @@ One SIG clearly owns most of the changed files. Usually right; wrong when the ch
 | [o3de#19994](https://github.com/o3de/o3de/pull/19994) | Fix Cutout SSAO Artifacts and Blended Shadows in the Unlit Shader | SIG-Graphics-Audio | file map: 5 of 5 files |
 | [o3de#20034](https://github.com/o3de/o3de/pull/20034) | Fix Metal color clears for render scopes without draw work | SIG-Graphics-Audio | file map: 1 of 1 files |
 | [o3de#20090](https://github.com/o3de/o3de/pull/20090) | Decal issue fixes (ported from @wdstudiosma, supercedes #20050) | SIG-Graphics-Audio | file map: 49 of 54 files (also content 3) |
-| [o3de#20127](https://github.com/o3de/o3de/pull/20127) | Atom: stage azslc inside the AssetProcessor bundle on macOS | SIG-Graphics-Audio | file map: 1 of 1 files |
 | [o3de#20158](https://github.com/o3de/o3de/pull/20158) | Include MiniAudio in unified launcher builds | SIG-Graphics-Audio | file map: 1 of 1 files |
 | [o3de#19879](https://github.com/o3de/o3de/pull/19879) | Fix AutoComponent jinja narrowing conversions for vector properties | SIG-Network | file map: 1 of 1 files |
 | [o3de#19944](https://github.com/o3de/o3de/pull/19944) | Fix server crash by disconnecting NetworkRigidBody handlers on deactivate | SIG-Network | file map: 1 of 1 files |
 | [o3de#20146](https://github.com/o3de/o3de/pull/20146) | Fix crash when a DTLS handshake fails (DtlsEndpoint::PerformHandshakeInternal) | SIG-Network | file map: 1 of 1 files |
 | [o3de-extras#1055](https://github.com/o3de/o3de-extras/pull/1055) | Update multiplayer template to fix compile issue with floats. | SIG-Network | CODEOWNERS: 2 of 3 files |
-| [o3de-extras#1057](https://github.com/o3de/o3de-extras/pull/1057) | Update multiplayer template to fix compile issue with floats. | SIG-Network | CODEOWNERS: 2 of 3 files |
 | [o3de#19707](https://github.com/o3de/o3de/pull/19707) | Add DetourCrowd from recastnavigation | SIG-Simulation | file map: 14 of 14 files |
 | [o3de#19726](https://github.com/o3de/o3de/pull/19726) | PhysX4 Deprecation | SIG-Simulation | file map: 23 of 31 files (also core 4, content 3, build 1) |
 | [o3de#19742](https://github.com/o3de/o3de/pull/19742) | Continuation of PhysX4 removal | SIG-Simulation | file map: 10 of 12 files (also build 1, core 1) |
