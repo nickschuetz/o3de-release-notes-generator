@@ -1,0 +1,60 @@
+# Pull requests left out of the 26.10.0 notes. Each is a real change on the
+# branch but not a change from 26.05.0: the thing it fixes was broken by
+# another pull request inside this window, so a user coming from the previous
+# release sees no difference. The breaking PR is named in each reason and was
+# checked to be in the window. When the thing fixed was broken in 26.05.0 too,
+# the entry stays in the notes (for example o3de-extras#1059, #1076, #1037).
+
+exclude o3de-extras#1045
+Fixes the extras build after the engine's AZStd::move and AZStd::span changes (o3de#19585, o3de#19581), both in this window.
+
+exclude o3de-extras#1069
+Fixes the extras build after o3de#19951 removed the Legacy::EditorCommon target, in this window.
+
+exclude o3de-extras#1056
+Compatibility fix for the INVALID_POSE support added by o3de-extras#1040 in this window; 26.05.0 already built against simulation_interfaces 1.5.0.
+
+exclude o3de-extras#1062
+Removes AUTOMOC warnings that appeared with the Qt 6 move (o3de#19567), in this window.
+
+exclude o3de-extras#1064
+Removes AUTOMOC and AUTORCC from the project template, a follow-up to the Qt 6 move (o3de#19567), in this window.
+
+exclude o3de#19995
+Restores the ground plane asset after o3de#19952 renamed its folder and changed its ID, in this window.
+
+exclude o3de#20112
+Non-unity build fix for a missing include exposed by o3de#19993, in this window.
+
+exclude o3de#19852
+Restores the lrelease rpath that the Qt 6 merge (o3de#19567) dropped, in this window.
+
+exclude o3de#19870
+Mac counterpart of o3de#19852; restores what the Qt 6 merge (o3de#19567) dropped, in this window.
+
+exclude o3de#19867
+CMake configuration fix for the Qt 6 scripts (o3de#19567), in this window.
+
+exclude o3de#19896
+Fixes widget styling regressions introduced by the Qt 6 move (o3de#19567), in this window.
+
+exclude o3de#19978
+Fixes node palette crashes introduced by the Qt 6 move (o3de#19567), in this window.
+
+exclude o3de#19871
+Adds a header Qt 6 no longer includes transitively and removes the warnings the move (o3de#19567) produced, in this window.
+
+exclude o3de#19941
+Fixes the FetchContent cache file name introduced by o3de#19622, in this window.
+
+exclude o3de#19926
+Fixes a viewport focus regression introduced by o3de#19688, in this window.
+
+exclude o3de#19915
+Narrows the change made by o3de#19752, in this window, so PySide6 still installs editable; the two together are one change.
+
+exclude o3de#20127
+Fixes macOS shader compilation broken by o3de#20069, in this window.
+
+exclude o3de#19979
+Fixes the in-place save regression introduced by o3de#19850, in this window; its author says so.

@@ -4551,7 +4551,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Translation assets build again on Linux: the Qt6 merge had dropped the rpath fix for lrelease, so libQt6Core was not found."
+      "manual_override_description": "Translation assets build again on Linux: the Qt6 merge had dropped the rpath fix for lrelease, so libQt6Core was not found.",
+      "manual_override_exclude": "Restores the lrelease rpath that the Qt 6 merge (o3de#19567) dropped, in this window."
     },
     {
       "files_truncated": false,
@@ -4706,7 +4707,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "CMake configuration with Qt6 on Windows no longer fails on mismatched drive letter casing in paths read from configuration files."
+      "manual_override_description": "CMake configuration with Qt6 on Windows no longer fails on mismatched drive letter casing in paths read from configuration files.",
+      "manual_override_exclude": "CMake configuration fix for the Qt 6 scripts (o3de#19567), in this window."
     },
     {
       "files_truncated": false,
@@ -4779,7 +4781,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Translation assets build on Mac after the same lrelease rpath fix as Linux."
+      "manual_override_description": "Translation assets build on Mac after the same lrelease rpath fix as Linux.",
+      "manual_override_exclude": "Mac counterpart of o3de#19852; restores what the Qt 6 merge (o3de#19567) dropped, in this window."
     },
     {
       "files_truncated": false,
@@ -4804,7 +4807,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Builds on Ubuntu 24.04 with Clang 18: a header Qt6 no longer includes transitively is added, and AUTOMOC and AUTORCC warnings are removed."
+      "manual_override_description": "Builds on Ubuntu 24.04 with Clang 18: a header Qt6 no longer includes transitively is added, and AUTOMOC and AUTORCC warnings are removed.",
+      "manual_override_exclude": "Adds a header Qt 6 no longer includes transitively and removes the warnings the move (o3de#19567) produced, in this window."
     },
     {
       "files_truncated": false,
@@ -5287,7 +5291,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Three further low-priority Qt6 regressions in widget styling are fixed."
+      "manual_override_description": "Three further low-priority Qt6 regressions in widget styling are fixed.",
+      "manual_override_exclude": "Fixes widget styling regressions introduced by the Qt 6 move (o3de#19567), in this window."
     },
     {
       "files_truncated": false,
@@ -5616,7 +5621,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "PySide6 stays an editable install on installed engines; a plain copy install left out its native modules and imports failed."
+      "manual_override_description": "PySide6 stays an editable install on installed engines; a plain copy install left out its native modules and imports failed.",
+      "manual_override_exclude": "Narrows the change made by o3de#19752, in this window, so PySide6 still installs editable; the two together are one change."
     },
     {
       "files_truncated": true,
@@ -5866,7 +5872,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Saving no longer leaves the Ctrl key stuck in the viewport; a focus guard added for committing Inspector edits failed to return focus."
+      "manual_override_description": "Saving no longer leaves the Ctrl key stuck in the viewport; a focus guard added for committing Inspector edits failed to return focus.",
+      "manual_override_exclude": "Fixes a viewport focus regression introduced by o3de#19688, in this window."
     },
     {
       "files_truncated": false,
@@ -6109,7 +6116,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "FetchContent downloads keep their file extension in the cache so CMake knows how to extract them."
+      "manual_override_description": "FetchContent downloads keep their file extension in the cache so CMake knows how to extract them.",
+      "manual_override_exclude": "Fixes the FetchContent cache file name introduced by o3de#19622, in this window."
     },
     {
       "files_truncated": false,
@@ -6849,7 +6857,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The node palette used by Script Canvas and Material Canvas no longer crashes when opened or filtered under Qt6, and two out-of-bounds reads are fixed."
+      "manual_override_description": "The node palette used by Script Canvas and Material Canvas no longer crashes when opened or filtered under Qt6, and two out-of-bounds reads are fixed.",
+      "manual_override_exclude": "Fixes node palette crashes introduced by the Qt 6 move (o3de#19567), in this window."
     },
     {
       "files_truncated": false,
@@ -6874,7 +6883,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Ctrl+S in Script Canvas saves in place again instead of opening Save As every time."
+      "manual_override_description": "Ctrl+S in Script Canvas saves in place again instead of opening Save As every time.",
+      "manual_override_exclude": "Fixes the in-place save regression introduced by o3de#19850, in this window; its author says so."
     },
     {
       "files_truncated": false,
@@ -7203,7 +7213,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The ground plane loads again after the folder rename changed its asset ID."
+      "manual_override_description": "The ground plane loads again after the folder rename changed its asset ID.",
+      "manual_override_exclude": "Restores the ground plane asset after o3de#19952 renamed its folder and changed its ID, in this window."
     },
     {
       "files_truncated": false,
@@ -8117,7 +8128,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Non-unity builds compile again after a missing include in the read-only entity interface."
+      "manual_override_description": "Non-unity builds compile again after a missing include in the read-only entity interface.",
+      "manual_override_exclude": "Non-unity build fix for a missing include exposed by o3de#19993, in this window."
     },
     {
       "files_truncated": false,
@@ -8371,7 +8383,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Shader compilation works on macOS again: azslc is staged inside the Asset Processor bundle where the shader builder looks for it."
+      "manual_override_description": "Shader compilation works on macOS again: azslc is staged inside the Asset Processor bundle where the shader builder looks for it.",
+      "manual_override_exclude": "Fixes macOS shader compilation broken by o3de#20069, in this window."
     },
     {
       "files_truncated": false,
@@ -8952,7 +8965,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The ROS 2 Gems build and test again against the engine's AZStd::move and AZStd::span changes."
+      "manual_override_description": "The ROS 2 Gems build and test again against the engine's AZStd::move and AZStd::span changes.",
+      "manual_override_exclude": "Fixes the extras build after the engine's AZStd::move and AZStd::span changes (o3de#19585, o3de#19581), both in this window."
     },
     {
       "files_truncated": false,
@@ -9132,7 +9146,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "SimulationInterfaces compiles against older simulation_interfaces packages that lack the INVALID_POSE result."
+      "manual_override_description": "SimulationInterfaces compiles against older simulation_interfaces packages that lack the INVALID_POSE result.",
+      "manual_override_exclude": "Compatibility fix for the INVALID_POSE support added by o3de-extras#1040 in this window; 26.05.0 already built against simulation_interfaces 1.5.0."
     },
     {
       "files_truncated": false,
@@ -9235,7 +9250,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The ROS 2 Editor targets no longer emit AUTOMOC warnings about missing Q_OBJECT macros."
+      "manual_override_description": "The ROS 2 Editor targets no longer emit AUTOMOC warnings about missing Q_OBJECT macros.",
+      "manual_override_exclude": "Removes AUTOMOC warnings that appeared with the Qt 6 move (o3de#19567), in this window."
     },
     {
       "files_truncated": false,
@@ -9256,7 +9272,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The ROS 2 project template no longer enables unused automoc and autorcc."
+      "manual_override_description": "The ROS 2 project template no longer enables unused automoc and autorcc.",
+      "manual_override_exclude": "Removes AUTOMOC and AUTORCC from the project template, a follow-up to the Qt 6 move (o3de#19567), in this window."
     },
     {
       "files_truncated": false,
@@ -9436,7 +9453,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The extras Editor test targets build again after the engine removed the Legacy EditorCommon target."
+      "manual_override_description": "The extras Editor test targets build again after the engine removed the Legacy EditorCommon target.",
+      "manual_override_exclude": "Fixes the extras build after o3de#19951 removed the Legacy::EditorCommon target, in this window."
     },
     {
       "files_truncated": false,
