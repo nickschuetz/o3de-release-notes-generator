@@ -4134,23 +4134,55 @@ class TestReadability:
         assert release_notes.readability_scores('Too short.') is None
         assert release_notes.readability_scores('') is None
 
-    def test_log_line_scores_narrative_and_full_list_separately(self, caplog):
+    @staticmethod
+    def _content():
         narrative = ' '.join(['The cat sat on the mat.'] * 6)
         bullets = '\n'.join(
             f'- Entry number {i} fixes the thing it says it fixes, as described in the request.'
             for i in range(6))
-        content = (f'# 26.10.0 Release Notes\n\n{narrative}\n\n'
-                   f'{release_notes.FULL_LIST_HEADING}\n\n## SIG-Core\n{bullets}\n')
+        return (f'# 26.10.0 Release Notes\n\n{narrative}\n\n'
+                f'{release_notes.FULL_LIST_HEADING}\n\n## SIG-Core\n{bullets}\n')
+
+    def test_report_scores_narrative_and_full_list_separately(self):
+        report = release_notes.readability_report(self._content(), has_narrative=True)
+        assert report['narrative'] and report['full_list']
+        assert report['narrative']['grade'] < report['full_list']['grade']
+        assert report['tool_version'] == release_notes.__version__
+        # The placeholder is not a narrative; scoring it would be misleading.
+        report = release_notes.readability_report(self._content(), has_narrative=False)
+        assert report['narrative'] is None and report['full_list']
+
+    def test_log_line_names_each_part_present(self, caplog):
+        report = release_notes.readability_report(self._content(), has_narrative=True)
         with caplog.at_level('INFO', logger='o3de.release_notes'):
-            release_notes.log_readability(content, has_narrative=True)
+            release_notes.log_readability(report)
         line = [r.message for r in caplog.records if 'Readability' in r.message][0]
         assert 'narrative grade' in line and 'full list grade' in line
         caplog.clear()
+        report['narrative'] = None
         with caplog.at_level('INFO', logger='o3de.release_notes'):
-            release_notes.log_readability(content, has_narrative=False)
+            release_notes.log_readability(report)
         line = [r.message for r in caplog.records if 'Readability' in r.message][0]
-        # The placeholder is not a narrative; scoring it would be misleading.
         assert 'narrative grade' not in line and 'full list grade' in line
+
+    def test_record_writes_only_when_changed(self, tmp_path):
+        path = tmp_path / 'd.json'
+        data = {'metadata': {'schema_version': release_notes.SCHEMA_VERSION}, 'pull_requests': []}
+        report = release_notes.readability_report(self._content(), has_narrative=True)
+        assert release_notes.record_readability(data, report, path) is True
+        stored = json.loads(path.read_text())['metadata']['readability']
+        assert stored == report
+        path.write_text('sentinel')
+        assert release_notes.record_readability(data, report, path) is False
+        assert path.read_text() == 'sentinel'
+
+    def test_record_failure_is_a_warning(self, tmp_path, caplog):
+        data = {'metadata': {}, 'pull_requests': []}
+        report = release_notes.readability_report(self._content(), has_narrative=True)
+        with mock.patch('release_notes.write_json_atomic', side_effect=OSError('disk')), \
+                caplog.at_level('WARNING', logger='o3de.release_notes'):
+            assert release_notes.record_readability(data, report, tmp_path / 'x.json') is False
+        assert any('Could not record readability' in r.message for r in caplog.records)
 
     def test_render_command_logs_the_line_without_changing_the_output(self, tmp_path, caplog):
         narrative = tmp_path / 'n.md'
@@ -4161,6 +4193,13 @@ class TestReadability:
         assert any('Readability' in r.message and 'narrative grade' in r.message
                    for r in caplog.records)
         assert 'Readability' not in (tmp_path / 'out.md').read_text()
+        # The score lands in the input JSON's metadata, next to the data it
+        # was measured on, so it is diffable from draft to draft.
+        stored = json.loads((tmp_path / 'in.json').read_text())['metadata']['readability']
+        assert stored['narrative']['words'] == 32
+        # One short bullet is under MIN_READABILITY_WORDS, so no full-list score.
+        assert stored['full_list'] is None
+        assert stored['tool_version'] == release_notes.__version__
 
 
 class TestSummaryFile:

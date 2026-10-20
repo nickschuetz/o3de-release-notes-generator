@@ -27,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.16.1-beta'
+__version__ = '0.16.2-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -2802,31 +2802,57 @@ def readability_scores(text: str) -> dict[str, float] | None:
     }
 
 
-def log_readability(content: str, has_narrative: bool) -> None:
-    """One INFO line with the narrative and the full list scored separately.
+def readability_report(content: str, has_narrative: bool) -> dict[str, Any]:
+    """Narrative and full list scored separately, plus the scoring tool version.
 
     Separately, because the full list carries type and function names that
     no rewording can simplify, and averaging the two would hide the narrative,
-    which is the part a person can improve. Informational only: the target is
-    a starting point, and a WARNING on every render would be ignored.
+    which is the part a person can improve. The narrative is None when the
+    report has only the placeholder, which is not prose anyone wrote.
     """
     head, sep, tail = content.partition(FULL_LIST_HEADING)
+    return {
+        'narrative': readability_scores(head) if has_narrative else None,
+        'full_list': readability_scores(tail) if sep else None,
+        'tool_version': __version__,
+    }
+
+
+def log_readability(report: dict[str, Any]) -> None:
+    """One INFO line. Informational only: the target is a starting point, and
+    a WARNING on every render would be ignored."""
     parts = []
-    if has_narrative:
-        narrative = readability_scores(head)
-        if narrative:
+    for key, label in (('narrative', 'narrative'), ('full_list', 'full list')):
+        scores = report.get(key)
+        if scores:
             parts.append(
-                f"narrative grade {narrative['grade']}, ease {narrative['ease']} "
-                f"({narrative['words']:.0f} words)"
+                f"{label} grade {scores['grade']}, ease {scores['ease']} "
+                f"({scores['words']:.0f} words)"
             )
-    full_list = readability_scores(tail) if sep else None
-    if full_list:
-        parts.append(
-            f"full list grade {full_list['grade']}, ease {full_list['ease']} "
-            f"({full_list['words']:.0f} words)"
-        )
     if parts:
         logger.info('Readability (Flesch-Kincaid, approximate): %s', '; '.join(parts))
+
+
+def record_readability(data: dict[str, Any], report: dict[str, Any], path: pathlib.Path) -> bool:
+    """Keep the score with the data it was measured on.
+
+    The log line scrolls away; `metadata.readability` in the release data JSON
+    is committed every cycle, so the score is diffable from draft to draft.
+    Written only when it changed, so an unchanged report leaves the file alone.
+    Returns whether the file was written. A failure is a warning, not an error:
+    the notes themselves were already written.
+    """
+    metadata = data.setdefault('metadata', {})
+    if metadata.get('readability') == report:
+        return False
+    metadata['readability'] = report
+    try:
+        write_json_atomic(data, path)
+    except OSError as e:
+        logger.warning('Could not record readability in %s: %s', path, e)
+        return False
+    logger.info('Recorded readability in %s', path)
+    return True
 
 
 def write_markdown_atomic(content: str, path: pathlib.Path) -> None:
@@ -3798,9 +3824,11 @@ def _run_render(args: argparse.Namespace) -> int:
         include_manual_excludes=include_manual_excludes,
     ))
 
-    log_readability(content, has_narrative=bool(summary))
+    readability = readability_report(content, has_narrative=bool(summary))
+    log_readability(readability)
 
     write_markdown_atomic(content, output_md)
+    record_readability(data, readability, input_json)
     logger.info('Wrote release notes to %s', output_md)
 
     return 0

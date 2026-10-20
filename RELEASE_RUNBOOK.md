@@ -237,7 +237,9 @@ The narrative figure is the one to watch. The docs chair's starting target
 (26.10.0 review) is about grade 9 with reading ease 55 to 70; the 26.10.0
 narrative shipped at about 9.3 and 55. The full list scores worse because of
 type and function names, and that is expected. The number is approximate and
-only comparable between drafts rendered by this tool. If the narrative climbs,
+only comparable between drafts rendered by this tool. The same figures are
+recorded in `metadata.readability` of the release data JSON, so `git diff`
+on the JSON shows how a draft moved. If the narrative climbs,
 shorten sentences and keep one idea in each; do not chase the figure by
 dropping facts.
 

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2-beta] - 2026-10-20
+
+### Added
+- **`metadata.readability` in the release data JSON.** The readability line scrolled away with the terminal; `render` now writes the same figures (narrative, full list, scoring tool version) into its input JSON, atomically and only when they changed, so the score sits next to the data it was measured on and `git diff` shows how a draft moved. Optional field, no schema bump. A write failure is a warning. `readability_report()`, `record_readability()`.
+- 3 new tests (564 -> 567).
+
 ## [0.16.1-beta] - 2026-10-20
 
 ### Added

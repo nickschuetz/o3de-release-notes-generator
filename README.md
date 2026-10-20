@@ -484,6 +484,10 @@ the docs chair during 26.10.0 review is a narrative near grade 9 with reading
 ease between 55 and 70. The line is informational; nothing fails or warns on
 it.
 
+The same figures are written to `metadata.readability` in the input JSON, so
+the score stays with the data it was measured on and shows up in the diff when
+a draft is committed. The file is rewritten only when the score changed.
+
 The score comes from a stdlib syllable estimate (`count_syllables()`), and
 every readability tool uses its own, so expect a few tenths of a grade of
 disagreement with any other tool on the same text. Compare one draft with the
@@ -539,7 +543,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 9,
-    "tool_version": "0.16.1-beta",
+    "tool_version": "0.16.2-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -549,6 +553,11 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "uncategorized": 1
     },
     "release_machinery_count": 2,
+    "readability": {
+      "narrative": {"grade": 9.3, "ease": 55.0, "words": 928, "sentences": 63},
+      "full_list": {"grade": 11.4, "ease": 48.9, "words": 4965, "sentences": 248},
+      "tool_version": "0.16.2-beta"
+    },
     "merge_bases": {
       "o3de/o3de": {
         "sha": "57680ee42f18d5952e4d4fa5ab52750edefb878e",
@@ -627,6 +636,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `metadata.reused_from_cache` | Per-repo count of PRs served from the previous report rather than re-fetched, and the policy used. |
 | `metadata.file_list_truncated` | Roll-up of the above: how many PRs were capped, which ones, and the subset whose SIG was decided by the file heuristic from a partial list. Verify those before publishing. |
 | `metadata.excluded_prior_releases` | Which prior reports were used as exclusion sources and how many PRs each repo dropped because of them. |
+| `metadata.readability` | Flesch-Kincaid grade and reading ease of the last render, narrative and full list scored separately, with the tool version that scored them. Written back by `render` from 0.16.2-beta, only when the score changed, so it is diffable from draft to draft. Optional; absent until the first render. |
 | `linked_from_commit` | SHA of the merge commit this PR was resolved from, present only when the commit's subject named no pull request and GitHub was asked. |
 | `metadata.linked_from_commits` | Per-repo map of PR number to merge commit SHA for those resolutions, plus the total. Absent when there were none. |
 | `recovered_from_container` | Number of the squashed cherry-pick PR this PR was recovered from. Present only on PRs that reached the release branch inside such a container and so have no commit of their own in the window. |

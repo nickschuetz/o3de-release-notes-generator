@@ -136,6 +136,21 @@
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
       "end": "2026-10-08T23:02:22.685262+00:00"
+    },
+    "readability": {
+      "narrative": {
+        "grade": 9.3,
+        "ease": 55.0,
+        "words": 928,
+        "sentences": 63
+      },
+      "full_list": {
+        "grade": 11.4,
+        "ease": 48.9,
+        "words": 4965,
+        "sentences": 248
+      },
+      "tool_version": "0.16.2-beta"
     }
   },
   "pull_requests": [
@@ -8653,7 +8668,7 @@
       ],
       "sig_category": "sig/graphics-audio",
       "categorization_source": "label",
-      "description": "Atom RPI - Streaming Image Intrusive Ptr changed to \\`this\\`-free notification call.",
+      "description": "Spawning and despawning entities no longer freezes the simulation at random; streaming-image upload callbacks notify their owner through a per-image notification instead of holding a pointer that could deadlock against texture release.",
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
