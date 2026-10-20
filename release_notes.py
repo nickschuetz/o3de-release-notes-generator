@@ -27,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.16.0-beta'
+__version__ = '0.16.1-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -2656,7 +2656,7 @@ def render_markdown(
         lines.append('<!-- TODO: Write a narrative summary of the release highlights -->')
 
     lines.append('')
-    lines.append('# Full list of changes')
+    lines.append(FULL_LIST_HEADING)
     lines.append('')
 
     for sig in SIG_CANONICAL_ORDER:
@@ -2732,6 +2732,101 @@ def write_text_atomic(content: str, path: pathlib.Path, suffix: str) -> None:
 def write_json_atomic(data: dict[str, Any], path: pathlib.Path) -> None:
     content = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False) + '\n'
     write_text_atomic(content, path, '.json.tmp')
+
+
+FULL_LIST_HEADING = '# Full list of changes'
+MIN_READABILITY_WORDS = 10
+
+_MD_FENCED_CODE = re.compile(r'```.*?```', re.S)
+_MD_CODE_SPAN = re.compile(r'`[^`\n]*`')
+_MD_LINK = re.compile(r'\[([^\]]*)\]\([^)]*\)')
+_MD_COMMENT = re.compile(r'<!--.*?-->', re.S)
+_MD_HEADING = re.compile(r'^\s{0,3}#{1,6}\s.*$', re.M)
+_MD_BULLET = re.compile(r'^\s*[-*+]\s+', re.M)
+_SENTENCE_END = re.compile(r'(?<=[.!?])\s+')
+_WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9'\u2019._:+-]*[A-Za-z0-9]|[A-Za-z0-9]")
+_VOWEL_GROUP = re.compile(r'[aeiouy]+')
+
+
+def markdown_prose(text: str) -> str:
+    """Reduce Markdown to the words a reader would say.
+
+    Link text stays, link targets go; code spans and fenced blocks go, since a
+    reader skips `QT_QPA_PLATFORM=wayland` rather than sounding it out; headings
+    and bullet markers go because they are not sentences. Bold markers are
+    removed so the word inside them is counted once.
+    """
+    text = _MD_FENCED_CODE.sub(' ', text)
+    text = _MD_CODE_SPAN.sub(' ', text)
+    text = _MD_COMMENT.sub(' ', text)
+    text = _MD_LINK.sub(r'\1', text)
+    text = _MD_HEADING.sub(' ', text)
+    text = text.replace('**', '')
+    text = _MD_BULLET.sub('', text)
+    return text
+
+
+def count_syllables(word: str) -> int:
+    """Vowel-group estimate with the usual English corrections (silent -e,
+    -es, -ed). Every readability tool uses its own variant, so two tools
+    disagree by a few tenths of a grade on the same text; the number is for
+    comparing one draft with the next, not for matching another tool."""
+    w = re.sub(r'[^a-z]', '', word.lower())
+    if len(w) <= 3:
+        return 1
+    w = re.sub(r'(?:[^laeiouy]es|ed|[^laeiouy]e)$', '', w)
+    w = re.sub(r'^y', '', w)
+    return max(1, len(_VOWEL_GROUP.findall(w)))
+
+
+def readability_scores(text: str) -> dict[str, float] | None:
+    """Flesch-Kincaid grade level and Flesch reading ease of Markdown `text`.
+
+    Returns None for fewer than MIN_READABILITY_WORDS words, where the formulas
+    produce noise. The docs chair proposed these as the deterministic target
+    for the notes during 26.10.0 review: about grade 9, reading ease 55 to 70.
+    """
+    prose = markdown_prose(text)
+    sentences = [part for part in _SENTENCE_END.split(prose) if _WORD.search(part)]
+    words = _WORD.findall(prose)
+    if len(words) < MIN_READABILITY_WORDS or not sentences:
+        return None
+    syllables = sum(count_syllables(w) for w in words)
+    words_per_sentence = len(words) / len(sentences)
+    syllables_per_word = syllables / len(words)
+    return {
+        'grade': round(0.39 * words_per_sentence + 11.8 * syllables_per_word - 15.59, 1),
+        'ease': round(206.835 - 1.015 * words_per_sentence - 84.6 * syllables_per_word, 1),
+        'words': len(words),
+        'sentences': len(sentences),
+    }
+
+
+def log_readability(content: str, has_narrative: bool) -> None:
+    """One INFO line with the narrative and the full list scored separately.
+
+    Separately, because the full list carries type and function names that
+    no rewording can simplify, and averaging the two would hide the narrative,
+    which is the part a person can improve. Informational only: the target is
+    a starting point, and a WARNING on every render would be ignored.
+    """
+    head, sep, tail = content.partition(FULL_LIST_HEADING)
+    parts = []
+    if has_narrative:
+        narrative = readability_scores(head)
+        if narrative:
+            parts.append(
+                f"narrative grade {narrative['grade']}, ease {narrative['ease']} "
+                f"({narrative['words']:.0f} words)"
+            )
+    full_list = readability_scores(tail) if sep else None
+    if full_list:
+        parts.append(
+            f"full list grade {full_list['grade']}, ease {full_list['ease']} "
+            f"({full_list['words']:.0f} words)"
+        )
+    if parts:
+        logger.info('Readability (Flesch-Kincaid, approximate): %s', '; '.join(parts))
 
 
 def write_markdown_atomic(content: str, path: pathlib.Path) -> None:
@@ -3702,6 +3797,8 @@ def _run_render(args: argparse.Namespace) -> int:
         include_duplicates=include_duplicates,
         include_manual_excludes=include_manual_excludes,
     ))
+
+    log_readability(content, has_narrative=bool(summary))
 
     write_markdown_atomic(content, output_md)
     logger.info('Wrote release notes to %s', output_md)

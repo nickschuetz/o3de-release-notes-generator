@@ -67,6 +67,8 @@ The main script. Three subcommands (`fetch`, `render`, `generate`) exposed via `
 
 **Reconciliation:** `summarize_render_coverage()` partitions the input PR list into `rendered` plus one mutually exclusive `excluded_*` bucket per reason, and `log_render_coverage()` emits it (WARNING when anything was dropped). The counts sum to the total by construction, so a filter regression cannot hide.
 
+**Readability:** `markdown_prose()` reduces Markdown to the words a reader would say (link text kept; link targets, code spans, fenced blocks, comments, headings and bullet markers removed), `count_syllables()` is a vowel-group estimate with the usual silent-e corrections, and `readability_scores()` applies the published Flesch-Kincaid grade and Flesch reading-ease formulas, returning `None` under `MIN_READABILITY_WORDS`. `log_readability()` splits the rendered content at `FULL_LIST_HEADING` and scores the two halves separately, because the full list's type and function names set a floor that averaging would hide. Stdlib only; the syllable estimate differs from other tools by a few tenths of a grade, so the figure compares drafts, not tools. Target proposed by the docs chair during 26.10.0 review: narrative near grade 9, ease 55 to 70. It never warns and never changes the output.
+
 **Summary file:** `load_summary_file()` reads a Markdown narrative named by `--summary-file`, refuses a missing, empty or oversized (over `MAX_SUMMARY_FILE_BYTES`, 64 KB) file, and escapes tag-like `<` exactly as `_clean_summary()` does for model output. `_run_render()` consults it before `--generate-summary`, so an approved narrative is the source of truth and survives every regenerate; a bad file falls back to the placeholder with a warning rather than to the LLM.
 
 **Summary generation:** The `generate_summary()` function builds a structured prompt from categorized PR data and passes it via stdin to a configurable LLM command via subprocess (list args, no `shell=True`). Default: `ollama run --nowordwrap qwen2.5:14b` (local, ~12 GB VRAM); also supports `qwen2.5:32b` for ~24 GB hosts and `claude -p` (cloud). The `_clean_summary()` function strips LLM preamble text and dividers from the output. Command is parsed via `shlex.split()`. Optional `--summary-hint` injects release manager guidance into the prompt; it accepts inline text or `@filepath` to read from a file (resolved via `_resolve_hint()`). Enabled via `--generate-summary`; disabled by default. PRs flagged `release_machinery: True` are excluded from the prompt unless `--include-release-machinery` is set, so the LLM stays focused on product changes.
@@ -147,6 +149,7 @@ GitHub Action that regenerates `sbom.cdx.json` on every push to `main` that chan
 6. Inserts the narrative summary from the file or the LLM (or a placeholder if neither is given or the chosen one fails).
 7. Sanitizes PR titles for markdown (escapes `[`, `]`, `` ` ``, `|`) and for HTML (escapes `<` when it opens a tag, leaving ordinary arrows like `64->32` readable).
 8. Emits the reconciliation line accounting for every input PR.
+9. Emits the readability line: Flesch-Kincaid grade and reading ease for the narrative and for the full list, scored separately (`readability_scores()`, `log_readability()`). Informational only; the rendered file is unchanged.
 
 **Output:** Markdown file.
 

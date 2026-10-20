@@ -467,6 +467,32 @@ dropped silently. **Read this line on every run.** A sudden jump in any excluded
 category means a heuristic has started over-matching; that is exactly how 57 real
 PRs went missing from the 26.05.0 notes undetected.
 
+## Readability Line
+
+After the reconciliation line, `render` logs a Flesch-Kincaid reading of the
+report, scored in two parts:
+
+```
+[INFO] o3de.release_notes: Readability (Flesch-Kincaid, approximate): narrative grade 9.3,
+       ease 55.0 (928 words); full list grade 11.4, ease 48.9 (4965 words)
+```
+
+The two parts are scored separately because the full list carries type and
+function names that no rewording can simplify, and averaging them would hide
+the narrative, which is the part a person can improve. The target proposed by
+the docs chair during 26.10.0 review is a narrative near grade 9 with reading
+ease between 55 and 70. The line is informational; nothing fails or warns on
+it.
+
+The score comes from a stdlib syllable estimate (`count_syllables()`), and
+every readability tool uses its own, so expect a few tenths of a grade of
+disagreement with any other tool on the same text. Compare one draft with the
+next, not one tool with another. Markdown is reduced to prose first by
+`markdown_prose()`: link text stays, link targets, code spans, fenced blocks,
+headings and bullet markers do not. The narrative part is skipped when no
+`--summary-file` or generated summary is present, since the placeholder is not
+prose anyone wrote.
+
 ## Duplicate Collapsing
 
 The same change can merge twice under two PR numbers, usually a resubmission or
@@ -513,7 +539,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 9,
-    "tool_version": "0.16.0-beta",
+    "tool_version": "0.16.1-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,

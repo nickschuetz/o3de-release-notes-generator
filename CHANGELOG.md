@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1-beta] - 2026-10-20
+
+### Added
+- **A readability line after the reconciliation line.** `render` logs the Flesch-Kincaid grade level and Flesch reading ease of the report, with the narrative and the full list scored separately, because the full list's type and function names set a floor that an average would hide. The docs chair proposed the metric during 26.10.0 review, with a starting target of about grade 9 and ease 55 to 70 for the narrative; the 26.10.0 narrative measures about 9.3 and 55. Stdlib only, informational only, output unchanged. `markdown_prose()`, `count_syllables()`, `readability_scores()`, `log_readability()`.
+- 15 new tests (549 -> 564).
+
 ## [0.16.0-beta] - 2026-10-20
 
 ### Added

@@ -4085,6 +4085,84 @@ class TestDedupeIgnoresTrailingPrNumber:
         assert release_notes.classify_reasons(prs) == [None, None]
 
 
+class TestReadability:
+    """The readability line scores the narrative and the full list separately
+    and never changes the rendered output."""
+
+    @pytest.mark.parametrize('word, expected', [
+        ('cat', 1), ('the', 1), ('table', 2), ('release', 2), ('editor', 3),
+        ('simulation', 4), ('O3DE', 1), ('26.10.0', 1), ('x', 1),
+    ])
+    def test_syllable_estimate(self, word, expected):
+        assert release_notes.count_syllables(word) == expected
+
+    def test_markdown_prose_keeps_words_and_drops_markup(self):
+        md = ('# Heading\n\n- **Bold lead**. See the [Get Started](https://x/y) page, '
+              'set `QT_QPA_PLATFORM=wayland`, and\n\n```\ncode block\n```\n'
+              '<!-- a comment -->\n* another bullet\n')
+        prose = release_notes.markdown_prose(md)
+        for kept in ('Bold lead', 'Get Started', 'another bullet'):
+            assert kept in prose
+        for dropped in ('Heading', 'https://x/y', 'QT_QPA_PLATFORM', 'code block',
+                        'a comment', '**', '- ', '* '):
+            assert dropped not in prose
+
+    def test_scores_follow_the_published_formulas(self):
+        # 9 words, 2 sentences, 9 syllables:
+        # grade = 0.39*4.5 + 11.8*1 - 15.59 = -2.035; ease = 206.835 - 4.5675 - 84.6
+        text = 'The cat sat on the mat. The dog ran. The end of the story is near.'
+        scores = release_notes.readability_scores(text)
+        assert scores is not None
+        assert scores['words'] == 16 and scores['sentences'] == 3
+        words_per_sentence, syllables_per_word = 16 / 3, 17 / 16
+        assert scores['grade'] == round(0.39 * words_per_sentence
+                                        + 11.8 * syllables_per_word - 15.59, 1)
+        assert scores['ease'] == round(206.835 - 1.015 * words_per_sentence
+                                       - 84.6 * syllables_per_word, 1)
+
+    def test_longer_words_and_sentences_raise_the_grade(self):
+        plain = release_notes.readability_scores(
+            'The cat sat on the mat. The dog ran home. The sun was warm and bright today.')
+        dense = release_notes.readability_scores(
+            'The categorization infrastructure simultaneously reconciles heterogeneous '
+            'contributions, notwithstanding considerable organizational complexity '
+            'throughout the implementation.')
+        assert plain and dense
+        assert dense['grade'] > plain['grade'] and dense['ease'] < plain['ease']
+
+    def test_too_little_text_scores_nothing(self):
+        assert release_notes.readability_scores('Too short.') is None
+        assert release_notes.readability_scores('') is None
+
+    def test_log_line_scores_narrative_and_full_list_separately(self, caplog):
+        narrative = ' '.join(['The cat sat on the mat.'] * 6)
+        bullets = '\n'.join(
+            f'- Entry number {i} fixes the thing it says it fixes, as described in the request.'
+            for i in range(6))
+        content = (f'# 26.10.0 Release Notes\n\n{narrative}\n\n'
+                   f'{release_notes.FULL_LIST_HEADING}\n\n## SIG-Core\n{bullets}\n')
+        with caplog.at_level('INFO', logger='o3de.release_notes'):
+            release_notes.log_readability(content, has_narrative=True)
+        line = [r.message for r in caplog.records if 'Readability' in r.message][0]
+        assert 'narrative grade' in line and 'full list grade' in line
+        caplog.clear()
+        with caplog.at_level('INFO', logger='o3de.release_notes'):
+            release_notes.log_readability(content, has_narrative=False)
+        line = [r.message for r in caplog.records if 'Readability' in r.message][0]
+        # The placeholder is not a narrative; scoring it would be misleading.
+        assert 'narrative grade' not in line and 'full list grade' in line
+
+    def test_render_command_logs_the_line_without_changing_the_output(self, tmp_path, caplog):
+        narrative = tmp_path / 'n.md'
+        narrative.write_text(' '.join(['The headline paragraph says what the release does.'] * 4))
+        args = TestSummaryFile._args(tmp_path, summary_file=str(narrative))
+        with caplog.at_level('INFO', logger='o3de.release_notes'):
+            assert release_notes._run_render(args) == 0
+        assert any('Readability' in r.message and 'narrative grade' in r.message
+                   for r in caplog.records)
+        assert 'Readability' not in (tmp_path / 'out.md').read_text()
+
+
 class TestSummaryFile:
     def test_text_is_used_and_tags_are_escaped(self, tmp_path):
         f = tmp_path / 's.md'

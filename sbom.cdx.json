@@ -4,7 +4,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-20T12:22:06.779791+00:00",
+    "timestamp": "2026-10-20T17:47:38.902320+00:00",
     "tools": {
       "components": [
         {
@@ -19,7 +19,7 @@
       "type": "application",
       "bom-ref": "o3de_release_notes_generator",
       "name": "o3de_release_notes_generator",
-      "version": "0.16.0-beta",
+      "version": "0.16.1-beta",
       "description": "Generates O3DE release notes from merged pull requests",
       "licenses": [
         {
@@ -357,7 +357,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "3695f60ff81ed69f0aae169bafdf351f7f915a5fcf0c435e37417485e311befc"
+          "content": "e6618cd12568145f375a88fef0ace48bd8bf08396365ee5ef144db726becd34d"
         }
       ]
     },
@@ -368,7 +368,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "c95b1a2ea11b07aa38144522edc05292fbb9bdec5d7c020018d6d7d5b1f47b09"
+          "content": "2db1602929e20045f28751f0434638c449705ede3f8a17301c05aaaaee856ec7"
         }
       ]
     },
@@ -379,7 +379,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "f6f98e13bf78b41ffb258dcb65811cb22d70c2ab7b6fb566fc58821861961ec0"
+          "content": "de79f5f7f257f808ca6e64eef26de441254ca0e484c5679be6e1196cb0b4c17f"
         }
       ]
     }
@@ -414,5 +414,5 @@
       ]
     }
   ],
-  "serialNumber": "urn:uuid:bdbe1da0-cb3a-4b56-be6f-0a8dbe31a9fe"
+  "serialNumber": "urn:uuid:11879aad-ee23-49d9-9bfe-6e11347d79ec"
 }

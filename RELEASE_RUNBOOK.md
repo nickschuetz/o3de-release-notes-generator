@@ -225,6 +225,22 @@ Excluded 17 PR(s) from the report: cherry-pick=12, release_machinery=1, uncatego
   on whether the two really were one change. `--include-duplicates` renders all
   of them if you disagree.
 
+## 4a. Read the readability line
+
+Directly after the reconciliation line:
+
+```
+Readability (Flesch-Kincaid, approximate): narrative grade 9.3, ease 55.0 (928 words); full list grade 11.4, ease 48.9 (4965 words)
+```
+
+The narrative figure is the one to watch. The docs chair's starting target
+(26.10.0 review) is about grade 9 with reading ease 55 to 70; the 26.10.0
+narrative shipped at about 9.3 and 55. The full list scores worse because of
+type and function names, and that is expected. The number is approximate and
+only comparable between drafts rendered by this tool. If the narrative climbs,
+shorten sentences and keep one idea in each; do not chase the figure by
+dropping facts.
+
 ## 5. Triage
 
 Inspect what was excluded:
@@ -434,6 +450,7 @@ which is why cherry-pick detection uses title evidence and never labels.
 - [ ] `--exclude-json` supplied, and its exclusion count is non-zero
 - [ ] Spot-check that no PR in the report also appears in the previous cycle's report
 - [ ] Reconciliation line read; every exclusion bucket understood
+- [ ] Readability line read; narrative near grade 9, ease 55 to 70
 - [ ] `uncategorized` triaged to zero, or consciously accepted
 - [ ] Point-release audit has no unexplained ✗ entries
 - [ ] No **merged** PR still carries `need-sync/to-stabilization`. One that does
