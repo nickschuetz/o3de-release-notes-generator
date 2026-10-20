@@ -250,8 +250,9 @@ picks it up, and so does every future report. Otherwise fix categorization in
 
 - `manual_override_sig` to reassign the SIG
 - `manual_override_description` to rewrite the bullet
+- `manual_override_exclude` to leave the PR out, with the reason as the value
 
-Both survive re-runs and take effect on the next `render` or `generate`. **Editing
+All three survive re-runs and take effect on the next `render` or `generate`. **Editing
 `sig_category` or `description` directly does not survive**: a PR that later disappears from `git log` is dropped unless it
 carries a `manual_override_*` field, and the drop is logged as a WARNING.
 
@@ -273,6 +274,18 @@ stays the source of truth and the text survives re-runs; the files are the
 editing log and are easy to review as a diff. An entry is `<repo>#<number>` on
 one line and the sentence on the next, blocks separated by a blank line. State
 only what the pull request supports.
+
+An entry whose first line is `exclude <repo>#<number>` sets
+`manual_override_exclude` to the text instead, and the PR leaves the report.
+The exclusion files are authoritative: a PR not listed in any `exclude` entry
+has the field cleared on the next apply. Use it for pull requests that are not
+changes from the previous release, which for 26.10.0 meant fixes for breakage
+that another PR in the same window had introduced (`reports/overrides/26100_exclude.txt`).
+The test is: did the thing being fixed work in the previous release? If it only
+broke on `development` this cycle, a user of the last release sees no change and
+the entry says nothing to them. If it was broken in the shipped release too,
+the fix stays. Check the breaking PR is in the window before excluding; when in
+doubt, keep the entry. The reconciliation line reports `manual_exclude=N`.
 
 ## 6. Narrative summary
 

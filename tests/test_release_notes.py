@@ -1260,11 +1260,11 @@ class TestNormalizePrDataTruncation:
 
 
 class TestSchemaVersion:
-    def test_schema_version_is_8(self):
-        # 7 -> 8 when merge-commit lookup added per-PR `linked_from_commit`
-        # and metadata.linked_from_commits. Schema 7 files still load
-        # (load_existing_json accepts SCHEMA_VERSION and SCHEMA_VERSION - 1).
-        assert release_notes.SCHEMA_VERSION == 8
+    def test_schema_version_is_9(self):
+        # 8 -> 9 when `manual_override_exclude` joined the per-PR record.
+        # Schema 8 files still load (load_existing_json accepts
+        # SCHEMA_VERSION and SCHEMA_VERSION - 1).
+        assert release_notes.SCHEMA_VERSION == 9
 
     def test_metadata_records_tool_version(self):
         assert release_notes.__version__.endswith('-beta')
@@ -1928,6 +1928,86 @@ class TestRenderCoverageReconciliation:
         counts = release_notes.summarize_render_coverage(prs)
         assert md.count('\n- ') == counts['rendered']
 
+
+class TestManualExclude:
+    """`manual_override_exclude` leaves a PR out of the report, with a reason,
+    and the exclusion is counted rather than silent."""
+
+    @staticmethod
+    def _pr(number, sig='sig/simulation', exclude=None, flags=None, machinery=False):
+        return {
+            'number': number, 'repo': 'o3de/o3de-extras', 'url': '',
+            'title': f'Change {number}', 'description': f'Change {number}.',
+            'sig_category': sig, 'flags': flags or [], 'release_machinery': machinery,
+            'manual_override_exclude': exclude,
+        }
+
+    def test_excluded_pr_is_not_rendered_and_is_counted(self):
+        prs = [self._pr(1045, exclude='fixes breakage from o3de#19585, in this window'),
+               self._pr(1046)]
+        md = release_notes.render_markdown(prs, '26.10.0')
+        assert '#1046' in md and '#1045' not in md
+        counts = release_notes.summarize_render_coverage(prs)
+        assert counts == {'total': 2, 'rendered': 1, 'excluded_manual_exclude': 1}
+
+    def test_reason_is_manual_exclude_even_when_other_filters_apply(self):
+        # A curator's decision is reported as such, not as whichever automatic
+        # filter happened to match first; the reconciliation line should show
+        # what the person chose.
+        prs = [self._pr(1, exclude='not a change from 26.05', flags=['cherry-pick']),
+               self._pr(2, exclude='not a change from 26.05', machinery=True),
+               self._pr(3, exclude='not a change from 26.05', sig='uncategorized')]
+        assert release_notes.classify_reasons(prs) == ['manual_exclude'] * 3
+
+    def test_include_flag_restores_the_pr(self):
+        prs = [self._pr(1045, exclude='fixes breakage from o3de#19585')]
+        md = release_notes.render_markdown(prs, '26.10.0', include_manual_excludes=True)
+        assert '#1045' in md
+        counts = release_notes.summarize_render_coverage(prs, include_manual_excludes=True)
+        assert counts['rendered'] == 1
+
+    @pytest.mark.parametrize('value', [None, '', False])
+    def test_empty_value_does_not_exclude(self, value):
+        prs = [self._pr(1, exclude=value)]
+        assert release_notes.classify_reasons(prs) == [None]
+
+    def test_missing_field_in_older_json_does_not_exclude(self):
+        pr = self._pr(1)
+        del pr['manual_override_exclude']
+        assert release_notes.classify_reasons([pr]) == [None]
+
+    def test_excluded_pr_counts_as_absent_in_keyed_view(self):
+        prs = [self._pr(7, exclude='reason')]
+        keyed = release_notes.classify_for_report(prs)
+        assert keyed[('o3de/o3de-extras', 7)] == 'manual_exclude'
+
+    def test_survives_merge_with_existing(self, tmp_path):
+        existing = tmp_path / 'prev.json'
+        existing.write_text(json.dumps({
+            'metadata': {'schema_version': release_notes.SCHEMA_VERSION},
+            'pull_requests': [
+                {'repo': 'o3de/o3de-extras', 'number': 1045,
+                 'manual_override_exclude': 'fixes breakage from o3de#19585'},
+                {'repo': 'o3de/o3de-extras', 'number': 9999,
+                 'manual_override_exclude': 'gone from git log but a decision was made'},
+            ],
+        }))
+        fresh = [self._pr(1045), self._pr(1046)]
+        merged = release_notes.merge_with_existing(fresh, existing)
+        by_number = {p['number']: p for p in merged}
+        assert by_number[1045]['manual_override_exclude'] == 'fixes breakage from o3de#19585'
+        assert by_number[1046]['manual_override_exclude'] is None
+        # A PR that left the window but carries a decision is kept, like the
+        # other manual_override_* fields, so the decision is not silently lost.
+        assert 9999 in by_number
+
+    def test_fresh_record_carries_the_field_unset(self):
+        pr = release_notes._derive_fetched_fields({
+            'number': 1, 'repo': 'o3de/o3de', 'title': 'x', 'body': '', 'labels': [],
+            'files': [],
+        })
+        assert pr['manual_override_exclude'] is None
+
     def test_legacy_sync_flag_counted_as_rendered(self):
         counts = release_notes.summarize_render_coverage(
             [self._pr(1, flags=['stabilization-sync'])]
@@ -2184,7 +2264,7 @@ class TestSbomIntegrity:
 
 class TestSchemaVersionProvenance:
     def test_schema_version_is_current(self):
-        assert release_notes.SCHEMA_VERSION == 8
+        assert release_notes.SCHEMA_VERSION == 9
 
     def test_previous_schema_still_loads(self, tmp_path):
         path = tmp_path / 'old.json'

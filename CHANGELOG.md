@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0-beta] - 2026-10-20
+
+### Added
+- **`manual_override_exclude`** on each PR record: a reason string that leaves the PR out of the report as `manual_exclude`, counted in the reconciliation line and restorable with **`--include-manual-excludes`**. The sig-simulation chair pointed out that entries such as "the ROS 2 Gems build again against the engine's AZStd changes" describe no change to anyone coming from 26.05.0: the breakage and its fix both happened inside the window. The tool had no way to leave such a PR out except deleting it from the JSON, which the next `generate` would undo. The field survives re-runs like the other overrides, and `reports/overrides/apply.py` sets it from `exclude <repo>#<number>` entries. Schema 8 -> 9; schema 8 files still load.
+- 10 new tests (539 -> 549).
+
 ## [0.15.1-beta] - 2026-10-07
 
 ### Changed

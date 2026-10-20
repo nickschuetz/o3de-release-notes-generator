@@ -143,6 +143,7 @@ python release_notes.py render \
   [--include-uncategorized] \
   [--include-release-machinery] \
   [--include-duplicates] \
+  [--include-manual-excludes] \
   [--summary-file <path>] \
   [--generate-summary] \
   [--summary-cmd <command>] \
@@ -159,6 +160,7 @@ python release_notes.py render \
 | `--include-uncategorized` | No | off | Show PRs that couldn't be categorized |
 | `--include-release-machinery` | No | off | Include release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, etc.) in the rendered output. Off by default for major releases; turn on for point-release notes where machinery IS the content |
 | `--include-duplicates` | No | off | Keep every PR sharing a title within a repo. Off by default: when two PRs in the same repo have the same title **and** the same changed-file list, one bullet is rendered and the collapsed PR numbers are logged at WARNING |
+| `--include-manual-excludes` | No | off | Render PRs a curator left out by setting `manual_override_exclude` in the JSON. Off by default; the reconciliation line reports `manual_exclude=N`. |
 | `--summary-file` | No | - | Markdown file whose text becomes the narrative summary at the top of the report. Takes precedence over `--generate-summary`, so an approved narrative survives every regenerate. Tag-like `<` is escaped as for model output |
 | `--generate-summary` | No | off | Generate a narrative summary using an LLM |
 | `--summary-cmd` | No | `ollama run --nowordwrap qwen2.5:14b` | Command to generate the summary |
@@ -190,8 +192,8 @@ python release_notes.py generate \
 Re-run the same command. By default every PR in the range is re-fetched from
 GitHub on each run; add `--reuse-existing` to serve label-categorised PRs from
 the previous report instead (see below). Either way, manual edits in the JSON are
-preserved: `manual_override_sig` and `manual_override_description` survive
-re-runs.
+preserved: `manual_override_sig`, `manual_override_description` and
+`manual_override_exclude` survive re-runs.
 
 ```bash
 # Week 1
@@ -510,8 +512,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de": "/home/user/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
-    "schema_version": 8,
-    "tool_version": "0.15.1-beta",
+    "schema_version": 9,
+    "tool_version": "0.16.0-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -573,7 +575,8 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     }
   ]
 }
@@ -589,6 +592,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
 | `release_machinery` | Auto-detected boolean for release-engineering PRs (version bumps, SBOM auto-updates, cherry-pick-to-pointrelease wrappers, `engine.json`/`sbom.cdx.json`/`version.txt`/`.github/FUNDING.yml`-only diffs). Excluded from rendered markdown and summary prompts by default; opt back in with `--include-release-machinery`. |
 | `manual_override_sig` | Set this to reassign a PR to a different SIG. Preserved on re-runs. |
 | `manual_override_description` | Set this to override the auto-generated description. Preserved on re-runs. |
+| `manual_override_exclude` | Set this to a short reason to leave the PR out of the report. For pull requests that are not changes from the previous release, such as a fix for breakage another PR in the same window introduced. Counted in the reconciliation line as `manual_exclude=N`; `--include-manual-excludes` renders them. Preserved on re-runs. |
 | `metadata.merge_bases` | Per-repo `{sha, committer_date}` for the merge-base of `from_ref` and `to_ref`. Anchors the actual fork point. |
 | `metadata.effective_window` | `{start, end}` window the diff covers. `start` is the earliest merge-base committer-date across repos; `end` is `generated_at`. |
 | `metadata.release_machinery_count` | Number of PRs flagged `release_machinery: true` in this run. |

@@ -27,7 +27,7 @@ from typing import Any, cast
 LOG_FORMAT = '[%(levelname)s] %(name)s: %(message)s'
 logger = logging.getLogger('o3de.release_notes')
 
-__version__ = '0.15.1-beta'
+__version__ = '0.16.0-beta'
 
 # 6: adds metadata.reused_from_cache, recording how many PRs were served from
 #    the previous report instead of re-fetched.
@@ -37,7 +37,7 @@ __version__ = '0.15.1-beta'
 #    and descriptions are no longer truncated mid-sentence, so data written by
 #    <=0.5.0-beta is structurally readable but semantically stale. Version 3
 #    files still load (renderer ignores the legacy flag); re-fetch for accuracy.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9._/\-]+$')
 REPO_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$')
@@ -2117,11 +2117,14 @@ def merge_with_existing(
             if existing.get('manual_override_description'):
                 pr['description'] = existing['manual_override_description']
                 pr['manual_override_description'] = existing['manual_override_description']
+            if existing.get('manual_override_exclude'):
+                pr['manual_override_exclude'] = existing['manual_override_exclude']
         merged.append(pr)
 
     dropped_without_overrides = 0
     for pr in existing_by_key.values():
-        if pr.get('manual_override_sig') or pr.get('manual_override_description'):
+        if (pr.get('manual_override_sig') or pr.get('manual_override_description')
+                or pr.get('manual_override_exclude')):
             merged.append(pr)
         else:
             dropped_without_overrides += 1
@@ -2444,6 +2447,7 @@ def classify_reasons(
     include_uncategorized: bool = False,
     include_release_machinery: bool = False,
     include_duplicates: bool = False,
+    include_manual_excludes: bool = False,
 ) -> list[str | None]:
     """Per-PR reason for exclusion, aligned position-for-position with `pr_list`.
 
@@ -2455,11 +2459,22 @@ def classify_reasons(
 
     Positional, not keyed by (repo, number), so that two entries sharing a key
     each get their own decision instead of one silently inheriting the other's.
+
+    `manual_override_exclude` is a curator's decision and is checked first: a
+    PR someone deliberately left out is reported as `manual_exclude` whatever
+    else is true of it. It exists for changes that are real pull requests but
+    not changes from the previous release, such as a fix for breakage that
+    another PR in the same window introduced (o3de-extras#1045 fixed the build
+    after the engine's AZStd changes; from 26.05.0 to 26.10.0 nothing changed).
+    The field holds the reason, so the JSON records why, and the count appears
+    in the reconciliation line like every other exclusion.
     """
     reasons: list[str | None] = []
     for pr in pr_list:
         excluded_flags = sorted(EXCLUDED_FLAGS.intersection(pr.get('flags', []) or []))
-        if excluded_flags:
+        if not include_manual_excludes and pr.get('manual_override_exclude'):
+            reasons.append('manual_exclude')
+        elif excluded_flags:
             reasons.append(excluded_flags[0])
         elif not include_release_machinery and pr.get('release_machinery'):
             reasons.append('release_machinery')
@@ -2495,6 +2510,7 @@ def classify_for_report(
     include_uncategorized: bool = False,
     include_release_machinery: bool = False,
     include_duplicates: bool = False,
+    include_manual_excludes: bool = False,
 ) -> dict[tuple[str, int], str | None]:
     """`classify_reasons` keyed by (repo, number), for the point-release audit.
 
@@ -2503,6 +2519,7 @@ def classify_for_report(
     """
     reasons = classify_reasons(
         pr_list, include_uncategorized, include_release_machinery, include_duplicates,
+        include_manual_excludes,
     )
     return {
         (pr.get('repo', ''), pr.get('number', 0)): reason
@@ -2514,6 +2531,7 @@ def log_duplicate_groups(
     pr_list: list[dict[str, Any]],
     include_uncategorized: bool = False,
     include_release_machinery: bool = False,
+    include_manual_excludes: bool = False,
 ) -> None:
     """Name every collapsed duplicate, rather than only counting them.
 
@@ -2521,7 +2539,10 @@ def log_duplicate_groups(
     check whether the tool was right. Two PRs sharing a title are strong
     evidence of the same change, not proof, so the pairs are printed.
     """
-    reasons = classify_reasons(pr_list, include_uncategorized, include_release_machinery)
+    reasons = classify_reasons(
+        pr_list, include_uncategorized, include_release_machinery,
+        include_manual_excludes=include_manual_excludes,
+    )
     for indices in _duplicate_index_groups(pr_list):
         collapsed = [i for i in indices if reasons[i] == 'duplicate']
         kept = [i for i in indices if reasons[i] is None]
@@ -2542,6 +2563,7 @@ def summarize_render_coverage(
     include_uncategorized: bool = False,
     include_release_machinery: bool = False,
     include_duplicates: bool = False,
+    include_manual_excludes: bool = False,
 ) -> dict[str, int]:
     """Account for every PR in the input: how many reach the report, and why the
     rest do not.
@@ -2555,6 +2577,7 @@ def summarize_render_coverage(
     counts: dict[str, int] = {'total': len(pr_list), 'rendered': 0}
     for reason in classify_reasons(
         pr_list, include_uncategorized, include_release_machinery, include_duplicates,
+        include_manual_excludes,
     ):
         if reason is None:
             counts['rendered'] += 1
@@ -2578,7 +2601,7 @@ def log_render_coverage(counts: dict[str, int]) -> None:
         logger.warning(
             'Excluded %d PR(s) from the report: %s. '
             'Re-run render with --include-uncategorized / --include-release-machinery '
-            'to inspect them.',
+            '/ --include-manual-excludes to inspect them.',
             sum(excluded.values()),
             ', '.join(f'{k}={v}' for k, v in excluded.items()),
         )
@@ -2591,6 +2614,7 @@ def render_markdown(
     summary: str | None = None,
     include_release_machinery: bool = False,
     include_duplicates: bool = False,
+    include_manual_excludes: bool = False,
 ) -> str:
     by_sig: dict[str, list[dict[str, Any]]] = {}
     uncategorized = []
@@ -2606,6 +2630,7 @@ def render_markdown(
         include_uncategorized=include_uncategorized,
         include_release_machinery=include_release_machinery,
         include_duplicates=include_duplicates,
+        include_manual_excludes=include_manual_excludes,
     )
 
     for pr, reason in zip(pr_list, reasons, strict=True):
@@ -2846,6 +2871,7 @@ def _derive_fetched_fields(
     pr['release_machinery'] = is_release_machinery(pr)
     pr['manual_override_sig'] = None
     pr['manual_override_description'] = None
+    pr['manual_override_exclude'] = None
     return pr
 
 
@@ -3406,6 +3432,7 @@ def _maybe_write_pointrelease_audit(
             merged,
             include_uncategorized=getattr(args, 'include_uncategorized', False),
             include_release_machinery=getattr(args, 'include_release_machinery', False),
+            include_manual_excludes=getattr(args, 'include_manual_excludes', False),
             # A bundled fix collapsed as a duplicate still reaches the reader,
             # via the bullet for its twin. Counting it as absent would raise
             # "action required" for content that is present, and a checklist
@@ -3648,6 +3675,7 @@ def _run_render(args: argparse.Namespace) -> int:
             logger.warning('Summary generation failed, using placeholder')
 
     include_duplicates = getattr(args, 'include_duplicates', False)
+    include_manual_excludes = getattr(args, 'include_manual_excludes', False)
 
     content = render_markdown(
         data['pull_requests'],
@@ -3656,6 +3684,7 @@ def _run_render(args: argparse.Namespace) -> int:
         summary=summary,
         include_release_machinery=include_release_machinery,
         include_duplicates=include_duplicates,
+        include_manual_excludes=include_manual_excludes,
     )
 
     if not include_duplicates:
@@ -3663,6 +3692,7 @@ def _run_render(args: argparse.Namespace) -> int:
             data['pull_requests'],
             include_uncategorized=args.include_uncategorized,
             include_release_machinery=include_release_machinery,
+            include_manual_excludes=include_manual_excludes,
         )
 
     log_render_coverage(summarize_render_coverage(
@@ -3670,6 +3700,7 @@ def _run_render(args: argparse.Namespace) -> int:
         include_uncategorized=args.include_uncategorized,
         include_release_machinery=include_release_machinery,
         include_duplicates=include_duplicates,
+        include_manual_excludes=include_manual_excludes,
     ))
 
     write_markdown_atomic(content, output_md)
@@ -3794,6 +3825,10 @@ def _add_render_args(parser: argparse.ArgumentParser, require_input_json: bool =
                         help='Keep every PR sharing a title within a repo. Default: off, which '
                              'renders one bullet per distinct title and logs each collapsed '
                              'group so the choice can be checked.')
+    parser.add_argument('--include-manual-excludes', action='store_true',
+                        help='Render PRs a curator excluded by setting manual_override_exclude '
+                             'in the release data JSON. Default: off; the reconciliation line '
+                             'reports how many were left out.')
 
 
 def add_parser_args(parser: argparse.ArgumentParser) -> None:
