@@ -236,3 +236,9 @@ Unfiltered asset database product queries no longer read an uninitialised job st
 
 o3de#20138
 The Class Wizard's Add Editor Component output compiles; a misplaced declaration is removed.
+
+o3de#20211
+The Editor and launchers carry a new splash screen and product logo for the 26.10.0 release.
+
+o3de-extras#1101
+The MachineLearning Gem builds again: its Script Canvas nodes are registered the way engines since 24.09 expect, which fixes #1063.

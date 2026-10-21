@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-10-08T23:02:22.685262+00:00",
+    "generated_at": "2026-10-21T09:46:55.704873+00:00",
     "from_ref": "2605.0",
     "to_ref": "upstream/stabilization/26100",
     "repos": [
@@ -11,16 +11,16 @@
       "o3de/o3de": "/home/nschuetz/PROJECTS/o3de",
       "o3de/o3de-extras": "/home/nschuetz/PROJECTS/o3de-extras"
     },
-    "schema_version": 8,
-    "tool_version": "0.15.1-beta",
-    "pr_count": 282,
+    "schema_version": 9,
+    "tool_version": "0.16.2-beta",
+    "pr_count": 290,
     "categorization_summary": {
-      "label": 168,
+      "label": 172,
       "heuristic_files": 96,
-      "heuristic_title": 6,
+      "heuristic_title": 8,
       "uncategorized": 1,
       "manual_override": 2,
-      "heuristic_codeowners": 9
+      "heuristic_codeowners": 11
     },
     "release_machinery_count": 2,
     "file_list_truncated": {
@@ -50,10 +50,10 @@
     },
     "reused_from_cache": {
       "per_repo": {
-        "o3de/o3de": 139,
+        "o3de/o3de": 142,
         "o3de/o3de-extras": 9
       },
-      "total": 148,
+      "total": 151,
       "policy": "label-categorised PRs only; all others re-fetched"
     },
     "linked_from_commits": {
@@ -107,10 +107,17 @@
             1074,
             1076,
             1078
+          ],
+          "1103": [
+            1088,
+            1098,
+            1099,
+            1100,
+            1101
           ]
         }
       },
-      "total": 26,
+      "total": 31,
       "source": "each container PR's commit list on GitHub"
     },
     "excluded_prior_releases": {
@@ -135,7 +142,7 @@
     },
     "effective_window": {
       "start": "2025-07-29T11:12:47-07:00",
-      "end": "2026-10-08T23:02:22.685262+00:00"
+      "end": "2026-10-21T09:46:55.704873+00:00"
     },
     "readability": {
       "narrative": {
@@ -145,10 +152,10 @@
         "sentences": 63
       },
       "full_list": {
-        "grade": 11.4,
-        "ease": 48.9,
-        "words": 4965,
-        "sentences": 248
+        "grade": 11.5,
+        "ease": 48.5,
+        "words": 5177,
+        "sentences": 255
       },
       "tool_version": "0.16.2-beta"
     }
@@ -772,7 +779,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Scene import checks Assimp's incomplete-scene flag correctly; the test had been reverted to an always-true expression."
+      "manual_override_description": "Scene import checks Assimp's incomplete-scene flag correctly; the test had been reverted to an always-true expression.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1279,7 +1287,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Native Mac ARM64 builds: multi-architecture detection, arm64-specific CMake files, and the Qt and moc fixes the platform needed."
+      "manual_override_description": "Native Mac ARM64 builds: multi-architecture detection, arm64-specific CMake files, and the Qt and moc fixes the platform needed.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1528,7 +1537,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Cancelling the Lua Editor's settings dialog no longer applies stray values; settings change only when you made changes and confirmed them."
+      "manual_override_description": "Cancelling the Lua Editor's settings dialog no longer applies stray values; settings change only when you made changes and confirmed them.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1549,7 +1559,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "MotionMatching debug drawing is off by default; it cost a great deal of performance and can be switched on when needed."
+      "manual_override_description": "MotionMatching debug drawing is off by default; it cost a great deal of performance and can be switched on when needed.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1571,7 +1582,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Fixed ignored-attribute warnings from EBus instantiation macros in the component mode code."
+      "manual_override_description": "Fixed ignored-attribute warnings from EBus instantiation macros in the component mode code.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1733,7 +1745,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Objects far from the origin can be picked for translate, rotate and scale again."
+      "manual_override_description": "Objects far from the origin can be picked for translate, rotate and scale again.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1757,7 +1770,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The chardet package is dropped; requests uses charset-normalizer instead."
+      "manual_override_description": "The chardet package is dropped; requests uses charset-normalizer instead.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1780,7 +1794,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "O3DE builds on macOS with a standard LLVM Clang, not only AppleClang; the SDK sysroot is detected through xcrun for non-Apple compilers."
+      "manual_override_description": "O3DE builds on macOS with a standard LLVM Clang, not only AppleClang; the SDK sysroot is detected through xcrun for non-Apple compilers.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": true,
@@ -1904,7 +1919,8 @@
       ],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -1962,7 +1978,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The MotionMatching Script Canvas demo files are migrated to current node types and open again."
+      "manual_override_description": "The MotionMatching Script Canvas demo files are migrated to current node types and open again.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2003,7 +2020,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "AZStd allocators are reworked to C++20 conventions. The implicit allocator(const char*) constructor is gone; it silently turned a string literal into an allocator and produced empty containers."
+      "manual_override_description": "AZStd allocators are reworked to C++20 conventions. The implicit allocator(const char*) constructor is gone; it silently turned a string literal into an allocator and produced empty containers.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2137,7 +2155,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Assimp is patched for a missing include in its tinyusdz code that broke some Linux builds."
+      "manual_override_description": "Assimp is patched for a missing include in its tinyusdz code that broke some Linux builds.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2240,7 +2259,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "imgui.ini files are ignored by git."
+      "manual_override_description": "imgui.ini files are ignored by git.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2340,7 +2360,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The Stars component's exposure, radius factor and twinkle rate can be read and set from the EBus and from scripts."
+      "manual_override_description": "The Stars component's exposure, radius factor and twinkle rate can be read and set from the EBus and from scripts.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2364,7 +2385,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Opaque Unlit materials render through their own shader path, which removes the white edge artifacts the shared path produced."
+      "manual_override_description": "Opaque Unlit materials render through their own shader path, which removes the white edge artifacts the shared path produced.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2385,7 +2407,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The Stars component rejects negative values passed to its new setters."
+      "manual_override_description": "The Stars component rejects negative values passed to its new setters.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2546,7 +2569,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Asset types registered with a group appear in nested New menus, with slashes in the group name creating deeper levels."
+      "manual_override_description": "Asset types registered with a group appear in nested New menus, with slashes in the group name creating deeper levels.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2635,7 +2659,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Focusing the Asset Browser clears the Outliner's selection, so re-selecting an entity in the Outliner no longer starts a rename."
+      "manual_override_description": "Focusing the Asset Browser clears the Outliner's selection, so re-selecting an entity in the Outliner no longer starts a rename.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2862,7 +2887,8 @@
       ],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2896,7 +2922,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "DetourCrowd from Recast Navigation is now available: a component that steers agents with collision avoidance between them and smooth movement, usable from C++ and Script Canvas."
+      "manual_override_description": "DetourCrowd from Recast Navigation is now available: a component that steers agents with collision avoidance between them and smooth movement, usable from C++ and Script Canvas.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2918,7 +2945,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "FlyCameraInputComponent accumulates mouse deltas across a frame, which removes choppy movement at high polling rates, and no longer uses Cry math types."
+      "manual_override_description": "FlyCameraInputComponent accumulates mouse deltas across a frame, which removes choppy movement at high polling rates, and no longer uses Cry math types.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -2940,7 +2968,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Assimp moves to 6.0.4."
+      "manual_override_description": "Assimp moves to 6.0.4.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3144,7 +3173,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The PhysX 4 deprecation is complete. Projects that reference the Gem by its old name resolve to PhysX 5 through a gem alias."
+      "manual_override_description": "The PhysX 4 deprecation is complete. Projects that reference the Gem by its old name resolve to PhysX 5 through a gem alias.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3200,7 +3230,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "MotionMatching Gem initialisation uses parallel_for, avoiding a deadlock in the Jobs-based path on machines with few worker threads."
+      "manual_override_description": "MotionMatching Gem initialisation uses parallel_for, avoiding a deadlock in the Jobs-based path on machines with few worker threads.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3221,7 +3252,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "ScriptContext no longer includes an internal Lua header; the alignment macro it needed is part of Lua's public API."
+      "manual_override_description": "ScriptContext no longer includes an internal Lua header; the alignment macro it needed is part of Lua's public API.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3243,7 +3275,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The TIFF loaders use C99 integer types instead of libtiff's deprecated typedefs, which modern Linux distributions reject."
+      "manual_override_description": "The TIFF loaders use C99 integer types instead of libtiff's deprecated typedefs, which modern Linux distributions reject.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3279,7 +3312,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Levels can be loaded from and saved to Gem asset directories, not only the project; the Welcome screen, Open Recent, Open Level, Save As and New Level all understand Gem-based levels."
+      "manual_override_description": "Levels can be loaded from and saved to Gem asset directories, not only the project; the Welcome screen, Open Recent, Open Level, Save As and New Level all understand Gem-based levels.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3305,7 +3339,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The Microphone Gem depends on libsamplerate only on platforms whose implementation uses it."
+      "manual_override_description": "The Microphone Gem depends on libsamplerate only on platforms whose implementation uses it.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3362,7 +3397,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The remaining PhysX 4 debug code, references and the upgrade script are removed."
+      "manual_override_description": "The remaining PhysX 4 debug code, references and the upgrade script are removed.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3523,7 +3559,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Particle assets declare their material dependency by path, so on a cold cache the Asset Processor builds the material before the particle."
+      "manual_override_description": "Particle assets declare their material dependency by path, so on a cold cache the Asset Processor builds the material before the particle.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3650,7 +3687,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Every reflected field of the physics ColliderConfiguration can now have its Editor visibility set, including Tag and the rest and contact offsets, so other physics engines can hide what they do not use."
+      "manual_override_description": "Every reflected field of the physics ColliderConfiguration can now have its Editor visibility set, including Tag and the rest and contact offsets, so other physics engines can hide what they do not use.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3758,7 +3796,8 @@
       "flags": [],
       "release_machinery": true,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3884,7 +3923,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Creating an entity from a tool or Python with no level loaded fails cleanly instead of crashing the Editor."
+      "manual_override_description": "Creating an entity from a tool or Python with no level loaded fails cleanly instead of crashing the Editor.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -3933,7 +3973,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Gamepads work on Linux systems that have only the libevdev runtime package installed; the loader now tries the versioned library name."
+      "manual_override_description": "Gamepads work on Linux systems that have only the libevdev runtime package installed; the loader now tries the versioned library name.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4106,7 +4147,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "A duplicated no-fast-math flag that leaked a stray PRIVATE token into GCC's command line is removed."
+      "manual_override_description": "A duplicated no-fast-math flag that leaked a stray PRIVATE token into GCC's command line is removed.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4127,7 +4169,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The Editor transform component notifies when a child is added or removed, as the runtime component already did."
+      "manual_override_description": "The Editor transform component notifies when a child is added or removed, as the runtime component already did.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4225,7 +4268,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The engine builds against system libtiff 4.5 and newer, whose legacy typedefs collided with CryCommon's."
+      "manual_override_description": "The engine builds against system libtiff 4.5 and newer, whose legacy typedefs collided with CryCommon's.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4248,7 +4292,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "PhysX enhanced determinism can be enabled per scene, through SceneConfiguration or the Editor's PhysX configuration. It is off by default."
+      "manual_override_description": "PhysX enhanced determinism can be enabled per scene, through SceneConfiguration or the Editor's PhysX configuration. It is off by default.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4412,7 +4457,8 @@
       "flags": [],
       "release_machinery": true,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4435,7 +4481,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "PySide6 moves to 6.10.2."
+      "manual_override_description": "PySide6 moves to 6.10.2.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4518,7 +4565,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Editing an AutoComponent XML or Jinja file triggers only the autogen step at build time, not a full CMake regenerate."
+      "manual_override_description": "Editing an AutoComponent XML or Jinja file triggers only the autogen step at build time, not a full CMake regenerate.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4593,7 +4641,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Console commands can supply a callback that autocompletes their arguments on Tab."
+      "manual_override_description": "Console commands can supply a callback that autocompletes their arguments on Tab.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4620,7 +4669,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Fixed crashes in network-related entity initialisation and in child entities left dangling by the 26.05 transform behaviour change."
+      "manual_override_description": "Fixed crashes in network-related entity initialisation and in child entities left dangling by the 26.05 transform behaviour change.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4699,7 +4749,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Particle systems preload their material asset so it is ready when the system activates on level load."
+      "manual_override_description": "Particle systems preload their material asset so it is ready when the system activates on level load.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -4960,7 +5011,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Multiplayer AutoComponents with vector network properties compile again; narrowing conversions in the generated code no longer fail the build."
+      "manual_override_description": "Multiplayer AutoComponents with vector network properties compile again; narrowing conversions in the generated code no longer fail the build.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5018,7 +5070,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The ImGui console no longer collects stray text while the ImGui layer is hidden; input is queued and delivered only when it is visible."
+      "manual_override_description": "The ImGui console no longer collects stray text while the ImGui layer is hidden; input is queued and delivered only when it is visible.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5225,7 +5278,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "meshoptimizer moves to 1.2; the sparse and lock-border LOD options meant for meshlets are removed."
+      "manual_override_description": "meshoptimizer moves to 1.2; the sparse and lock-border LOD options meant for meshlets are removed.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5356,7 +5410,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5377,7 +5432,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "An engine named in a project's user settings is used as given, instead of being re-validated by engine discovery and failing in surprising ways."
+      "manual_override_description": "An engine named in a project's user settings is used as given, instead of being re-validated by engine discovery and failing in surprising ways.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5421,7 +5477,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Engine registration no longer consults the engines_path field deprecated in 22.10, which fixes a silent failure when registering an engine whose name already existed at a different path."
+      "manual_override_description": "Engine registration no longer consults the engines_path field deprecated in 22.10, which fixes a silent failure when registering an engine whose name already existed at a different path.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": true,
@@ -5594,7 +5651,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The File menu opens faster; the Recent Files submenu is populated only when it is about to show."
+      "manual_override_description": "The File menu opens faster; the Recent Files submenu is populated only when it is about to show.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5615,7 +5673,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "expat moves to 2.7.3, restoring the missing Mac package."
+      "manual_override_description": "expat moves to 2.7.3, restoring the missing Mac package.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -5909,7 +5968,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Tidied an import and an unreachable return in the RPI Python utilities."
+      "manual_override_description": "Tidied an import and an unreachable return in the RPI Python utilities.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6013,7 +6073,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Non-unity builds compile again after missing includes and forward declarations were added."
+      "manual_override_description": "Non-unity builds compile again after missing includes and forward declarations were added.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6060,7 +6121,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "SmoothCriticallyDamped and a new SmoothStep are available to Lua and Script Canvas for numbers, Vector2, Vector3 and Quaternion."
+      "manual_override_description": "SmoothCriticallyDamped and a new SmoothStep are available to Lua and Script Canvas for numbers, Vector2, Vector3 and Quaternion.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6236,7 +6298,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Fixed a server crash during level load or unload when the level contains a Network Rigid Body component."
+      "manual_override_description": "Fixed a server crash during level load or unload when the level contains a Network Rigid Body component.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6301,7 +6364,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "GitPython and urllib3 in the Python requirements move to versions without known vulnerabilities."
+      "manual_override_description": "GitPython and urllib3 in the Python requirements move to versions without known vulnerabilities.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6322,7 +6386,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": "sig/graphics-audio",
-      "manual_override_description": "Track View no longer deletes keyframe 1 when keyframe 0 is selected for removal on a compound spline track."
+      "manual_override_description": "Track View no longer deletes keyframe 1 when keyframe 0 is selected for removal on a compound spline track.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6343,7 +6408,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "o3de.sh forwards its arguments with their quoting intact, so paths containing spaces or a tilde reach o3de.py correctly."
+      "manual_override_description": "o3de.sh forwards its arguments with their quoting intact, so paths containing spaces or a tilde reach o3de.py correctly.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": true,
@@ -6516,7 +6582,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The Groundplane asset folder is spelled correctly, and the 28 prefabs, levels and templates that referenced the misspelled path are updated."
+      "manual_override_description": "The Groundplane asset folder is spelled correctly, and the 28 prefabs, levels and templates that referenced the misspelled path are updated.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6537,7 +6604,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The nightly schedule is removed from the canary workflow so the workflow can run in forks; nightly runs are triggered separately."
+      "manual_override_description": "The nightly schedule is removed from the canary workflow so the workflow can run in forks; nightly runs are triggered separately.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6620,7 +6688,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6641,7 +6710,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6662,7 +6732,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": "sig/graphics-audio",
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6738,7 +6809,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "LuaIDE works with the Editor on Linux: inter-process communication now has a Linux implementation, and two bugs in document invalidation and file lookup are fixed."
+      "manual_override_description": "LuaIDE works with the Editor on Linux: inter-process communication now has a Linux implementation, and two bugs in document invalidation and file lookup are fixed.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6759,7 +6831,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The LyShine editor no longer crashes at startup when Qt lays out a zero-size viewport, which made Vulkan swapchain creation fail."
+      "manual_override_description": "The LyShine editor no longer crashes at startup when Qt lays out a zero-size viewport, which made Vulkan swapchain creation fail.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6780,7 +6853,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "DirectXShaderCompiler moves to 1.8.2505.1."
+      "manual_override_description": "DirectXShaderCompiler moves to 1.8.2505.1.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6801,7 +6875,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Editor.app and AssetProcessor.app launched outside Xcode no longer hit duplicate Qt library conflicts."
+      "manual_override_description": "Editor.app and AssetProcessor.app launched outside Xcode no longer hit duplicate Qt library conflicts.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -6847,7 +6922,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Changing the audio language no longer leaves a dangling pointer in the file cache that broke subsequent loads, and the Audio Controls Editor shows custom connection property widgets."
+      "manual_override_description": "Changing the audio language no longer leaves a dangling pointer in the file cache that broke subsequent loads, and the Audio Controls Editor shows custom connection property widgets.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7046,7 +7122,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Remaining #ifndef include guards are replaced with #pragma once."
+      "manual_override_description": "Remaining #ifndef include guards are replaced with #pragma once.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7069,7 +7146,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "dlmalloc and nedmalloc are removed from AzCore; they are unmaintained upstream and slower than native allocators on modern platforms."
+      "manual_override_description": "dlmalloc and nedmalloc are removed from AzCore; they are unmaintained upstream and slower than native allocators on modern platforms.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7100,7 +7178,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "D3D12MemoryAllocator is fetched with FetchContent instead of shipped as a package."
+      "manual_override_description": "D3D12MemoryAllocator is fetched with FetchContent instead of shipped as a package.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7179,7 +7258,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Cutout Unlit materials are no longer darkened by SSAO, and blended Unlit materials no longer cast fully opaque shadows."
+      "manual_override_description": "Cutout Unlit materials are no longer darkened by SSAO, and blended Unlit materials no longer cast fully opaque shadows.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7250,7 +7330,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "FreeType moves to 2.11.1."
+      "manual_override_description": "FreeType moves to 2.11.1.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7305,6 +7386,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "macOS runners free disk space by removing unused Xcode installations and trimming the compiler cache, so Mac and iOS builds stop running out of space while restoring caches.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20102
     },
     {
@@ -7516,6 +7598,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The AZSL shader compiler now lives in the engine source tree and builds as a host tool, instead of arriving as a prebuilt package per platform.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20123
     },
     {
@@ -7643,7 +7726,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Metal no longer corrupts output when a render scope has no draw items but must still clear or resolve a colour attachment."
+      "manual_override_description": "Metal no longer corrupts output when a render scope has no draw items but must still clear or resolve a colour attachment.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -7693,6 +7777,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Terrain detail layers blend correctly at their falloff edges when there is no macro material, instead of switching hard between materials.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20123
     },
     {
@@ -7742,6 +7827,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "ArticulationLink computes its inertia tensor automatically from mass and shape, removing a large discrepancy in joint-chain behaviour between O3DE and Isaac Sim.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20140
     },
     {
@@ -7769,6 +7855,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The shader builder launches the engine-built azslc from the binary directory instead of a duplicate copy that could not find its shared libraries.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20123
     },
     {
@@ -7823,6 +7910,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Mac automated review fails at the real error when Xcode's post-build step fails, instead of a misleading \"AssetProcessorBatch not found\" later on.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20102
     },
     {
@@ -7851,6 +7939,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Class Wizard fixes: the new template directories are deployed with the install, PySide and shiboken bootstrap works on every platform, and console logging is cleaner.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20102
     },
     {
@@ -7928,6 +8017,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Decals render on metallic surfaces, the decal texture array cap rises from 5 to 16, decals gain a maximum draw distance, and the diffuse probe grid shaders are recompiled.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20123
     },
     {
@@ -7997,6 +8087,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         19975,
@@ -8042,6 +8133,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Keyboard shortcuts in the Action Manager are handled as shortcut events rather than key events, which could swallow a shortcut, and CI artifact caches are hardened.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20102
     },
     {
@@ -8070,6 +8162,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Instantiating a prefab whose file cannot be loaded returns a failure instead of crashing the Editor.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20102
     },
     {
@@ -8112,6 +8205,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         20004,
@@ -8169,6 +8263,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "SystemFile reads and writes larger than 2 GB are chunked on Linux and Mac instead of failing or truncating.",
+      "manual_override_exclude": null,
       "recovered_from_container": 20123
     },
     {
@@ -8343,6 +8438,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         20018,
@@ -8478,7 +8574,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "Third-party packages and LFS objects are fetched from o3debinaries.org endpoints in place of the previous CloudFront URLs."
+      "manual_override_description": "Third-party packages and LFS objects are fetched from o3debinaries.org endpoints in place of the previous CloudFront URLs.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8549,6 +8646,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         20053
@@ -8575,7 +8673,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "A failed DTLS handshake now fails the connection instead of crashing the process."
+      "manual_override_description": "A failed DTLS handshake now fails the connection instead of crashing the process.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8647,7 +8746,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "MiniAudio works in unified launcher builds."
+      "manual_override_description": "MiniAudio works in unified launcher builds.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8730,6 +8830,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         20119,
@@ -8769,10 +8870,38 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         20179
       ]
+    },
+    {
+      "files_truncated": false,
+      "number": 20211,
+      "repo": "o3de/o3de",
+      "title": "Update splashscreen and product logo for 26.10.0 release",
+      "body": "## What does this PR do?\r\n\r\nAdds a new splash screen and product logo for the 26.10.0 release.\r\n\r\nProduct Icon:\r\n<img width=\"168\" height=\"64\" alt=\"fixed--product_logo\" src=\"https://github.com/user-attachments/assets/1f905aeb-ad8d-4aee-82ed-b329907a2407\" />\r\n\r\nSplash screen:\r\n<img width=\"2788\" height=\"1530\" alt=\"image\" src=\"https://github.com/user-attachments/assets/b8d157d0-79b4-4d59-93aa-56d1e0643057\" />\r\n\r\n## How was this PR tested?\r\n- Built in a test branch, screenshot below\r\n\r\n<img width=\"668\" height=\"496\" alt=\"image\" src=\"https://github.com/user-attachments/assets/172635f6-3d97-40df-bc0d-458057b9d025\" />\r\n\r\n<img width=\"1197\" height=\"683\" alt=\"image\" src=\"https://github.com/user-attachments/assets/918b83c5-a75f-4f15-84db-7272ad3bd842\" />",
+      "url": "https://github.com/o3de/o3de/pull/20211",
+      "author": "amzn-changml",
+      "merged_at": "2026-10-21T09:34:34Z",
+      "labels": [
+        "sig/build",
+        "sig/content",
+        "sig/release"
+      ],
+      "files": [
+        "Code/Editor/splashscreen_background.png",
+        "cmake/Platform/Windows/Packaging/product_logo.png"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "manual_override",
+      "description": "The Editor and launchers carry a new splash screen and product logo for the 26.10.0 release.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": "sig/content",
+      "manual_override_description": "The Editor and launchers carry a new splash screen and product logo for the 26.10.0 release.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8800,6 +8929,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "libsdformat moves from 13.5.0 to 16.0.1.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
     },
     {
@@ -8850,7 +8980,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "ROS 2 manipulation components and controllers use fully namespaced joint names throughout, with better joint configuration and import fixes."
+      "manual_override_description": "ROS 2 manipulation components and controllers use fully namespaced joint names throughout, with better joint configuration and import fixes.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8871,7 +9002,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "ROS2FrameComponent again normalises a namespace name when needed; the call had been lost in a refactor."
+      "manual_override_description": "ROS2FrameComponent again normalises a namespace name when needed; the call had been lost in a refactor.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8897,7 +9029,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "SimulationInterfaces supports the SpawnEntities service, spawning several entities in one call."
+      "manual_override_description": "SimulationInterfaces supports the SpawnEntities service, spawning several entities in one call.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -8956,7 +9089,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "SimulationInterfaces supports the 2.1.0 package that ships with ROS 2 Lyrical Luth, alongside 1.4.0, 1.5.0 and 1.6.0, selected at configure time."
+      "manual_override_description": "SimulationInterfaces supports the 2.1.0 package that ships with ROS 2 Lyrical Luth, alongside 1.4.0, 1.5.0 and 1.6.0, selected at configure time.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -9030,7 +9164,8 @@
       ],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -9140,7 +9275,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "The Multiplayer project template compiles again; float literals in the generated camera component now carry the required suffix."
+      "manual_override_description": "The Multiplayer project template compiles again; float literals in the generated camera component now carry the required suffix.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -9185,7 +9321,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": null
+      "manual_override_description": null,
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -9312,7 +9449,8 @@
       "flags": [],
       "release_machinery": false,
       "manual_override_sig": null,
-      "manual_override_description": "GetFrameTransform is back on the public ROS2Frame EBus."
+      "manual_override_description": "GetFrameTransform is back on the public ROS2Frame EBus.",
+      "manual_override_exclude": null
     },
     {
       "files_truncated": false,
@@ -9339,6 +9477,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "ROS 2 package dependencies are declared through O3DE's third-party convention, so they survive packaging a Gem for distribution.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1095
     },
     {
@@ -9383,6 +9522,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The ROS 2 camera can publish compressed images. The encoding conversion component lets you choose the conversion, converts 32-bit depth to mono16 or mono8, and the compression component falls back to a conversion at runtime when none is configured.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1095
     },
     {
@@ -9542,6 +9682,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The Robot Importer's utility code is split into focused files for SDF queries, plugin queries and visitors, with unused functions and dependencies removed.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
     },
     {
@@ -9568,6 +9709,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "A notification bus reports entities spawned through the SimulationInterfaces services, so additional child entities can be registered without replacing the spawn handler.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1094
     },
     {
@@ -9618,6 +9760,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "All of the Robot Importer's parsing code, for SDF, URDF fixes and Xacro, lives in one Parsing folder, and each maker includes only the headers it uses.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
     },
     {
@@ -9663,6 +9806,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The Robot Importer's prefab-building code moves from a folder named URDF to Building, with the makers in their own subfolder.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
     },
     {
@@ -9687,6 +9831,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Entities spawned through SimulationInterfaces are removed explicitly before a level unloads; on 26.05 they survived a level restart.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1094
     },
     {
@@ -9730,6 +9875,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The Robot Importer tracks referenced assets and prefab build status through two new EBuses handled by an import session, instead of passing a map down through every layer.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
     },
     {
@@ -9752,6 +9898,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "SimulationInterfaces tests build with newer googletest, which rejects the deprecated Invoke wrapper.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1094
     },
     {
@@ -9775,6 +9922,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The ResetSimulation service treats its scope argument as a bitmask, so combinations of scopes reset correctly.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1094
     },
     {
@@ -9805,6 +9953,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Duplicate asset detection and copying code in the Robot Importer's import paths is consolidated, and the wizard checks whether a source asset is already in the project before searching by content.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
     },
     {
@@ -9829,7 +9978,31 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "Fixed a wrong AZ::IO::Path construction in the Robot Importer's asset lookup that could produce a bad lookup key.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1093
+    },
+    {
+      "files_truncated": false,
+      "number": 1088,
+      "repo": "o3de/o3de-extras",
+      "title": "Add inertia tensor extraction to AddToArticulationConfig",
+      "body": "**need** : https://github.com/o3de/o3de/pull/20053\r\n\r\nbugfix : Bug Report-ArticulationLink lacks Inertia Tensor configuration and auto-compute, causing PhysX simulation mismatch with Isaac Sim\r\n #20016\r\n\r\nWhat does this PR do?\r\n\r\nOld behavior:\r\nThe AddToArticulationConfig function in ArticulationsMaker was only setting mass and center of mass offset from URDF/SDF inertial properties. The inertia tensor was not being extracted from the inertial data, causing the articulation links to use computed inertia values instead of the actual values specified in the robot description.\r\n\r\nNew behavior:\r\nThe function now extracts the inertia tensor (Moment of Inertia) from the gz::math::Inertiald object and applies it to the articulationLinkConfiguration. The inertia tensor is symmetric, so the matrix is constructed with proper symmetry:\r\n- Ixy = Iyx, Ixz = Izx, Iyz = Izy\r\n\r\nThe changes:\r\n- Extract the inertia tensor using inertial.Moi()\r\n- Construct a symmetric AZ::Matrix3x3 from the inertia components\r\n- Set m_inertiaTensor with the constructed matrix\r\n- Set m_computeInertiaTensor = false to use the provided values instead of auto-computing\r\n\r\nThis ensures that articulation links use the exact inertial properties specified in the URDF/SDF robot description, improving simulation accuracy.\r\n\r\nHow was this PR tested?\r\n\r\nThe implementation was tested by:\r\n1. Importing URDF/SDF robot models with defined inertial properties\r\n2. Verifying that the inertia tensor values are correctly extracted and applied to articulation links\r\n3. Confirming that the resulting articulation configurations match the expected inertial properties from the source robot descriptions\r\n\r\nThe code follows the existing pattern in ArticulationsMaker.cpp and properly handles the symmetric nature of inertia tensors.\r\n",
+      "url": "https://github.com/o3de/o3de-extras/pull/1088",
+      "author": "welber-zhang",
+      "merged_at": "2026-08-31T12:17:35Z",
+      "labels": [],
+      "files": [
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Building/Makers/ArticulationsMaker.cpp"
+      ],
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_title",
+      "description": "The Robot Importer reads the inertia tensor from URDF and SDF inertial data and applies it to articulation links, instead of leaving PhysX to compute one (needs o3de#20053, also in this release).",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": "The Robot Importer reads the inertia tensor from URDF and SDF inertial data and applies it to articulation links, instead of leaving PhysX to compute one (needs o3de#20053, also in this release).",
+      "manual_override_exclude": null,
+      "recovered_from_container": 1103
     },
     {
       "files_truncated": false,
@@ -9855,6 +10028,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "A workflow builds and tests the simulation Gems on every pull request that touches them, against the engine at the matching branch.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1095
     },
     {
@@ -9879,6 +10053,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": "The Tracy profiler Gem moves to Tracy 1.14.1 and marks the frame end at the RHI's end-of-frame event for more accurate frame times.",
+      "manual_override_exclude": null,
       "recovered_from_container": 1095
     },
     {
@@ -9971,6 +10146,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         1024,
@@ -10009,6 +10185,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         1071,
@@ -10067,6 +10244,7 @@
       "release_machinery": false,
       "manual_override_sig": null,
       "manual_override_description": null,
+      "manual_override_exclude": null,
       "base_ref": "stabilization/26100",
       "bundled_prs": [
         1066,
@@ -10074,6 +10252,224 @@
         1089,
         1090
       ]
+    },
+    {
+      "files_truncated": false,
+      "number": 1098,
+      "repo": "o3de/o3de-extras",
+      "title": "Added possibility to set history policy",
+      "body": "## What does this PR do?\r\n\r\nPr adds possibility to control topic QoS history policy. Previously all topics were hardcoded as KeepLast \r\n\r\n## How was this PR tested?\r\n\r\nbuilt as non-unity and created topic with new KeepAll policy. policy verified using `ros2 topic info /topic_name --verbose`\r\n",
+      "url": "https://github.com/o3de/o3de-extras/pull/1098",
+      "author": "norbertprokopiuk",
+      "merged_at": "2026-09-22T12:17:35Z",
+      "labels": [],
+      "files": [
+        "Gems/ROS2/Code/Include/ROS2/Communication/QoS.h",
+        "Gems/ROS2Controllers/Code/Tests/WheelOdometrySensorConfigurationSerializationTest.cpp"
+      ],
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_codeowners",
+      "description": "ROS 2 topic QoS can set the history policy; previously every topic was hard-coded to KeepLast.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": "ROS 2 topic QoS can set the history policy; previously every topic was hard-coded to KeepLast.",
+      "manual_override_exclude": null,
+      "recovered_from_container": 1103
+    },
+    {
+      "files_truncated": false,
+      "number": 1099,
+      "repo": "o3de/o3de-extras",
+      "title": "[ROS2RobotImporter] Add warning banner for registries and articulations",
+      "body": "## What does this PR do?\r\n\r\nCreating a project from O3DE template results in different registry settings compared to creating a project from robotic O3DE templates. Some assets might be correct or incorrect  due to the fixed coordinate system, see https://github.com/o3de/o3de/pull/18686 for details.\r\n\r\nI wasted nearly two hours rebuilding assets and different versions of engines to find out why I cannot import the same robot in different project anymore.  In this PR I added a warning for robot importer, so it get very easy to spot when working on the project with configuration that might influence `.dae` and `.stl` readouts typical for URDF/SDF robots.\r\n\r\nAdditionally, I adjusted warning about >64 articulations to follow the same style.\r\n\r\nScreenshots below:\r\n<img width=\"1265\" height=\"308\" alt=\"Screenshot from 2026-09-21 18-10-55\" src=\"https://github.com/user-attachments/assets/8a781278-4567-4b95-b1e8-fadfaf4debc4\" />\r\n<img width=\"1265\" height=\"246\" alt=\"Screenshot from 2026-09-21 18-11-04\" src=\"https://github.com/user-attachments/assets/4a6fc2d1-4807-454a-900e-409329cfb806\" />\r\n\r\n\r\n## How was this PR tested?\r\n\r\nImported robots with and without registry flag.\r\n",
+      "url": "https://github.com/o3de/o3de-extras/pull/1099",
+      "author": "jhanca-robotecai",
+      "merged_at": "2026-09-23T17:30:03Z",
+      "labels": [
+        "sig/simulation"
+      ],
+      "files": [
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/CheckAssetPage.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/CheckAssetPage.h",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/PrefabMakerPage.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/PrefabMakerPage.h",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/WarningBanner.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/WarningBanner.h",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/RobotImporterWidget.cpp",
+        "Gems/ROS2RobotImporter/Code/ros2robotimporter_editor_private_files.cmake"
+      ],
+      "sig_category": "sig/simulation",
+      "categorization_source": "label",
+      "description": "The Robot Importer shows a warning banner when the project registry settings differ from the robotics templates, since that changes how .dae and .stl files are read, and the warning for more than 64 articulations uses the same style.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": "The Robot Importer shows a warning banner when the project registry settings differ from the robotics templates, since that changes how .dae and .stl files are read, and the warning for more than 64 articulations uses the same style.",
+      "manual_override_exclude": null,
+      "recovered_from_container": 1103
+    },
+    {
+      "files_truncated": false,
+      "number": 1100,
+      "repo": "o3de/o3de-extras",
+      "title": "[Tests] redo spawning test (w/o AssetProcessor)",
+      "body": "## What does this PR do?\r\n\r\n`SimulationInterfaces.Editor.Tests` depended on `${PROJECT_NAME}.Assets` just to get a processed `.spawnable` for `SpawnAppTest`. That target runs `AssetProcessorBatch`, which pulls the whole builder half of the engine into the CI build (EMotionFX.Editor, assimp, SceneAPI, the Atom `.Builders` modules, …). It was the only test target in o3de-extras or o3de that did this.\r\n\r\nThe test environment now assembles the spawnable in memory and registers it via `AzFramework::InMemorySpawnableAssetContainer`, as the Multiplayer gem does. The test body and its `product_asset:///…` URI are unchanged.\r\n\r\n- `Code/CMakeLists.txt` — drop `${PROJECT_NAME}.Assets`, add the missing `Gem::ROS2`\r\n- delete `Assets/SampleAsset/TestSimulationEntity.prefab` — a test fixture that shipped to every project enabling the gem\r\n- `simulation-gems-pr.yml` — drop `Ros2GemsTest.Assets` from the build targets\r\n\r\n## How was this PR tested?\r\n\r\nTests built and ran locally.",
+      "url": "https://github.com/o3de/o3de-extras/pull/1100",
+      "author": "jhanca-robotecai",
+      "merged_at": "2026-09-23T17:29:19Z",
+      "labels": [
+        "sig/simulation"
+      ],
+      "files": [
+        ".github/workflows/simulation-gems-pr.yml",
+        "Gems/SimulationInterfaces/Assets/SampleAsset/TestSimulationEntity.prefab",
+        "Gems/SimulationInterfaces/Code/CMakeLists.txt",
+        "Gems/SimulationInterfaces/Code/Tests/Common/SimulationInterfaceTestFixture.h",
+        "Gems/SimulationInterfaces/Code/Tests/Tools/SimulationInterfaceAppTest.cpp"
+      ],
+      "sig_category": "sig/simulation",
+      "categorization_source": "label",
+      "description": "The SimulationInterfaces editor tests build their spawnable in memory, so the test target no longer runs AssetProcessorBatch or pulls the engine builders into CI, and the TestSimulationEntity prefab that shipped with the Gem is removed.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": "The SimulationInterfaces editor tests build their spawnable in memory, so the test target no longer runs AssetProcessorBatch or pulls the engine builders into CI, and the TestSimulationEntity prefab that shipped with the Gem is removed.",
+      "manual_override_exclude": null,
+      "recovered_from_container": 1103
+    },
+    {
+      "files_truncated": false,
+      "number": 1101,
+      "repo": "o3de/o3de-extras",
+      "title": "[MachineLearning] Update ScriptCanvas after engine changes",
+      "body": "## What does this PR do?\r\n\r\nFixes #1063: the MachineLearning Gem failed to build after the ScriptCanvas node registration changes in o3de/o3de#16678 (engine 24.09+).\r\n\r\n- **ScriptCanvas:** remove the old `AutoGenNodeableRegistry` templates, rules and static instance. `MachineLearningSystemComponent.cpp` now includes the node headers, so the nodes register themselves and stay linked into the module.\r\n- **Build fixes (clang, `-Werror`):**\r\n  - remove `#pragma once` from `.cpp` files\r\n  - add missing includes (`Path.h`, `shared_ptr.h`, `make_shared.h`, `scoped_lock.h`, `SerializeContext.h`)\r\n  - remove the unused private `ImGuiPass.h` include\r\n  - fix format strings, unused fields/variables and a pessimizing move\r\n\r\n## How was this PR tested?\r\n\r\nThe code was built and all *ScriptCanvas* nodes were added to an empty script; the tests pass.\r\n",
+      "url": "https://github.com/o3de/o3de-extras/pull/1101",
+      "author": "jhanca-robotecai",
+      "merged_at": "2026-09-23T17:27:55Z",
+      "labels": [],
+      "files": [
+        "Gems/MachineLearning/Code/CMakeLists.txt",
+        "Gems/MachineLearning/Code/Include/MachineLearning/ILabeledTrainingData.h",
+        "Gems/MachineLearning/Code/Source/Algorithms/Training.h",
+        "Gems/MachineLearning/Code/Source/Assets/MnistDataLoader.cpp",
+        "Gems/MachineLearning/Code/Source/Assets/MnistDataLoader.h",
+        "Gems/MachineLearning/Code/Source/Assets/TrainingDataView.cpp",
+        "Gems/MachineLearning/Code/Source/Components/MultilayerPerceptronComponent.cpp",
+        "Gems/MachineLearning/Code/Source/Debug/MachineLearningDebugSystemComponent.cpp",
+        "Gems/MachineLearning/Code/Source/Debug/MachineLearningDebugTrainingWindow.cpp",
+        "Gems/MachineLearning/Code/Source/MachineLearningSystemComponent.cpp",
+        "Gems/MachineLearning/Code/Source/Models/Layer.cpp",
+        "Gems/MachineLearning/Code/Source/Models/MultilayerPerceptron.cpp",
+        "Gems/MachineLearning/Code/Source/Nodes/LoadTrainingData.cpp",
+        "Gems/MachineLearning/Code/Source/Tools/MultilayerPerceptronEditorComponent.cpp",
+        "Gems/MachineLearning/Code/scriptcanvas_autogen_files.cmake"
+      ],
+      "sig_category": "sig/content",
+      "categorization_source": "heuristic_title",
+      "description": "The MachineLearning Gem builds again: its Script Canvas nodes are registered the way engines since 24.09 expect, which fixes #1063.",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": "The MachineLearning Gem builds again: its Script Canvas nodes are registered the way engines since 24.09 expect, which fixes #1063.",
+      "manual_override_exclude": null,
+      "recovered_from_container": 1103
+    },
+    {
+      "files_truncated": false,
+      "number": 1103,
+      "repo": "o3de/o3de-extras",
+      "title": "Development -> Stabilization cherries: part 2",
+      "body": "## What does this PR do?\n\nThis is the remaining set of changes that were added to the `development` branch after the _stabilization_ period started. All changes got approval for such merge earlier. After this PR, `stabilization/26100` matches `development`:\n- #1088: Inertia tensor from URDF/SDF is used in articulation links instead of being computed. Small change (+10 lines) in the RobotImporter, low risk.\n- #1098: History policy (Keep Last / Keep All) added to ROS 2 QoS. The QoS serialization version is bumped and the new field defaults to the previous behavior, so existing prefabs load unchanged. Low risk.\n- #1101: MachineLearning Gem updated to the engine's ScriptCanvas changes; needed for the Gem to work with 2610.\n- #1100: Spawning test reworked to run without the AssetProcessor, plus a workflow update. Tests only, no influence on end users, no risk.\n- #1099: Warning banner for registries and articulations in the RobotImporter. UI-only addition, low risk.\n\n## How was this PR tested?\n\nThe code builds against `stabilization/26100` (o3de `b706d4f5b3`) in a non-unity profile build with ROS 2 Lyrical. All o3de-extras unit tests pass (10 test modules, 122 passed, 1 skipped by design). The code was reviewed in the respective PRs.",
+      "url": "https://github.com/o3de/o3de-extras/pull/1103",
+      "author": "jhanca-robotecai",
+      "merged_at": "2026-10-12T20:55:16Z",
+      "labels": [],
+      "files": [
+        ".github/workflows/simulation-gems-pr.yml",
+        "Gems/MachineLearning/Code/CMakeLists.txt",
+        "Gems/MachineLearning/Code/Include/MachineLearning/ILabeledTrainingData.h",
+        "Gems/MachineLearning/Code/Source/Algorithms/Training.h",
+        "Gems/MachineLearning/Code/Source/Assets/MnistDataLoader.cpp",
+        "Gems/MachineLearning/Code/Source/Assets/MnistDataLoader.h",
+        "Gems/MachineLearning/Code/Source/Assets/TrainingDataView.cpp",
+        "Gems/MachineLearning/Code/Source/Components/MultilayerPerceptronComponent.cpp",
+        "Gems/MachineLearning/Code/Source/Debug/MachineLearningDebugSystemComponent.cpp",
+        "Gems/MachineLearning/Code/Source/Debug/MachineLearningDebugTrainingWindow.cpp",
+        "Gems/MachineLearning/Code/Source/MachineLearningSystemComponent.cpp",
+        "Gems/MachineLearning/Code/Source/Models/Layer.cpp",
+        "Gems/MachineLearning/Code/Source/Models/MultilayerPerceptron.cpp",
+        "Gems/MachineLearning/Code/Source/Nodes/LoadTrainingData.cpp",
+        "Gems/MachineLearning/Code/Source/Tools/MultilayerPerceptronEditorComponent.cpp",
+        "Gems/MachineLearning/Code/scriptcanvas_autogen_files.cmake",
+        "Gems/ROS2/Code/Include/ROS2/Communication/QoS.h",
+        "Gems/ROS2Controllers/Code/Tests/WheelOdometrySensorConfigurationSerializationTest.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Building/Makers/ArticulationsMaker.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/CheckAssetPage.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/CheckAssetPage.h",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/PrefabMakerPage.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/PrefabMakerPage.h",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/WarningBanner.cpp",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/Pages/WarningBanner.h",
+        "Gems/ROS2RobotImporter/Code/Source/RobotImporter/RobotImporterWidget.cpp",
+        "Gems/ROS2RobotImporter/Code/ros2robotimporter_editor_private_files.cmake",
+        "Gems/SimulationInterfaces/Assets/SampleAsset/TestSimulationEntity.prefab",
+        "Gems/SimulationInterfaces/Code/CMakeLists.txt",
+        "Gems/SimulationInterfaces/Code/Tests/Common/SimulationInterfaceTestFixture.h",
+        "Gems/SimulationInterfaces/Code/Tests/Tools/SimulationInterfaceAppTest.cpp"
+      ],
+      "sig_category": "sig/simulation",
+      "categorization_source": "heuristic_codeowners",
+      "description": "Development -> Stabilization cherries: part 2.",
+      "flags": [
+        "cherry-pick"
+      ],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": null,
+      "manual_override_exclude": null,
+      "base_ref": "stabilization/26100",
+      "bundled_prs": [
+        1088,
+        1098,
+        1099,
+        1100,
+        1101
+      ]
+    },
+    {
+      "files_truncated": false,
+      "number": 1104,
+      "repo": "o3de/o3de-extras",
+      "title": "Update repo.json and all versions",
+      "body": "## What does this PR do?\r\n\r\n### 1. Move released Gems from the `2.0` placeholder to their engine release tags\r\n\r\nGem zips from 2409.0 onward were all uploaded to the `2.0` GitHub release, which was meant only as a placeholder for testing before a release. Each zip is rebuilt from its original source with the correct engine release tag in its download URL (`2409.0` … `2605.0`, backports to `2505.1`). The URL is stored inside the zip's `gem.json`, so every SHA-256 changes. The `2.0` assets stay in place, so existing links keep working. A few entries now match the manifest inside their zip (`copyFiles`, `compatible_engines`). Before this change they failed `o3de download` validation. Pre-2409 versions stay on `2.0`.\r\n\r\n### 2. Cherry-pick of the 2605 intermediate release (#1092)\r\n\r\nROS2 4.3.0, SimulationInterfaces 2.2.1, ROS2Sensors 1.1.0 and TracyProfiler 1.1.0 are added to `repo.json` and `gem.json`, pointing to the `2605.0` release.\r\n\r\n### 3. New versions for 2610\r\n\r\nEvery changed Gem requires `o3de>=2.7.0` / `o3de-sdk>=2.7.0` (`compatible_engines`), because of the engine API adjustments listed below. All zips point to the `2610.0` release.\r\n\r\n| Gem | Version | Justification |\r\n|---|---|---|\r\n| ROS2 | 4.3.0 → 4.4.0 | QoS history policy (#1098); `AUTOMOC` removed for the new engine |\r\n| ROS2RobotImporter | 1.1.0 → 2.0.0 | libsdformat 13 → 16 in public hook headers (breaking), importer refactors (#1070–#1085), inertia tensor (#1088, requires o3de#20053), warning banner (#1099) |\r\n| AzQtComponentsForPython | 1.0.0 → 2.0.0 | Port from Qt5 to Qt6 (breaking), Mac support enabled |\r\n| ROS2Sensors | 1.1.0 → 1.1.1 | Build fixes for the 2610 engine (`AUTOMOC`, `ConstFieldSpan`) |\r\n| SimulationInterfaces | 2.2.1 → 2.2.2 | Build and test fixes for the 2610 engine, spawning test rework (#1100) |\r\n| ROS2Controllers | 1.1.0 → 1.1.1 | Build fix for the 2610 engine (`AUTOMOC`) |\r\n| LevelGeoreferencing | 1.0.0 → 1.0.1 | Build fixes for the 2610 engine (`AUTOMOC`, `EditorCore`) |\r\n| MachineLearning | 1.0.1 → 1.0.2 | ScriptCanvas update after engine changes (#1101) |\r\n| Ros2ProjectTemplate | 3.0.1 → 3.0.2 | `AUTOMOC`/`AUTORCC` removed from the template's Gem CMake |\r\n\r\n## How was this PR tested?\r\n\r\n- All 79 zips for 2409.0–2605.0 are uploaded to their releases. Each GitHub asset digest matches `repo.json`, and each URL resolves. `o3de download` succeeds for a sample covering every tag.\r\n- The 2610.0 zips pass the engine's download validation offline (SHA-256 and manifest). They will be uploaded once the `2610.0` release exists.\r\n- A sample project builds against `stabilization/26100`, and all o3de-extras unit tests pass (122 passed, 1 skipped by design).\r\n",
+      "url": "https://github.com/o3de/o3de-extras/pull/1104",
+      "author": "jhanca-robotecai",
+      "merged_at": "2026-10-14T12:05:13Z",
+      "labels": [
+        "sig/build"
+      ],
+      "files": [
+        "Gems/AzQtComponentsForPython/gem.json",
+        "Gems/ExternalProfilers/TracyProfiler/gem.json",
+        "Gems/LevelGeoreferencing/gem.json",
+        "Gems/MachineLearning/gem.json",
+        "Gems/ROS2/gem.json",
+        "Gems/ROS2Controllers/gem.json",
+        "Gems/ROS2RobotImporter/gem.json",
+        "Gems/ROS2Sensors/gem.json",
+        "Gems/SimulationInterfaces/gem.json",
+        "Templates/Ros2ProjectTemplate/template.json",
+        "repo.json"
+      ],
+      "sig_category": "sig/build",
+      "categorization_source": "label",
+      "description": "repo.json points every Gem released since 2409.0 at its engine release tag instead of the 2.0 placeholder, so o3de download validates them, and the Gems changed for 2610 get new versions (ROS2 4.4.0, ROS2RobotImporter 2.0.0, AzQtComponentsForPython 2.0.0 and others).",
+      "flags": [],
+      "release_machinery": false,
+      "manual_override_sig": null,
+      "manual_override_description": "repo.json points every Gem released since 2409.0 at its engine release tag instead of the 2.0 placeholder, so o3de download validates them, and the Gems changed for 2610 get new versions (ROS2 4.4.0, ROS2RobotImporter 2.0.0, AzQtComponentsForPython 2.0.0 and others).",
+      "manual_override_exclude": null
     }
   ]
 }

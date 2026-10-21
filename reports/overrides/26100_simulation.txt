@@ -110,3 +110,15 @@ The ResetSimulation service treats its scope argument as a bitmask, so combinati
 
 o3de-extras#1085
 Duplicate asset detection and copying code in the Robot Importer's import paths is consolidated, and the wizard checks whether a source asset is already in the project before searching by content.
+
+o3de-extras#1088
+The Robot Importer reads the inertia tensor from URDF and SDF inertial data and applies it to articulation links, instead of leaving PhysX to compute one (needs o3de#20053, also in this release).
+
+o3de-extras#1098
+ROS 2 topic QoS can set the history policy; previously every topic was hard-coded to KeepLast.
+
+o3de-extras#1099
+The Robot Importer shows a warning banner when the project registry settings differ from the robotics templates, since that changes how .dae and .stl files are read, and the warning for more than 64 articulations uses the same style.
+
+o3de-extras#1100
+The SimulationInterfaces editor tests build their spawnable in memory, so the test target no longer runs AssetProcessorBatch or pulls the engine builders into CI, and the TestSimulationEntity prefab that shipped with the Gem is removed.

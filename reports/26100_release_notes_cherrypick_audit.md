@@ -37,7 +37,7 @@ never see.
 - **#20180**: Cherrypicks from development to stabilization _(merge commit: each picked commit keeps its own PR number)_
   - ✓ #20119: present in the rendered report
   - ✓ #20126: present in the rendered report
-  - ✓ #20127: present in the rendered report
+  - ⚠ #20127: collected but FILTERED OUT of the report (manual_exclude); shipped in the point release, so verify
   - ✓ #20130: present in the rendered report
   - ✓ #20131: present in the rendered report
   - ✓ #20138: present in the rendered report
@@ -135,6 +135,12 @@ never see.
 
 ## o3de/o3de-extras
 
+- **#1103**: Development -> Stabilization cherries: part 2 (#1103) _(bundled PRs read from the PR's commit list on GitHub)_
+  - ✓ #1088: present in the rendered report, recovered from this container
+  - ✓ #1098: present in the rendered report, recovered from this container
+  - ✓ #1099: present in the rendered report, recovered from this container
+  - ✓ #1100: present in the rendered report, recovered from this container
+  - ✓ #1101: present in the rendered report, recovered from this container
 - **#1095**: Development -> Stabilization cherries: part 1 (#1095) _(bundled PRs read from the PR's commit list on GitHub)_
   - ✓ #1066: present in the rendered report, recovered from this container
   - ✓ #1067: present in the rendered report, recovered from this container
@@ -158,4 +164,4 @@ never see.
 
 ---
 
-**Summary:** 23 container(s) checked, 96 bundled PR reference(s) parsed: 49 rendered, 0 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**
+**Summary:** 24 container(s) checked, 101 bundled PR reference(s) parsed: 53 rendered, 1 filtered out, 38 already reported previously, 9 unaccounted for. **Action required before publishing.**

@@ -140,3 +140,6 @@ Third-party packages and LFS objects are fetched from o3debinaries.org endpoints
 
 o3de-extras#1089
 A workflow builds and tests the simulation Gems on every pull request that touches them, against the engine at the matching branch.
+
+o3de-extras#1104
+repo.json points every Gem released since 2409.0 at its engine release tag instead of the 2.0 placeholder, so o3de download validates them, and the Gems changed for 2610 get new versions (ROS2 4.4.0, ROS2RobotImporter 2.0.0, AzQtComponentsForPython 2.0.0 and others).
