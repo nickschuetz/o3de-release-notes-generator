@@ -8894,12 +8894,11 @@
         "Code/Editor/splashscreen_background.png",
         "cmake/Platform/Windows/Packaging/product_logo.png"
       ],
-      "sig_category": "sig/content",
-      "categorization_source": "manual_override",
+      "sig_category": "sig/build",
+      "categorization_source": "label",
       "description": "The Editor and launchers carry a new splash screen and product logo for the 26.10.0 release.",
       "flags": [],
       "release_machinery": false,
-      "manual_override_sig": "sig/content",
       "manual_override_description": "The Editor and launchers carry a new splash screen and product logo for the 26.10.0 release.",
       "manual_override_exclude": null
     },
