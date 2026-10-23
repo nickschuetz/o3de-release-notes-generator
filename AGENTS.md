@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Working notes for anyone, person or tool, changing this repository: the invariants and the incidents behind them. ARCHITECTURE.md explains the design; this file says what not to break and why.
+
 ## Project overview
 
 O3DE Release Notes Generator: a standalone Python tool that generates Open 3D Engine release notes from merged pull requests. Zero external dependencies (Python 3.10+ stdlib only).

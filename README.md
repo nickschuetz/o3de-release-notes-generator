@@ -4,7 +4,7 @@ A standalone tool that generates [Open 3D Engine (O3DE)](https://o3de.org) relea
 
 Designed to be run incrementally throughout the pre-release cycle so the release team can track progress as PRs land.
 
-Currently in use for the **O3DE 26.10.0** cycle. See [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) for the step-by-step procedure.
+It produced the official **O3DE 26.10.0** release notes, published in [o3de/sig-release](https://github.com/o3de/sig-release/blob/main/releases/26.10.0/26.10.0.md); that cycle is the worked example throughout these docs. See [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) for the step-by-step procedure.
 
 ## Prerequisites
 
@@ -34,10 +34,12 @@ shipped in 26.05.0. The previous report is committed at
 `reports/26050_release_data.json`, so the command above works in a fresh clone.
 See [Excluding the Previous Release](#excluding-the-previous-release).
 
-`--to-ref origin/stabilization/26100` is correct as of 2026-08-11, when that
-branch was cut; before that it was `origin/development`. If point releases ship
-on the `2605` line, use the latest of them (`2605.1`, `2605.2`, …) as
-`--from-ref`.
+**Starting a new cycle.** `--from-ref` is the last tag of the previous line
+(`2610.0`, or the latest point release such as `2610.1` if any shipped).
+`--to-ref` is `origin/development` until the stabilization branch is cut, then
+`origin/stabilization/NNNNN`. `--exclude-json` names the previous cycle's
+`reports/<prev>_release_data.json`, and the new outputs take the new
+release's prefix so they never overwrite their exclusion source.
 
 Two things about the clone matter as much as the refs. A **shallow** clone
 answers `git log A..B` from whatever history it holds and silently truncates the
@@ -66,11 +68,13 @@ o3de-release-notes-generator/
 │   └── test_release_notes.py       # Unit tests
 ├── reports/                        # Per-release reports (committed)
 │   ├── 26050_release_data.json     # 26.05.0 report; exclusion source for 26.10.0
-│   ├── 26100_release_data.json     # 26.10.0 working draft
-│   ├── 26100_release_notes.md      # 26.10.0 rendered draft
+│   ├── 26050_release_notes.md      # 26.05.0 rendered notes
+│   ├── 26050_release_notes_pointrelease_audit.md
+│   ├── 26100_release_data.json     # 26.10.0 report; exclusion source for the next cycle
+│   ├── 26100_release_notes.md      # 26.10.0 notes as shipped
 │   ├── 26100_release_notes_cherrypick_audit.md
 │   ├── 26100_release_notes_sig_review.md
-│   ├── overrides/                  # Hand-written bullets per SIG, applied by apply.py
+│   ├── overrides/                  # Hand-written bullets and exclusions per SIG, applied by apply.py
 │   └── hints/                      # Narrative drafts (--summary-file) and LLM hints (--summary-hint)
 ├── .github/
 │   └── workflows/
@@ -323,7 +327,7 @@ To load the hint from a file, prefix the path with `@`:
 
 This is useful for longer guidance or when reusing the same narrative direction across incremental runs.
 
-### Fetch only (for AI agent consumption)
+### Fetch only (for programmatic use)
 
 ```bash
 python release_notes.py fetch \
@@ -542,7 +546,7 @@ the fix did reach the reader, through its twin's bullet.
 
 ## JSON Schema
 
-The intermediate JSON is the primary data format. It can be edited by humans or consumed by AI agents.
+The intermediate JSON is the primary data format. It can be edited by hand or consumed by other tools.
 
 ```json
 {
@@ -556,7 +560,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
       "o3de/o3de-extras": "/home/user/PROJECTS/o3de-extras"
     },
     "schema_version": 9,
-    "tool_version": "0.16.2-beta",
+    "tool_version": "0.16.3-beta",
     "pr_count": 220,
     "categorization_summary": {
       "label": 131,
@@ -569,7 +573,7 @@ The intermediate JSON is the primary data format. It can be edited by humans or 
     "readability": {
       "narrative": {"grade": 9.3, "ease": 55.0, "words": 928, "sentences": 63},
       "full_list": {"grade": 11.4, "ease": 48.9, "words": 4965, "sentences": 248},
-      "tool_version": "0.16.2-beta"
+      "tool_version": "0.16.3-beta"
     },
     "merge_bases": {
       "o3de/o3de": {

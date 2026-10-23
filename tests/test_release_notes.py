@@ -4269,3 +4269,58 @@ class TestSummaryFile:
             assert parser.parse_args(['--input-json', 'a', '--output-md', 'b',
                                       '--release-version', '1', '--summary-file', 's.md'
                                       ]).summary_file == 's.md'
+
+
+class TestOverrideApply:
+    """reports/overrides/apply.py: the editing-log script behind the bullets."""
+
+    @staticmethod
+    def _load():
+        import importlib.util
+        path = pathlib.Path(__file__).resolve().parent.parent / 'reports' / 'overrides' / 'apply.py'
+        spec = importlib.util.spec_from_file_location('apply_overrides', path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        return module
+
+    @staticmethod
+    def _data(tmp_path):
+        data = {'metadata': {}, 'pull_requests': [
+            {'repo': 'o3de/o3de', 'number': 1, 'manual_override_exclude': 'old reason'},
+            {'repo': 'o3de/o3de', 'number': 2},
+        ]}
+        path = tmp_path / 'data.json'
+        path.write_text(json.dumps(data), encoding='utf-8')
+        return path
+
+    def test_refuses_to_run_without_override_files(self, tmp_path, monkeypatch, capsys):
+        apply = self._load()
+        path = self._data(tmp_path)
+        before = path.read_text(encoding='utf-8')
+        monkeypatch.setattr(sys, 'argv', ['apply.py', str(path)])
+        assert apply.main() == 2
+        assert 'usage' in capsys.readouterr().err
+        assert path.read_text(encoding='utf-8') == before
+
+    def test_applies_descriptions_and_exclusions(self, tmp_path, monkeypatch):
+        apply = self._load()
+        path = self._data(tmp_path)
+        overrides = tmp_path / 'o.txt'
+        overrides.write_text('o3de#2\nOne sentence.\n\nexclude o3de#1\nFixes a break from #2.\n', encoding='utf-8')
+        monkeypatch.setattr(sys, 'argv', ['apply.py', str(path), str(overrides)])
+        assert apply.main() == 0
+        prs = {p['number']: p for p in json.loads(path.read_text(encoding='utf-8'))['pull_requests']}
+        assert prs[2]['manual_override_description'] == 'One sentence.'
+        assert prs[1]['manual_override_exclude'] == 'Fixes a break from #2.'
+
+    def test_exclusions_are_authoritative(self, tmp_path, monkeypatch):
+        apply = self._load()
+        path = self._data(tmp_path)
+        overrides = tmp_path / 'o.txt'
+        overrides.write_text('o3de#2\nOne sentence.\n', encoding='utf-8')
+        monkeypatch.setattr(sys, 'argv', ['apply.py', str(path), str(overrides)])
+        assert apply.main() == 0
+        prs = {p['number']: p for p in json.loads(path.read_text(encoding='utf-8'))['pull_requests']}
+        assert prs[1]['manual_override_exclude'] is None
+

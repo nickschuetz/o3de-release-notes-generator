@@ -4,7 +4,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-20T18:00:57.345841+00:00",
+    "timestamp": "2026-10-23T11:56:47.709535+00:00",
     "tools": {
       "components": [
         {
@@ -19,7 +19,7 @@
       "type": "application",
       "bom-ref": "o3de_release_notes_generator",
       "name": "o3de_release_notes_generator",
-      "version": "0.16.2-beta",
+      "version": "0.16.3-beta",
       "description": "Generates O3DE release notes from merged pull requests",
       "licenses": [
         {
@@ -133,6 +133,21 @@
       "scope": "required",
       "purl": "pkg:generic/hashlib@3.10?distro=cpython-stdlib",
       "description": "Python stdlib module: hashlib",
+      "properties": [
+        {
+          "name": "cdx:source",
+          "value": "python-stdlib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "stdlib:importlib",
+      "name": "importlib",
+      "version": "3.10",
+      "scope": "required",
+      "purl": "pkg:generic/importlib@3.10?distro=cpython-stdlib",
+      "description": "Python stdlib module: importlib",
       "properties": [
         {
           "name": "cdx:source",
@@ -357,7 +372,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "277a859b108c86ea4b5250c775cd7f1b159779cbd8f67469c52d40ede6b2aac7"
+          "content": "09d45d74a1ecffe45c4c2965025590bd3153cce2d156711cc4f9e09368f78979"
         }
       ]
     },
@@ -368,7 +383,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "0039c22680d861c004bfb4e84af8caab2915dec9d7af8a2501c1f06652cd339e"
+          "content": "5882bbded7fbe20ad1e205d6849e1d309531f8ad6f6e5944ec7145ca8e3759f5"
         }
       ]
     },
@@ -379,7 +394,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "4c67b62ed03a61d2eef40d44224853655229920f2b2e5770d20efe0d876fe17d"
+          "content": "f38159cf87a0ad2fc2687ef2ae92cece7b2b4995d11484284d09412b9f586d58"
         }
       ]
     }
@@ -394,6 +409,7 @@
         "stdlib:datetime",
         "stdlib:fnmatch",
         "stdlib:hashlib",
+        "stdlib:importlib",
         "stdlib:json",
         "stdlib:logging",
         "stdlib:os",
@@ -414,5 +430,5 @@
       ]
     }
   ],
-  "serialNumber": "urn:uuid:64a6efb4-139a-4abd-b4ac-223c38b36e19"
+  "serialNumber": "urn:uuid:cc7a7d2c-870b-4fe0-aea5-ae9b57b15501"
 }

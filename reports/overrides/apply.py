@@ -2,6 +2,10 @@
 
 Usage: python reports/overrides/apply.py reports/26100_release_data.json reports/overrides/26100_*.txt
 
+At least one override file is required. Exclusions are authoritative (see
+below), so a run with only the data file would clear every exclusion; the
+script prints usage and exits 2 instead.
+
 Each override file is a list of entries separated by blank lines. An entry's
 first line is `<repo>#<number>`, the rest is the description. The text lands
 in `manual_override_description`, which survives re-runs and takes effect on
@@ -43,6 +47,12 @@ def parse(path: pathlib.Path) -> tuple[Entries, Entries]:
 
 
 def main() -> int:
+    if len(sys.argv) < 3:
+        print('usage: apply.py <release_data.json> <override.txt> [<override.txt> ...]\n'
+              'Refusing to run without override files: exclusions are authoritative, so an\n'
+              'empty set would clear every manual_override_exclude in the data file.',
+              file=sys.stderr)
+        return 2
     data_path = pathlib.Path(sys.argv[1])
     overrides: Entries = {}
     exclusions: Entries = {}

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.3-beta] - 2026-10-23
+
+### Changed
+- `reports/overrides/apply.py` refuses to run without at least one override file. Exclusions are authoritative, so a run with only the data file cleared every `manual_override_exclude`; it now prints usage and exits 2.
+- Documentation brought in line with the code and extended for the next release manager. ARCHITECTURE gives the categorization order the code uses (label, file ownership, title) in its diagram as well as its prose, lists the complete release-machinery file set, and shows the summary and override inputs and all three sidecars. The runbook gains a Publish step (the sig-release copy and review PR, the GitHub Release body, keeping the file identical to generator output), the rule to regenerate every repository after every cherry-pick pass, and the apply.py note; dated readings from 26.10.0 are marked as such. CONTRIBUTING states the DCO sign-off requirement and that the SBOM is regenerated after the last edit. The README describes 26.10.0 as a completed cycle, says how to start the next one, and shows the shipped shape of the notes as its sample.
+- 3 new tests (567 -> 570).
+
 ## [0.16.2-beta] - 2026-10-20
 
 ### Added

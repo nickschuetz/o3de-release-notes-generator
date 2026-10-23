@@ -45,7 +45,7 @@ These are not preferences; they are project invariants. PRs that violate them wi
   an equality, and nothing parses prose. If an example genuinely should not carry
   `--exclude-json` (a first-ever release, say), put
   `# doc-check: exclusion-not-applicable` in the fenced block.
-- **Regenerate the SBOM.** If you touch `release_notes.py`, `generate_sbom.py`, or the tests, run `make sbom` and commit the result; `make sbom-check` gates CI.
+- **Regenerate the SBOM last.** If you touch `release_notes.py`, `generate_sbom.py`, or the tests, run `make sbom` after the final edit to any of them, run `make sbom-check`, then commit; `make sbom-check` gates CI, and a hash taken before a last-minute edit fails every job.
 - **Deterministic output.** When tiebreaking between SIGs (labels or title keywords), use `SIG_CANONICAL_ORDER`. Do not introduce ordering that depends on dict iteration or API response order.
 - **Comments explain why, not what.** Good identifier names already describe what the code does, comment only when the why is non-obvious (a hidden constraint, a subtle invariant, a workaround for a specific bug).
 
@@ -56,6 +56,10 @@ python -m pytest tests/ -v
 ```
 
 The test suite uses `pytest` and `unittest.mock`. **No network calls.** All `gh` / `git` / LLM invocations are mocked. If you need new test infrastructure, prefer adding a fixture to the existing file over creating a new file.
+
+## Sign-off (DCO)
+
+Every commit must carry a `Signed-off-by` line, as in the Open 3D Engine repositories: use `git commit -s`. By signing off you certify the [Developer Certificate of Origin](https://developercertificate.org/). A pull request with an unsigned commit will be asked to amend it.
 
 ## Licensing
 

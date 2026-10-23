@@ -13,6 +13,11 @@ for the 26.10.0 cycle; the shape is the same for any release.
 `--to-ref` is `origin/development` until the stabilization branch is cut, then
 `origin/stabilization/26100`. Both were cut for 26.10.0 on 2026-08-11.
 
+The examples below write `origin/...`. In a maintainer's clone `origin` is
+usually a personal fork and `o3de/o3de` is `upstream`; if so, write
+`upstream/...` in every command (step 1 says how to check). The 26.10.0 notes
+were generated against `upstream/stabilization/26100`.
+
 `o3de-extras` was untagged on the 2605 line for most of the cycle, and this
 runbook told you to pass `--repo-from-ref o3de/o3de-extras=2510.2`. That is no
 longer needed and is now slightly wrong: the wider window reaches back past
@@ -288,6 +293,11 @@ python release_notes.py render --input-json reports/26100_release_data.json \
   --output-md reports/26100_release_notes.md --release-version 26.10.0
 ```
 
+Always pass the override files. The script refuses to run with only the data
+file, because exclusions are authoritative and an empty set would clear every
+`manual_override_exclude` (that happened once before the guard existed; the
+next apply with the files restored them).
+
 The script writes each entry into `manual_override_description`, so the JSON
 stays the source of truth and the text survives re-runs; the files are the
 editing log and are easy to review as a diff. An entry is `<repo>#<number>` on
@@ -365,6 +375,13 @@ recovered 26 PRs from them. Look for the `recovered N PR(s) from squashed
 cherry-pick` lines in the log, and for a WARNING saying a container's commit
 list could not be read: that one means fixes are missing and the run should be
 repeated.
+
+**Regenerate every repository after every pass, not only the one that
+prompted the run.** On 2026-10-21 a regeneration prompted by one `o3de` PR
+also found a second squashed pass in `o3de-extras` (#1103, five fixes) and a
+version-bump PR (#1104) that had landed nine days earlier; seven entries would
+otherwise have been missing on the deadline. The `generate` command above
+covers both repositories, so the rule is simply to run it, every time.
 
 The sidecar confirms the result. A merge-commit container is listed with a
 note, a squashed one with "bundled PRs read from the PR's commit list on
@@ -464,6 +481,35 @@ which is why cherry-pick detection uses title evidence and never labels.
 - [ ] Narrative summary read end to end
 - [ ] Spot-check a few bullets against their PRs on GitHub
 - [ ] `metadata.tool_version` in the JSON matches the version you intended to run
+
+## 9. Publish
+
+The generator repository is not where the notes are published. Once the
+checklist above is clean:
+
+1. Commit the regenerated `reports/` files here (data JSON, rendered notes,
+   sidecars, override files, narrative). The JSON is next cycle's exclusion
+   source, so it must be on `main`.
+2. Copy the rendered file, byte for byte, to
+   `o3de/sig-release/releases/<version>/<version>.md` on a branch of your fork
+   and open a pull request there (26.05.0: sig-release#370; 26.10.0:
+   sig-release#375). That PR is where SIG chairs and the docs team review.
+3. Port every review edit back into this repository first (the narrative file,
+   an override file, or a `sig/*` label on the pull request), re-render, and
+   re-copy. Keep the sig-release file identical to generator output, so that a
+   late cherry-pick pass means a regenerate and a copy, never a hand merge.
+   Before each copy, fetch the branch and check that no reviewer pushed a
+   commit to it.
+4. Merge the sig-release PR before release day. The GitHub Release that the
+   release engineer publishes on the `MAJOR.MINOR` tag
+   (https://github.com/o3de/o3de/releases) links that file in its body, and
+   the docs team republishes it on o3de.org from the same source.
+5. Tag this repository if the tool changed during the cycle, and note the
+   `metadata.tool_version` the shipped notes were rendered with.
+
+For 26.10.0 the notes were due to the docs team six days before release day,
+the PR stayed open until that day so other SIGs could push edits, and the file
+was re-copied four times as reviews and cherry-picks landed.
 
 ## Re-running mid-cycle
 
