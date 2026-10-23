@@ -78,8 +78,9 @@ Release manager: @nickschuetz. Docs PM: @ShaunaGordon.
 | Oct. 29, 2026 | Marketing announcement | |
 
 The Docs milestone "(Docs) Release Notes Finalized (features + known issues)"
-is still **TBD** on the issue. That date is the real deadline for this tool's
-output, so it is worth pinning early.
+was left TBD on the issue until late in the cycle and ended up as Oct. 22,
+six days before release day. That date is the real deadline for this tool's
+output, so pin it early in the next cycle.
 
 **Repo coverage is narrower than the release.** Release day tags `o3de`,
 `o3de-multiplayersample`, `o3de-netsoaktest`, `o3de-extras`, and
@@ -378,7 +379,7 @@ Each bundled PR is marked:
 
 Check every ⚠ and ✗ before publishing. A ✗ is not automatically a loss: the
 window reaches back to the merge-base, so containers from earlier cycles appear
-too. Every run since 2026-09-03 has shown the same 9, all from the 26.05 and 25.10 cycles, and
+too. For 26.10.0, every run from 2026-09-03 to release showed the same 9, all from the 26.05 and 25.10 cycles, and
 #19777 among them turned out to be a genuine gap in the 26.05.0 notes rather
 than anything owed to 26.10.0. A container that predates the branch cut
 belongs to an earlier cycle by construction.
@@ -389,7 +390,7 @@ Suppress the sidecar with `--no-pointrelease-audit`.
 
 Two labels bracket the release branch, and they answer different questions.
 
-### `need-sync/to-stabilization` — what is still owed to the release
+### `need-sync/to-stabilization`: what is still owed to the release
 
 [Open PRs with this label](https://github.com/o3de/o3de/issues?q=state%3Aopen%20label%3Aneed-sync%2Fto-stabilization)
 are destined for this release but are not in it yet. This is the forward-looking
@@ -418,14 +419,15 @@ prs() { git log --format=%s "$1" | grep -oE '\(#[0-9]+\)$|^Merge pull request #[
 comm -23 <(prs 2605.0..upstream/development) <(prs 2605.0..origin/stabilization/26100)
 ```
 
-That currently yields 5: `#20003 #20004 #20005 #20008 #20013`. Only `#20013`
-carries the label, so the rest are not (yet) claimed for this release.
+On 2026-08-20 that yielded 5: `#20003 #20004 #20005 #20008 #20013`. Only
+`#20013` carried the label, so the rest were not claimed for the release. By
+release day the list was empty.
 
 **Run this against `upstream/development`, not `origin/development`.** The fork
-lags, and it was 2 commits behind on 2026-08-20 — enough to hide `#20013`
+lags, and it was 2 commits behind on 2026-08-20, enough to hide `#20013`
 entirely.
 
-### `need-sync/to-development` — what came in through the back door
+### `need-sync/to-development`: what came in through the back door
 
 PRs merged **directly into the stabilization branch** carry this label so they
 get ported back to `development`. They matter to the notes for a different

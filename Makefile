@@ -30,14 +30,14 @@ lint:
 	@if $(PYTHON) -m ruff --version >/dev/null 2>&1; then \
 		$(PYTHON) -m ruff check release_notes.py generate_sbom.py tests/; \
 	else \
-		echo "ruff not installed — skipping (install with: pip install ruff)"; \
+		echo "ruff not installed, skipping (install with: pip install ruff)"; \
 	fi
 
 typecheck:
 	@if $(PYTHON) -m mypy --version >/dev/null 2>&1; then \
 		$(PYTHON) -m mypy release_notes.py generate_sbom.py; \
 	else \
-		echo "mypy not installed — skipping (install with: pip install mypy)"; \
+		echo "mypy not installed, skipping (install with: pip install mypy)"; \
 	fi
 
 check: test lint typecheck sbom-check

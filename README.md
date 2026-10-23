@@ -149,7 +149,8 @@ python release_notes.py render \
   [--summary-cmd <command>] \
   [--summary-hint <text>] \
   [--summary-timeout <seconds>] \
-  [--log-file PATH]
+  [--log-file PATH] \
+  [-v]
 ```
 
 | Flag | Required | Default | Description |
@@ -167,6 +168,7 @@ python release_notes.py render \
 | `--summary-hint` | No | - | Narrative guidance: inline text or `@filepath` to read from a file |
 | `--summary-timeout` | No | `300` | Timeout (seconds) for the summary command (range: 10–3600) |
 | `--log-file` | No | - | Append logs to this file in addition to stderr. The path is validated like any other output path; if it is unwritable the run continues with stderr-only logging rather than aborting |
+| `-v`, `--verbose` | No | - | Verbose logging |
 
 ### `generate` - Fetch and render in one step
 
@@ -386,34 +388,45 @@ The tool auto-detects the point-release pattern and:
 
 ## Sample Output
 
-A real run over the 26.10.0 window (`o3de/o3de`, 181 PRs after excluding the
-26.05.0 report) renders something like:
+The 26.10.0 notes as shipped are checked in at
+[`reports/26100_release_notes.md`](reports/26100_release_notes.md), rendered
+from the data in `reports/26100_release_data.json` with the narrative in
+`reports/hints/26100_summary_draft.md`. The shape is:
 
 ```markdown
 # 26.10.0 Release Notes
 
-The O3DE 26.10.0 release includes bug fixes, performance enhancements,
-and new features across the engine.
+The O3DE 26.10 release moves the Editor onto Qt 6, adds experimental support
+for Apple Silicon, and brings a season of work on robotics simulation to the
+ROS 2 and SimulationInterfaces gems. ...
 
-<!-- TODO: Write a narrative summary of the release highlights -->
+Visit the [Get Started](https://docs.o3de.org/docs/welcome-guide/setup/) page to start using O3DE 26.10.
+
+# Highlights
+
+## Editor
+
+- **The Editor runs on Qt 6**. ...
+
+# Known issues
+
+- ...
 
 # Full list of changes
 
 ## SIG-Build
-- Remove system cmake dependency from the Linux installer. [o3de#19704](https://github.com/o3de/o3de/pull/19704)
-- Update vcpkg baseline for clang-19 builds. [o3de#19712](https://github.com/o3de/o3de/pull/19712)
+- A workflow builds and tests the simulation Gems on every pull request that touches them, against the engine at the matching branch. [o3de-extras#1089](https://github.com/o3de/o3de-extras/pull/1089)
 - ...
 
-## SIG-Graphics-Audio
-- Fix shader compilation error in Atom on dx12. [o3de#19651](https://github.com/o3de/o3de/pull/19651)
-- ...
-
-## SIG-Platform
-- Initial Wayland support for Linux. [o3de#19589](https://github.com/o3de/o3de/pull/19589)
+## SIG-Content
 - ...
 ```
 
-The `<!-- TODO -->` placeholder is replaced with a real narrative when `--summary-file` or `--generate-summary` is used. A complete sample run is checked in under [`reports/`](reports/) (one full release; refresh manually as desired).
+Without `--summary-file` or `--generate-summary`, the narrative slot holds a
+one-line placeholder intro and a `<!-- TODO -->` comment, and each bullet is
+the PR body's first paragraph (or the title) unless
+`manual_override_description` is set. The 26.05.0 report under
+[`reports/`](reports/) shows raw bullets under a model-drafted narrative.
 
 ## Excluding the Previous Release
 
@@ -811,7 +824,7 @@ CI from committing a timestamp-only SBOM change on every push.
 python -m pytest tests/ -v
 ```
 
-300+ unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (labels, file ownership from the built-in map and from each repo's CODEOWNERS, title keywords, and how ties are settled), the SIG review sheet, GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
+490+ unit tests covering input validation (including path-traversal edge cases), multi-repo path parsing, SIG categorization (labels, file ownership from the built-in map and from each repo's CODEOWNERS, title keywords, and how ties are settled), the SIG review sheet, GraphQL variable shape, summary prompt building, summary generation (with timeout-bounds validation), LLM output cleaning, markdown rendering (including release-machinery filtering), incremental merging (with drop-warning behavior), dry-run, atomic I/O, stderr token redaction, PR body size capping, point-release tag parsing, sibling-tag discovery, merge-base extraction, cherry-pick container parsing, point-release audit sidecar generation, release-machinery classification, point-release awareness logging, merge-commit PR discovery, per-repo ref overrides and preflight ref
 resolution, render reconciliation accounting, markdown/HTML escaping (including
 the double-escape and raw-HTML regressions), subprocess timeout handling, atomic
 write permissions and durability, SBOM determinism and dependency-graph
